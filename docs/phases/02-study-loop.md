@@ -20,8 +20,13 @@ Anthony can study, add cards and manage decks on desktop and phone. Every screen
 **Acceptance criteria:**
 - Navigation feels native on a phone (one-handed reachable) and efficient on desktop.
 - Theme follows the system setting with a manual override.
+- Content is never hidden behind the status bar, navigation bar, display cutout or on-screen keyboard. Edge-to-edge drawing and safe areas are handled once in the app shell, not per screen.
+- Works with both gesture and three-button navigation, and in portrait and landscape.
+- Checked on the real phone, not only an emulator.
 
 **Review focus:** look and feel. This sets the tone for everything. Ask for alternatives if it feels generic.
+
+**Notes:** Found in 0.2: at Android target API 37 the app draws edge to edge, so placeholder text runs under the status bar.
 
 ---
 

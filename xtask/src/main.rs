@@ -3,6 +3,8 @@
 //! Uses only the standard library so it builds fast and runs the same on
 //! Linux and Windows.
 
+mod doctor_android;
+
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 use std::{env, fs};
@@ -12,7 +14,9 @@ Usage: cargo xtask <task>
 
 Tasks:
   check   Run every check: lockfile guard, Rust fmt/clippy/test/deny, Bun install/lint/typecheck/test
-  fmt     Format all Rust and JS/TS code in place";
+  fmt     Format all Rust and JS/TS code in place
+  doctor-android
+          Check the Android toolchain setup (SDK, NDK, JDK, Rust target, device)";
 
 /// Lockfiles from package managers other than Bun. See "Tooling constraints"
 /// in docs/PRODUCT.md.
@@ -32,6 +36,7 @@ fn main() -> ExitCode {
     let result = match task.as_deref() {
         Some("check") => check(),
         Some("fmt") => fmt(),
+        Some("doctor-android") => doctor_android::run(),
         _ => {
             eprintln!("{USAGE}");
             return ExitCode::FAILURE;

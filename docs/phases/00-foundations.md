@@ -13,6 +13,9 @@ Spike code may be thrown away. ADRs are the real output.
 - ADRs accepted for: workspace layout, UI-to-core bridge, web approach, scheduling, card sandbox, data model and sync strategy.
 - A short risks list in the last ADR or a `docs/RISKS.md`.
 
+**Open items:**
+- Windows (from 0.1): desktop app launch and `cargo xtask check` are unverified on Windows. Deferred to a manual check by Anthony.
+
 ---
 
 ## 0.1 Repository and workspace boilerplate
@@ -51,6 +54,8 @@ Spike code may be thrown away. ADRs are the real output.
 - The Android dev and build workflow runs through Bun. Anything that cannot is documented with the reason and the options.
 
 **Review focus:** are the setup instructions complete enough to redo from scratch?
+
+**Status:** done on Android (2026-10-04). Debug APK and USB live reload verified on Anthony's phone (Samsung S24 Ultra, Android 16), with the workflow running through Bun and no Node. Setup instructions are in `README.md`.
 
 ---
 
