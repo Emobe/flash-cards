@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    fc_desktop_lib::run();
+    fc_native_lib::run();
 }

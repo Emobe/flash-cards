@@ -8,7 +8,7 @@ Planning docs are in [`docs/`](docs/README.md); the layout is explained in
 
 ```
 crates/fc-core     Rust core library (domain logic)
-apps/desktop       Tauri v2 host (src-tauri/) and its Vite entry
+apps/native        Tauri v2 host for desktop and Android (src-tauri/) and its Vite entry
 packages/ui        Shared React UI
 xtask              Repository tasks (`cargo xtask ...`)
 scripts/           Bun scripts (e.g. the dev launcher)

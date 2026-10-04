@@ -1,14 +1,14 @@
 [package]
-name = "fc-desktop"
+name = "fc-native"
 version = "0.0.0"
-description = "Tauri host for the desktop and mobile apps."
+description = "Tauri host for the desktop and mobile apps (Linux, Windows, Android)."
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
 [lib]
 # `_lib` suffix avoids a name clash with the binary on Windows.
-name = "fc_desktop_lib"
+name = "fc_native_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [lints]

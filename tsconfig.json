@@ -5,7 +5,7 @@
       "path": "packages/ui"
     },
     {
-      "path": "apps/desktop"
+      "path": "apps/native"
     },
     {
       "path": "scripts"

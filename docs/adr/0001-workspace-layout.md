@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-10-04
+Amended: 2026-10-04 (step 0.2): `apps/desktop` renamed to `apps/native`, see Amendments.
 
 ## Context
 
@@ -19,7 +20,7 @@ pre-empt them.
 ## Options considered
 
 1. **Polyglot monorepo: Cargo workspace plus Bun workspace in one repo (chosen).** Rust crates in
-   `crates/`, Tauri host in `apps/desktop`, shared React UI in `packages/ui`, task entry point
+   `crates/`, Tauri host in `apps/native`, shared React UI in `packages/ui`, task entry point
    `cargo xtask`.
 2. **Tauri-conventional single app.** The Tauri template's layout, with the core as a module in
    `src-tauri`. Simplest at first, but the core would be entangled with Tauri, blocking the server,
@@ -44,7 +45,7 @@ Option 1.
 Cargo.toml              Rust workspace: crates/*, apps/*/src-tauri, xtask
 package.json            Bun workspace: packages/*, apps/*
 crates/fc-core          domain logic
-apps/desktop            Tauri v2 host (src-tauri/) + thin Vite entry
+apps/native             Tauri v2 host for desktop and Android (src-tauri/) + thin Vite entry
 packages/ui             shared React UI
 xtask                   `cargo xtask check` and `cargo xtask fmt`
 scripts                 Bun scripts (dev launcher)
@@ -52,14 +53,14 @@ scripts                 Bun scripts (dev launcher)
 
 - `crates/fc-core` holds domain logic with no dependency on Tauri, the UI, or the OS beyond what it
   needs, so it can target desktop, Android, wasm, the CLI and the server.
-- `apps/desktop` is the Tauri v2 host. Its Rust crate (`fc-desktop`) is mobile-ready (`lib.rs` with
+- `apps/native` is the Tauri v2 host for desktop and mobile. Its Rust crate (`fc-native`) is mobile-ready (`lib.rs` with
   `mobile_entry_point`), so Android (0.2) adds a target, not a restructure. Its frontend is a thin
   Vite entry mounting `packages/ui`.
 - `packages/ui` is the shared React UI. It must not import Tauri APIs directly. Platform access goes
   through an interface to be defined in the bridge ADR (0.3).
 - Future members slot in without root edits: `crates/fc-server`, `crates/fc-cli`, `apps/web`.
 - Naming: Rust crates use an `fc-` prefix (avoids clashing with Rust's built-in `core`); JS packages
-  use neutral unscoped names (`ui`, `desktop`). No app name is baked in, so naming the app later is cheap.
+  use neutral unscoped names (`ui`, `native`). No app name is baked in, so naming the app later is cheap.
 - **Bun** is the package manager, workspace manager, script runner, dev server host and test runner
   for all JS and TS. The only committed JS lockfile is `bun.lock`. `cargo xtask check` fails if a
   lockfile from another package manager exists. Bun is pinned via `packageManager` and `.bun-version`.
@@ -112,3 +113,10 @@ scripts                 Bun scripts (dev launcher)
 - A Tauri upgrade drops gtk-rs 0.18 (remove the RUSTSEC-2024-0370 ignore).
 - A different task runner turns out to be significantly better on Windows.
 - The add-on system (Phase 10) needs its own top-level structure.
+
+## Amendments
+
+- **2026-10-04, step 0.2:** renamed `apps/desktop` to `apps/native` (JS package `desktop` to
+  `native`, crate `fc-desktop` to `fc-native`). The same Tauri project builds desktop and Android,
+  so "desktop" was misleading. Renamed before the Android project was generated, because Android
+  loads the Rust library by name (`fc_native_lib`). No other change to the decision.

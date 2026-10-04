@@ -742,7 +742,7 @@ name = "fc-core"
 version = "0.0.0"
 
 [[package]]
-name = "fc-desktop"
+name = "fc-native"
 version = "0.0.0"
 dependencies = [
  "tauri",
