@@ -103,6 +103,10 @@ scripts                 Bun scripts (dev launcher)
 - The Bun toolchain and `cargo xtask check` behave the same on Windows as on Linux. Not yet
   verified: deferred to a manual check by Anthony (see the 0.1 acceptance criteria).
 - Data model and sync strategy (0.7) do not change crate boundaries.
+- Android (verified in 0.2): the generated Gradle project in `apps/native/src-tauri/gen/android` is
+  committed and calls back into the Tauri CLI via `bun`. The whole Android chain (Bun, Tauri CLI,
+  Gradle on the JDK, cargo with the NDK) runs with no Node. `xtask check` does not build or lint for
+  Android; Android clippy is deferred.
 
 ## Revisit if
 

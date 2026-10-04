@@ -132,3 +132,4 @@ These are feature inputs, not code references.
 
 - Name.
 - Licence (open source at first, may go private later; keep the repo private or avoid outside contributions until decided).
+- Final app/bundle ID (currently the placeholder `dev.placeholder.flashcards`). Pick it before step 2.7 (dogfood builds). Android treats a new ID as a different app, so changing it after real study data is on the phone means a separate install, and the old app's local data is lost when it is uninstalled. It does not have to match the final name.
