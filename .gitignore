@@ -14,7 +14,7 @@ pnpm-lock.yaml
 bun.lockb
 
 # Tauri
-apps/native/src-tauri/gen/
+apps/native/src-tauri/gen/schemas/
 
 # Editors and OS
 .idea/
