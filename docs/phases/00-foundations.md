@@ -25,6 +25,7 @@ Spike code may be thrown away. ADRs are the real output.
 
 **Acceptance criteria:**
 - A fresh clone can run all checks with documented commands on Manjaro and Windows.
+  - Windows: **deferred** (2026-10-04). Verified on Manjaro only; Anthony will check Windows manually later. Open until then.
 - The desktop app launches and shows a placeholder React screen.
 - `CLAUDE.md` follows the starter rules in `PROCESS.md` and stays short.
 - Only a Bun lockfile is committed. Installs, scripts, dev server and tests all run through Bun.

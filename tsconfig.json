@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/ui"
+    },
+    {
+      "path": "apps/desktop"
+    },
+    {
+      "path": "scripts"
+    }
+  ]
+}

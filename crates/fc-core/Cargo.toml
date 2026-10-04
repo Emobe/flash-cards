@@ -1,0 +1,10 @@
+[package]
+name = "fc-core"
+version = "0.0.0"
+description = "Core library: domain logic shared by every app and the sync server."
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

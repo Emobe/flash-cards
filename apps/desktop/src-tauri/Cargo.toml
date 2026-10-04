@@ -1,0 +1,21 @@
+[package]
+name = "fc-desktop"
+version = "0.0.0"
+description = "Tauri host for the desktop and mobile apps."
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+# `_lib` suffix avoids a name clash with the binary on Windows.
+name = "fc_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+tauri = { version = "2", features = [] }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }

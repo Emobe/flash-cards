@@ -1,0 +1,24 @@
+# Rust
+/target/
+
+# Bun / JS
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+
+# Lockfiles from other package managers (Bun only, see docs/PRODUCT.md)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+
+# Tauri
+apps/desktop/src-tauri/gen/
+
+# Editors and OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
