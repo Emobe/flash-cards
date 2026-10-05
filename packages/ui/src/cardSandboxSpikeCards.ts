@@ -77,7 +77,17 @@ export function maliciousCard(appOrigin: string): string {
   var counts = { blocked: 0, succeeded: 0, other: 0 };
   var pending = 0;
   var violations = 0;
-  document.addEventListener("securitypolicyviolation", function () { violations++; });
+  var blockedUrls = [];
+  document.addEventListener("securitypolicyviolation", function (e) { violations++; blockedUrls.push(e.blockedURI); });
+  // Some requests report success even when the CSP then blocks them (a frame fires "load" for its
+  // error page, sendBeacon returns true when it queues). Wait briefly and ask the CSP.
+  function cspBlocked(url) {
+    var bare = url.split("?")[0];
+    return blockedUrls.some(function (u) { return u && (url.indexOf(u) === 0 || u.indexOf(bare) === 0); });
+  }
+  function afterCsp(url, result) {
+    return new Promise(function (resolve) { setTimeout(function () { resolve(cspBlocked(url) ? false : result); }, 300); });
+  }
 
   var NO_BRIDGE = { text: "no bridge in frame" };
   var UNOBSERVABLE = { text: "attempted, outcome not visible from here (the app panel checks)" };
@@ -146,9 +156,9 @@ export function maliciousCard(appOrigin: string): string {
     post(JSON.stringify({ cmd: "call", callback: 1, error: 2, payload: { token: GUESS, method: "debugEmitEvent", input: { message: "FROM-CARD" } }, options: {} }));
     return UNOBSERVABLE;
   }
-  function loaded(element, parent) {
+  function loaded(element, parent, url) {
     return new Promise(function (resolve) {
-      element.onload = function () { resolve(true); };
+      element.onload = function () { resolve(afterCsp(url, true)); };
       element.onerror = function () { resolve(false); };
       parent.appendChild(element);
     });
@@ -210,7 +220,7 @@ export function maliciousCard(appOrigin: string): string {
   attempt("Parent and top", "nested iframe to the app", function () {
     var f = document.createElement("iframe");
     f.src = APP + "/?from=card-iframe";
-    return loaded(f, document.body);
+    return loaded(f, document.body, f.src);
   });
 
   // 3. Storage.
@@ -250,15 +260,18 @@ export function maliciousCard(appOrigin: string): string {
       s.onclose = function () { resolve(false); };
     });
   });
-  attempt("Network", "navigator.sendBeacon", function () { return navigator.sendBeacon("https://example.com/?from=card-beacon", "x"); });
+  attempt("Network", "navigator.sendBeacon", function () {
+    var url = "https://example.com/?from=card-beacon";
+    return afterCsp(url, navigator.sendBeacon(url, "x"));
+  });
   [["the app origin", APP + "/favicon.ico"], ["https://example.com", "https://example.com/x.png"]].forEach(function (t) {
-    attempt("Network", "<img> from " + t[0], function () { var e = new Image(); e.src = t[1]; return loaded(e, document.body); });
+    attempt("Network", "<img> from " + t[0], function () { var e = new Image(); e.src = t[1]; return loaded(e, document.body, t[1]); });
   });
   [["the app origin", APP + "/"], ["https://example.com", "https://example.com/x.css"]].forEach(function (t) {
-    attempt("Network", "<link rel=stylesheet> from " + t[0], function () { var e = document.createElement("link"); e.rel = "stylesheet"; e.href = t[1]; return loaded(e, document.head); });
+    attempt("Network", "<link rel=stylesheet> from " + t[0], function () { var e = document.createElement("link"); e.rel = "stylesheet"; e.href = t[1]; return loaded(e, document.head, t[1]); });
   });
   [["the app origin", APP + "/"], ["https://example.com", "https://example.com/x.js"]].forEach(function (t) {
-    attempt("Network", "<script src> from " + t[0], function () { var e = document.createElement("script"); e.src = t[1]; return loaded(e, document.head); });
+    attempt("Network", "<script src> from " + t[0], function () { var e = document.createElement("script"); e.src = t[1]; return loaded(e, document.head, t[1]); });
   });
   attempt("Network", "import() of a data: module", function () { return import("data:text/javascript,export default 1").then(function () { return true; }); });
   attempt("Network", "Worker from a blob", function () {
