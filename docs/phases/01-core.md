@@ -65,6 +65,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Create, rename and delete note types; add, rename, reorder and remove fields; add and remove templates.
 - Changes that would affect existing notes are handled predictably and tested.
 
+**Status:** done (2026-10-05), pending Anthony's review. Built to ADR 0006 (build notes, step 1.2). Two things were left for later steps: renaming a field does not rewrite `{{Field}}` references in templates (needs the 1.4 parser), and the notes-level tests run against a stand-in table until 1.3 adds notes. The CLI has `fc notetypes` to list; the commands that change note types are 1.14.
+
 ---
 
 ## 1.3 Notes and card generation
@@ -90,6 +92,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Field substitution, conditional sections, front side inclusion on the back, cloze rendering for front and back, references to media.
 - Malformed templates produce a clear error, not a crash.
 - Output is safe to hand to the sandbox from 0.6.
+
+**Carried over from 1.2:** the built-in templates already use `{{Field}}`, `{{FrontSide}}` and `{{cloze:Field}}`, so define the grammar to accept them (or migrate them). Renaming a field must also update `{{OldName}}` in the templates, or report them: 1.2 does not.
 
 ---
 

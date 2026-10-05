@@ -659,3 +659,64 @@ decision. These are the choices step 1.1b left open.
   - Android: the debug APK builds (with `chrono`). It was not installed or run.
 - **Not verified:** Windows, Firefox, Safari, the phone at runtime, clock and device IDs under real
   multi-device sync (Phase 4), speed or size of `register_clock` at 50,000 notes.
+
+## Build notes (step 1.2)
+
+Note types, fields and templates, built to this ADR with no change to the decision. These are the
+choices step 1.2 left open.
+
+- **Tables.** `note_type` (name, kind, css, sort_field, deleted), `note_type_field` (note_type, name,
+  position, deleted) and `template` (note_type, name, position, front, back, deleted). The sync
+  entity types are `note_type`, `note_type_field` and `template`. Field `options` from the indicative
+  table in section 3 is not there: a register can be added later without breaking anything (section
+  10). Every column has a default, so a row that arrives with only some of its registers is harmless.
+  Migration v3 creates them and seeds the built-ins.
+- **Positions.** One `position` register per field or template, a fractional-index string over
+  `0-9A-Za-z` (`notetype::position`, about 100 lines with tests). A list is ordered by `(position,
+  id)`. Moving an item writes only its own position, so two devices that reorder at the same time
+  both keep their change. If the neighbours leave no room (equal or malformed positions after a
+  merge) the list is renumbered, which is a rare path and still converges by last-writer-wins.
+  Positions never end in `0`, which is what keeps room before every one of them.
+- **Built-ins.** Basic, Basic and reversed, Cloze, with UUIDv5 IDs from the name (`fc-builtin-ids-1`
+  namespace), for the note type, each field and each template. They are written by migration v3 with
+  the lowest possible clock, `(hlc 0, nil device)`, marked pushed (`sync::seed_row`). So any real edit
+  on any device beats the seed, a fresh install cannot overwrite an older rename after the first
+  sync, and nothing needs pushing for an untouched built-in. **The seeded content is frozen**: every
+  device writes the same clock, so a version that shipped different text would differ silently. A
+  change to a built-in later is a new migration that writes with real clocks, and only where the row
+  still has the seed clock. They are ordinary note types afterwards: renamed, edited, deleted and
+  restored like any other.
+- **Delete and remove.** Deleting a note type sets its own `deleted` register. Its fields and
+  templates are not touched, they are hidden with it, so restoring is one register. Removing a field
+  or template sets its `deleted` register, restoring clears it, and the item keeps its ID and place.
+  Tombstones for the notes and cards of a deleted note type come with step 1.3, together with the
+  "still referenced, so still alive" rule (section 5).
+- **Rules the API checks, and the database does not.** A note type keeps at least one live field and
+  one live template, and a cloze type has exactly one template. Field and template names are unique
+  within a note type, ignoring case. A removed field or template cannot be restored while a live one
+  has its name. `kind` cannot change after creation. Note type names are not checked: duplicates
+  are allowed, as for decks (section 6). All of these are checks for the person on this device, so a
+  merge can still produce a note type with two fields of one name, and the readers cope (ordering
+  by `(position, id)`).
+- **Read-time rules.** The sort field is the chosen one if it is a live field, otherwise the first
+  live field, and the choice is kept so restoring the field makes it the sort field again. An
+  unknown `kind` (from a newer app) reads as standard. Fields and templates whose note type is
+  missing or deleted are not shown.
+- **Template text** is stored as written. The built-ins use `{{Field}}`, `{{FrontSide}}` and
+  `{{cloze:Field}}`, which step 1.4 defines and checks. **Renaming a field does not rewrite
+  `{{OldName}}` in templates** (that needs 1.4's parser), so a template that still uses the old name
+  is for 1.4's validation to report.
+- **Existing notes.** Notes do not exist yet. Their values will be keyed by field ID (step 1.3), so
+  no note type operation touches note data. The tests for "changes that affect existing notes" use a
+  stand-in table keyed the same way (rename, reorder, remove and restore a field, remove and restore
+  a template, delete and restore a note type: the stored values never change, and what is shown
+  follows the live fields). Step 1.3 repeats them with real notes.
+- **Verified.**
+  - Linux: 49 new core tests (113 in `fc-core` in all), the CLI (`fc notetypes`) on a fresh
+    collection and on a copy of the real desktop collection, upgraded from v2 to v3.
+  - Browser: release wasm in headless Brave 143 on Linux creates a collection at storage version 3 in
+    OPFS (which includes the seed, it is in the same transaction), and reopens it after a reload and a
+    new browser process.
+  - Android: the debug APK builds. It was not installed.
+- **Not verified:** Windows, Firefox, Safari, the phone at runtime, the seeded rows read back in a
+  browser (only the version was), merging note types from two collections (step 1.11).

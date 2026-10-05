@@ -4,13 +4,15 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.2 Note types and fields: in progress on `step/1.2-note-types`. It is the first step that adds synced tables, so follow the rules at the top of `crates/fc-core/src/sync/mod.rs`. Plan approved by Anthony (fractional-index positions, built-ins seeded with the lowest clock, template syntax Mustache-style, field rename does not rewrite templates until 1.4).
+1.2 Note types and fields: built, `cargo xtask check` passes, waiting for Anthony's review of the PR. Next: 1.3 Notes and card generation (new session, Sonnet, `/step 1.3`). It must tombstone the notes and cards of a deleted note type, add the "still referenced, so still alive" rule, and repeat the 1.2 stand-in-table tests with real notes (see ADR 0006 build notes, step 1.2).
 
 ## Branch
 
 `step/1.2-note-types` (from master after PR #10).
 
 ## Done
+
+- 1.2 Note types and fields (ADR 0006 build notes). `fc_core::notetype`: tables `note_type`, `note_type_field`, `template` (migration v3), the built-ins Basic, Basic and reversed, Cloze with fixed IDs seeded with the lowest clock (`sync::seed_row`), create, rename, delete and restore note types, add, rename, reorder, remove and restore fields and templates, fractional-index positions (a move writes one register), name and last-item rules, sort field fallback, read models. `fc notetypes <file>` lists them. 49 new core tests (113 in `fc-core`). Verified on Linux (tests, CLI on a fresh collection and on a copy of the real desktop collection upgraded v2 to v3) and in headless Brave (new collection at storage version 3, survives reload and a new browser process). Android APK builds, not installed.
 
 - 1.1b Sync foundation (ADR 0006 build notes). Reviewed and merged (PR #10). Anthony ran the APK on the phone: it shows "Collection storage version 2", so the phone line of 1.1a and 1.1b at runtime are verified. `fc-core`: `Id` (UUIDv7 from host time and `getrandom`, blob in SQLite, UUID string in the API), `Clock` and `Host`, the HLC saved in `meta`, device ID regenerated for a different installation or on request, schema v2 (`register_clock`, `unknown_register`, `write_guard`, `requirement`), `Collection::write` / `WriteTx` as the only way to write a synced table (guard triggers make the database refuse anything else), the unknown-data store, collection `requires` (reported in `info()`, does not refuse to open). Hosts: `fc-native`, `fc-cli` (system clock via `chrono`, installation ID outside the collection), `fc-wasm` and the web worker (IndexedDB). 64 core tests. Verified on Linux (CLI, desktop app migrated the real collection from v1 to v2) and in headless Brave (`getrandom` works, device ID stable across restart, changes when the installation ID is wiped). Android: APK built and run on the phone by Anthony.
 
@@ -25,10 +27,14 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- 1.2 done so far: `fc_core::notetype` (tables `note_type`, `note_type_field`, `template`, migration v3, built-ins with fixed IDs seeded with the lowest clock, all operations, fractional-index positions, 49 new tests), `cargo xtask check` passes. Remaining: `fc notetypes` CLI command (code written, commit pending), verify on the real desktop collection and the web build, ADR 0006 build notes, phase file status, mark done.
+- Anthony: review and merge the 1.2 PR. When convenient, install the debug APK (`bun run android:build`, `bun run android:install`) and check it shows "Collection storage version 3 (this build supports up to 3)." The desktop app will migrate your real collection to v3 the next time it runs.
+- Then 1.3: new session, Sonnet, `/step 1.3`.
 
 ## Open items
 
+- 1.2 not verified: Windows, Firefox, Safari, the phone at runtime, the seeded rows read back in a browser (only the storage version was), merging note types from two collections (1.11).
+- 1.2 leaves for later steps: renaming a field does not rewrite `{{OldName}}` in templates (1.4, which also defines the template grammar the built-ins already use); tombstones for the notes and cards of a deleted note type and the "alive while referenced" rule (1.3); the CLI commands that change note types (1.14). Built-in content is frozen: changing it needs a new migration (ADR 0006 build notes, step 1.2).
+- No new dependencies in 1.2.
 - 1.1b not verified: Windows, Firefox, Safari, `register_clock` size and speed at 50,000 notes, any real two-device sync (Phase 4).
 - 1.1b leaves for later steps: the merge write method that opens the guard with a remote clock (1.11), a write path for migrations that rewrite synced rows (first migration that needs it), per-entity `requires` registers (steps that need them), unknown events (1.7, 1.11). Phase 4 must read `unsupported_features` before syncing.
 - A restore or import must call `Collection::regenerate_device_id` (1.13): a copy opened by the same installation keeps its device ID.
