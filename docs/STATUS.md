@@ -8,7 +8,7 @@ Kept current by every session. A new session reads this first.
 
 ## Branch
 
-None started for 0.3. Step 0.2 is built and recorded as done on `step/0.2-android` (not yet merged to `master` at the time of writing).
+None started for 0.3. Step 0.2 is merged to `master` (PR #1).
 
 ## Done
 
