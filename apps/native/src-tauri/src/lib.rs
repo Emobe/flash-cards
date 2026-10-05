@@ -5,6 +5,7 @@
 //! (`docs/adr/0002-ui-core-bridge.md`), each guarded by a session token from a fourth command,
 //! `handshake` (`docs/adr/0005-card-sandbox.md`).
 
+mod card;
 mod gate;
 mod hub;
 mod ops;
@@ -129,6 +130,7 @@ pub fn run() {
         .manage(Arc::new(Operations::default()))
         .manage(Arc::new(Gate::default()))
         .invoke_handler(tauri::generate_handler![handshake, call, subscribe, cancel])
+        .register_uri_scheme_protocol("card", |_ctx, request| card::respond(request.uri().path()))
         // A new main-frame load starts a new session: the token is claimed again by the new page.
         // Card frames must not reset it (ADR 0005), so only the `main` webview counts.
         .on_page_load(|webview, payload| {

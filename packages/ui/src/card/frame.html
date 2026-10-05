@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob: data:; media-src blob: data:; font-src blob: data:">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Card</title>
+<script>
+// The trusted part of the card frame (docs/adr/0005-card-sandbox.md). It runs inside
+// <iframe sandbox="allow-scripts">, receives one { html, media } message from the app, and writes
+// the card into this document. Everything the card does afterwards is untrusted.
+(() => {
+  "use strict";
+  var parentWindow = window.parent;
+
+  // Only an opaque origin means the sandbox attribute is really on. Outside it, do nothing.
+  if (self.origin !== "null" || parentWindow === window) {
+    document.documentElement.textContent = "";
+    return;
+  }
+
+  var MEDIA_ELEMENTS = "img, audio, video, source";
+  var received = false;
+
+  function toParent(message) {
+    parentWindow.postMessage(message, "*");
+  }
+
+  function render(html, media) {
+    var parsed = new DOMParser().parseFromString(html, "text/html");
+    // Media works by name: the card names a file, the app supplied its bytes as a Blob.
+    parsed.querySelectorAll(MEDIA_ELEMENTS).forEach((element) => {
+      var name = element.getAttribute("src");
+      if (name !== null && Object.hasOwn(media, name)) {
+        element.setAttribute("src", URL.createObjectURL(media[name]));
+      }
+    });
+    var doctype = parsed.doctype ? `<!DOCTYPE ${parsed.doctype.name}>` : "";
+    // Rewriting the document erases this script's listener, so no second message can arrive.
+    document.open();
+    document.write(doctype + parsed.documentElement.outerHTML);
+    document.close();
+
+    var last = -1;
+    function report() {
+      var px = Math.ceil(document.documentElement.scrollHeight);
+      if (px !== last) {
+        last = px;
+        toParent({ type: "height", px: px });
+      }
+    }
+    new ResizeObserver(report).observe(document.documentElement);
+    report();
+  }
+
+  window.addEventListener("message", (event) => {
+    if (received || event.source !== parentWindow) return;
+    var data = event.data;
+    if (!data || typeof data.html !== "string" || typeof data.media !== "object" || data.media === null) {
+      return;
+    }
+    received = true;
+    render(data.html, data.media);
+  });
+
+  toParent({ type: "ready" });
+})();
+</script>
+</head>
+<body></body>
+</html>

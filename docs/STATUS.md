@@ -26,7 +26,7 @@ Build commits, in order (tick as done):
 - [x] 1. STATUS: ADR 0005 Accepted.
 - [x] 2. Token gate, `handshake`, token on `call`/`subscribe`/`cancel`, Rust tests.
 - [x] 3. Tauri transport token handling, top-frame guard.
-- [ ] 4. `frame.html`, `card` scheme, CSP, capabilities.
+- [x] 4. `frame.html`, `card` scheme, CSP, capabilities.
 - [ ] 5. `CardFrame`, platform wiring, spike media.
 - [ ] 6. Spike panel and malicious cards.
 - [ ] 7. Verification (desktop, phone, web), ADR build notes, ADR 0002 amendment, mark step done.
