@@ -12,7 +12,7 @@ Kept current by every session. A new session reads this first.
 
 ## Done
 
-- 1.2 Note types and fields (ADR 0006 build notes). `fc_core::notetype`: tables `note_type`, `note_type_field`, `template` (migration v3), the built-ins Basic, Basic and reversed, Cloze with fixed IDs seeded with the lowest clock (`sync::seed_row`), create, rename, delete and restore note types, add, rename, reorder, remove and restore fields and templates, fractional-index positions (a move writes one register), name and last-item rules, sort field fallback, read models. `fc notetypes <file>` lists them. 49 new core tests (113 in `fc-core`). Verified on Linux (tests, CLI on a fresh collection and on a copy of the real desktop collection upgraded v2 to v3) and in headless Brave (new collection at storage version 3, survives reload and a new browser process). Android APK builds, not installed.
+- 1.2 Note types and fields (ADR 0006 build notes). `fc_core::notetype`: tables `note_type`, `note_type_field`, `template` (migration v3), the built-ins Basic, Basic and reversed, Cloze with fixed IDs seeded with the lowest clock (`sync::seed_row`), create, rename, delete and restore note types, add, rename, reorder, remove and restore fields and templates, fractional-index positions (a move writes one register), name and last-item rules, sort field fallback, read models. `fc notetypes <file>` lists them. 49 new core tests (113 in `fc-core`). Verified on Linux (tests, CLI on a fresh collection and on a copy of the real desktop collection upgraded v2 to v3) and in headless Brave (new collection at storage version 3, survives reload and a new browser process). Android: Anthony installed the debug APK on the phone and it shows "Collection storage version 3", so the v2 to v3 migration ran on the phone's real collection.
 
 - 1.1b Sync foundation (ADR 0006 build notes). Reviewed and merged (PR #10). Anthony ran the APK on the phone: it shows "Collection storage version 2", so the phone line of 1.1a and 1.1b at runtime are verified. `fc-core`: `Id` (UUIDv7 from host time and `getrandom`, blob in SQLite, UUID string in the API), `Clock` and `Host`, the HLC saved in `meta`, device ID regenerated for a different installation or on request, schema v2 (`register_clock`, `unknown_register`, `write_guard`, `requirement`), `Collection::write` / `WriteTx` as the only way to write a synced table (guard triggers make the database refuse anything else), the unknown-data store, collection `requires` (reported in `info()`, does not refuse to open). Hosts: `fc-native`, `fc-cli` (system clock via `chrono`, installation ID outside the collection), `fc-wasm` and the web worker (IndexedDB). 64 core tests. Verified on Linux (CLI, desktop app migrated the real collection from v1 to v2) and in headless Brave (`getrandom` works, device ID stable across restart, changes when the installation ID is wiped). Android: APK built and run on the phone by Anthony.
 
@@ -27,12 +27,12 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review and merge the 1.2 PR. When convenient, install the debug APK (`bun run android:build`, `bun run android:install`) and check it shows "Collection storage version 3 (this build supports up to 3)." The desktop app will migrate your real collection to v3 the next time it runs.
+- Anthony: review and merge the 1.2 PR. (The phone check is done: version 3.) The desktop app will migrate your real collection to v3 the next time it runs.
 - Then 1.3: new session, Sonnet, `/step 1.3`.
 
 ## Open items
 
-- 1.2 not verified: Windows, Firefox, Safari, the phone at runtime, the seeded rows read back in a browser (only the storage version was), merging note types from two collections (1.11).
+- 1.2 not verified: Windows, Firefox, Safari, the seeded rows read back in a browser (only the storage version was), merging note types from two collections (1.11).
 - 1.2 leaves for later steps: renaming a field does not rewrite `{{OldName}}` in templates (1.4, which also defines the template grammar the built-ins already use); tombstones for the notes and cards of a deleted note type and the "alive while referenced" rule (1.3); the CLI commands that change note types (1.14). Built-in content is frozen: changing it needs a new migration (ADR 0006 build notes, step 1.2).
 - No new dependencies in 1.2.
 - 1.1b not verified: Windows, Firefox, Safari, `register_clock` size and speed at 50,000 notes, any real two-device sync (Phase 4).
@@ -47,7 +47,7 @@ Kept current by every session. A new session reads this first.
 - Installed for the 0.4 experiment (per-user, approved): the `wasm32-unknown-unknown` target for toolchain 1.98.1 and `wasm-bindgen-cli` 0.2.129 in `~/.cargo/bin`. `~/.cargo/bin` is not on the PATH of Claude's shell, so call it by full path or add it to PATH (not done).
 - Web (0.4): verified only in headless Brave (Chromium) on Linux, built and run through Bun. Firefox, Safari, mobile browsers and Windows are unverified. Measurements are in ADR 0003 build notes.
 - Android: call path, progress, cancel, events and attachments verified (0.3a, 0.3b). Reload behaviour of the notice channel on the phone is not.
-- The phone has the 1.1b debug APK (storage version 2).
+- The phone has the 1.2 debug APK (storage version 3).
 - 0.6 not verified: Windows (Tauri may expose IPC to card frames there, the token covers it), Firefox, Safari, a main-frame reload on Android. Freeze recovery for looping cards is Phase 2 (a looping card freezes the app, checked on desktop).
 - Temporary code to delete (the notes spike is already gone): `CardSandboxSpike`, its cards file, `spikeCardMedia` and the sample media (1.10). Lasting: the gate, `handshake`, the `card` scheme, `frame.html`, `CardFrame`, `PlatformContext`.
 - Windows: desktop launch and `cargo xtask check` from step 0.1 are unverified and deferred to a manual check by Anthony.

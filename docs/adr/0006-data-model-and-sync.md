@@ -717,6 +717,6 @@ choices step 1.2 left open.
   - Browser: release wasm in headless Brave 143 on Linux creates a collection at storage version 3 in
     OPFS (which includes the seed, it is in the same transaction), and reopens it after a reload and a
     new browser process.
-  - Android: the debug APK builds. It was not installed.
-- **Not verified:** Windows, Firefox, Safari, the phone at runtime, the seeded rows read back in a
+  - Android: the debug APK builds. Anthony installed it on the phone, which showed storage version 3 (the migration, including the seed, ran on its real collection).
+- **Not verified:** Windows, Firefox, Safari, the seeded rows read back in a
   browser (only the version was), merging note types from two collections (step 1.11).
