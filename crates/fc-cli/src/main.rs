@@ -11,6 +11,8 @@ const USAGE: &str = "\
 Usage:
   fc new <file>    Create an empty collection at <file>
   fc info <file>   Open a collection, print facts about it, and close it
+  fc notetypes <file>
+                   List the note types with their fields and templates
   fc help          Show this text";
 
 fn main() -> ExitCode {
@@ -44,6 +46,26 @@ impl From<fc_core::collection::CollectionError> for Failure {
     }
 }
 
+fn describe(note_type: &fc_core::notetype::NoteType) -> String {
+    let kind = match note_type.kind {
+        fc_core::notetype::Kind::Standard => "standard",
+        fc_core::notetype::Kind::Cloze => "cloze",
+    };
+    let fields: Vec<&str> = note_type.fields.iter().map(|f| f.name.as_str()).collect();
+    let templates: Vec<&str> = note_type
+        .templates
+        .iter()
+        .map(|t| t.name.as_str())
+        .collect();
+    format!(
+        "\n\n{} ({kind})\n  ID: {}\n  Fields: {}\n  Templates: {}",
+        note_type.name,
+        note_type.id,
+        fields.join(", "),
+        templates.join(", ")
+    )
+}
+
 fn run(args: &[String]) -> Result<String, Failure> {
     match args {
         [command] if command == "help" => Ok(USAGE.to_owned()),
@@ -70,8 +92,31 @@ fn run(args: &[String]) -> Result<String, Failure> {
             }
             Ok(text)
         }
+        [command, file] if command == "notetypes" => {
+            let persist = std::path::Path::new(file).exists();
+            let host = host::host_for(file, persist).map_err(Failure::Core)?;
+            let collection = Collection::open(file, host)?;
+            let live = collection
+                .note_types()
+                .map_err(|error| Failure::Core(error.to_string()))?;
+            let deleted = collection
+                .deleted_note_types()
+                .map_err(|error| Failure::Core(error.to_string()))?;
+            collection.close()?;
+            let mut text = format!("Note types in {file}:");
+            for note_type in live {
+                text.push_str(&describe(&note_type));
+            }
+            if !deleted.is_empty() {
+                text.push_str("\n\nDeleted (can be restored):");
+                for note_type in deleted {
+                    text.push_str(&describe(&note_type));
+                }
+            }
+            Ok(text)
+        }
         [] => Err(Failure::Usage("No command given.".to_owned())),
-        [command, ..] if matches!(command.as_str(), "new" | "info" | "help") => Err(
+        [command, ..] if matches!(command.as_str(), "new" | "info" | "notetypes" | "help") => Err(
             Failure::Usage(format!("Wrong number of arguments for \"{command}\".")),
         ),
         [command, ..] => Err(Failure::Usage(format!("Unknown command \"{command}\"."))),
