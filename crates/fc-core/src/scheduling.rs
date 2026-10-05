@@ -2,7 +2,15 @@
 //! does not leak into `fc-api` or the UI. Only what step 0.5 needs: scheduling one card through
 //! reviews and optimising parameters from review history. Queues and deck options are Phase 1.
 
+mod machine;
+
 use fsrs::{ComputeParametersInput, DEFAULT_PARAMETERS, FSRS, FSRSItem, FSRSReview};
+
+use crate::id::Id;
+
+pub use machine::{
+    CardNow, CardState, Due, MAX_INTERVAL_DAYS, Outcome, Steps, answer, fuzz, preview,
+};
 
 /// How well a card was remembered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14,14 +22,26 @@ pub enum Rating {
 }
 
 impl Rating {
-    /// The 1 to 4 scale FSRS uses.
-    fn number(self) -> u32 {
+    /// The 1 to 4 scale FSRS uses, and card events store.
+    pub(crate) fn number(self) -> u32 {
         match self {
             Rating::Again => 1,
             Rating::Hard => 2,
             Rating::Good => 3,
             Rating::Easy => 4,
         }
+    }
+}
+
+impl Rating {
+    pub(crate) fn from_number(number: i64) -> Option<Self> {
+        Some(match number {
+            1 => Self::Again,
+            2 => Self::Hard,
+            3 => Self::Good,
+            4 => Self::Easy,
+            _ => return None,
+        })
     }
 }
 
@@ -129,6 +149,33 @@ impl Scheduler {
 /// number that is not finite.
 pub fn fill_parameters(parameters: &[f32]) -> Option<Vec<f32>> {
     fsrs::check_and_fill_parameters(parameters).ok()
+}
+
+/// The namespace of a parameter set's ID (ADR 0007, part 6).
+const PARAMETERS_NAMESPACE: Id = Id::from_bytes(*b"fc-fsrs-params-1");
+
+/// The 21 values as little-endian `f32` bytes, the form a parameter set is stored and named by.
+pub(crate) fn parameter_bytes(values: &[f32]) -> Vec<u8> {
+    values.iter().flat_map(|v| v.to_le_bytes()).collect()
+}
+
+/// The ID of a parameter set: `UUIDv5("fc-fsrs-parameters-1", the values as little-endian f32)`,
+/// so every device gives the same ID to the same values and the defaults need no seeding.
+pub(crate) fn parameter_set_id(values: &[f32]) -> Id {
+    Id::new_v5(PARAMETERS_NAMESPACE, &parameter_bytes(values))
+}
+
+/// The study day a moment belongs to, counted from 1970-01-01 (ADR 0007, part 2). The day starts
+/// at `start_hour` (0 to 23) local time, where local time is UTC plus `utc_offset_minutes`.
+pub fn study_day(unix_ms: i64, utc_offset_minutes: i32, start_hour: u8) -> i64 {
+    (unix_ms + i64::from(utc_offset_minutes) * 60_000 - i64::from(start_hour) * 3_600_000)
+        .div_euclid(86_400_000)
+}
+
+/// Whole study days from `last` to `today`, never negative: after travelling west "today" can be
+/// earlier than the day of the last answer, and then it counts as the same day.
+pub fn elapsed_days(today: i64, last: i64) -> u32 {
+    today.saturating_sub(last).clamp(0, i64::from(u32::MAX)) as u32
 }
 
 /// The default FSRS-6 parameters.
@@ -311,6 +358,109 @@ mod tests {
         assert_eq!(
             optimise(&[vec![]]).err(),
             Some(SchedulingError::InvalidInput)
+        );
+    }
+}
+
+#[cfg(test)]
+mod day_tests {
+    use super::*;
+
+    const HOUR: i64 = 3_600_000;
+    const DAY: i64 = 24 * HOUR;
+
+    #[test]
+    fn the_day_number_counts_from_1970_01_01() {
+        assert_eq!(study_day(0, 0, 0), 0);
+        assert_eq!(study_day(DAY - 1, 0, 0), 0);
+        assert_eq!(study_day(DAY, 0, 0), 1);
+        // 2023-11-14 22:13:20 UTC.
+        assert_eq!(study_day(1_700_000_000_000, 0, 0), 19_675);
+        // Before 1970 the day numbers go negative and still step once a day.
+        assert_eq!(study_day(-1, 0, 0), -1);
+        assert_eq!(study_day(-DAY, 0, 0), -1);
+        assert_eq!(study_day(-DAY - 1, 0, 0), -2);
+    }
+
+    #[test]
+    fn the_day_starts_at_the_chosen_hour() {
+        for hour in [0u8, 4, 23] {
+            let start = DAY + i64::from(hour) * HOUR;
+            assert_eq!(study_day(start - 1, 0, hour), 0, "hour {hour}");
+            assert_eq!(study_day(start, 0, hour), 1, "hour {hour}");
+            assert_eq!(study_day(start + DAY - 1, 0, hour), 1, "hour {hour}");
+            assert_eq!(study_day(start + DAY, 0, hour), 2, "hour {hour}");
+        }
+    }
+
+    #[test]
+    fn the_offset_moves_the_boundary_to_local_midnight() {
+        // New Zealand summer time, UTC+13 (780), and the far ends: UTC-12 and UTC+14.
+        for offset in [-720, 0, 60, 780, 840] {
+            let midnight_utc = DAY - i64::from(offset) * 60_000;
+            assert_eq!(study_day(midnight_utc - 1, offset, 0), 0, "offset {offset}");
+            assert_eq!(study_day(midnight_utc, offset, 0), 1, "offset {offset}");
+        }
+        // 10:00 UTC on 1970-01-01 is already 1970-01-02 at UTC+14.
+        assert_eq!(study_day(10 * HOUR, 840, 0), 1);
+        // 12:00 UTC is still the previous day at UTC-12.
+        assert_eq!(study_day(11 * HOUR, -720, 0), -1);
+        assert_eq!(study_day(12 * HOUR, -720, 0), 0);
+    }
+
+    #[test]
+    fn offset_and_start_hour_work_together() {
+        // Day starts at 23:00 local at UTC-12 (-720): 23:00 local on 1970-01-01 is 11:00 UTC on
+        // 1970-01-02, and the day that begins then is day 0 (the one before it is day -1).
+        let start = DAY + 11 * HOUR;
+        assert_eq!(study_day(start - 1, -720, 23), -1);
+        assert_eq!(study_day(start, -720, 23), 0);
+        assert_eq!(study_day(start + DAY, -720, 23), 1);
+        // Day starts at 04:00 local at UTC+14 (840): 04:00 local is 14:00 UTC the day before.
+        let start = DAY - 10 * HOUR;
+        assert_eq!(study_day(start - 1, 840, 4), 0);
+        assert_eq!(study_day(start, 840, 4), 1);
+    }
+
+    #[test]
+    fn a_dst_change_makes_one_day_longer_or_shorter_and_nothing_else() {
+        // Clocks go forward: the offset moves from +60 to +120 at 01:00 UTC. A moment just before,
+        // at 00:59 UTC (01:59 local), and one just after, at 01:00 UTC (03:00 local), are the same
+        // study day; the next midnight local (22:00 UTC at +120) starts the next one.
+        let change = 5 * DAY + HOUR;
+        let day = study_day(change - 60_000, 60, 0);
+        assert_eq!(study_day(change, 120, 0), day);
+        let next_midnight = 5 * DAY + 22 * HOUR;
+        assert_eq!(study_day(next_midnight - 1, 120, 0), day);
+        assert_eq!(study_day(next_midnight, 120, 0), day + 1);
+    }
+
+    #[test]
+    fn elapsed_days_never_go_below_zero() {
+        assert_eq!(elapsed_days(10, 7), 3);
+        assert_eq!(elapsed_days(7, 7), 0);
+        // Travelling west: today is earlier than the day of the last answer.
+        assert_eq!(elapsed_days(6, 7), 0);
+        assert_eq!(elapsed_days(i64::MIN, i64::MAX), 0);
+        assert_eq!(elapsed_days(i64::MAX, i64::MIN), u32::MAX);
+    }
+
+    #[test]
+    fn a_parameter_set_has_the_same_id_for_the_same_values_on_every_device() {
+        let defaults = default_parameters();
+        assert_eq!(
+            parameter_set_id(defaults),
+            parameter_set_id(&defaults.to_vec())
+        );
+        let mut changed = defaults.to_vec();
+        changed[0] += 0.001;
+        assert_ne!(parameter_set_id(defaults), parameter_set_id(&changed));
+        assert_eq!(parameter_bytes(defaults).len(), 84);
+        // Pinned: the ID is part of the sync format, so it can never change. Worked out
+        // separately (SHA-1 of the namespace and the 84 bytes, outside this crate).
+        assert_eq!(
+            parameter_set_id(defaults).to_string(),
+            "77e38a6d-65b2-5412-9163-cb372a98777b"
         );
     }
 }

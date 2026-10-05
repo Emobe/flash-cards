@@ -30,9 +30,6 @@ pub const SETTING: SyncedTable = SyncedTable {
 /// write the same entity.
 pub(crate) const SETTING_NAMESPACE: Id = Id::from_bytes(*b"fc-setting-ids-1");
 
-/// The namespace of a parameter set's ID (ADR 0007, part 6).
-pub(crate) const PARAMETERS_NAMESPACE: Id = Id::from_bytes(*b"fc-fsrs-params-1");
-
 /// One answer, or a void of one. Columns a kind does not use are null. `day` is the study day the
 /// event belongs to, worked out when it was written from its time, its UTC offset and the start hour
 /// then, so recomputing it never depends on a setting that has changed since.
