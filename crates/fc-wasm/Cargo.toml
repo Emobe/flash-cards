@@ -1,0 +1,23 @@
+[package]
+name = "fc-wasm"
+version = "0.0.0"
+description = "Web host for the core: wasm exports for the browser worker. Counterpart of fc-native."
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[lints]
+workspace = true
+
+# Everything is wasm-only, so the native workspace build compiles an empty crate.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+fc-api = { path = "../fc-api" }
+js-sys = "=0.3.106"
+serde_json = "1"
+sqlite-wasm-rs = "=0.5.5"
+sqlite-wasm-vfs = "=0.2.0"
+wasm-bindgen = "=0.2.129"
+wasm-bindgen-futures = "=0.4.79"

@@ -95,7 +95,10 @@ mod tests {
     fn notes_survive_reopening_a_file() {
         let path = std::env::temp_dir().join(format!("fc-spike-{}.db", std::process::id()));
         let path_str = path.to_str().unwrap();
-        SpikeStore::open(path_str).unwrap().add_note("kept").unwrap();
+        SpikeStore::open(path_str)
+            .unwrap()
+            .add_note("kept")
+            .unwrap();
         let reopened = SpikeStore::open(path_str).unwrap();
         assert_eq!(reopened.list_notes().unwrap(), ["kept"]);
         drop(reopened);
