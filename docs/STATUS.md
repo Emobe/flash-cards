@@ -14,7 +14,7 @@ Kept current by every session. A new session reads this first.
 
 - [x] 1. Migration v7: preset registers `relearning_steps` and `fsrs_parameters` (`Preset`, `PresetChange.relearning_steps`), `collection_setting` with `day_start_hour` / `set_day_start_hour`, append-only `card_event` and `fsrs_parameter_set` (new `AppendOnlyTable` kind, guard triggers, `WriteTx::insert_row`), local `card_schedule` and `unpushed_row`. Tests in `study/tests.rs`.
 - [x] 2. `scheduling`: `study_day`, `elapsed_days`, the state machine (`scheduling/machine.rs`), fuzz, parameter-set ID (namespace `fc-fsrs-params-1`, 16 bytes), previews. Five Good answers from new with steps `1 10`: 10 min, 2, 11, 46, 163 days.
-- [ ] 3. `study::answer`, events, cache update.
+- [x] 3. `study::answer` (events, parameter set, cache in one write), `card_schedule`, `card_events`; tests in `study/answer_tests.rs` (inputs recorded, steps, day boundary across offsets, DST, west travel, clock set back).
 - [ ] 4. Fold and `rebuild_schedule`, `schedule_cache_version`.
 - [ ] 5. `undo_answer`.
 - [ ] 6. CLI: `fc answer`, `fc undo`, `fc schedule`, `--now`, `--utc-offset`.

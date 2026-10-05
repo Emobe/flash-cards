@@ -7,7 +7,12 @@
 //! Three synced tables: `collection_setting` (one row per setting, registers `key` and `value`) and
 //! the append-only `card_event` and `fsrs_parameter_set`. The local `card_schedule` holds the cache.
 
+mod answer;
+#[cfg(test)]
+mod answer_tests;
 mod error;
+mod event;
+mod schedule;
 mod settings;
 #[cfg(test)]
 mod tests;
@@ -15,7 +20,10 @@ mod tests;
 use crate::id::Id;
 use crate::sync::{AppendOnlyTable, SyncedTable};
 
+pub use answer::Answered;
 pub use error::StudyError;
+pub use event::{CardEvent, EventKind};
+pub use schedule::CardSchedule;
 pub use settings::DEFAULT_DAY_START_HOUR;
 
 /// The sync entity types and register and column names are part of the sync format and never change
