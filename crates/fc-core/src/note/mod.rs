@@ -11,8 +11,8 @@
 //! are restored, and live but no longer wanted are deleted. Nothing is ever hard-deleted.
 //!
 //! Three tables: `note` (note type, deleted), `note_field_value` (the values, a [`DynamicTable`]
-//! because the register names are field IDs) and `card` (note, template, ordinal, deleted). A card's
-//! deck, suspension, flag and scheduling arrive with steps 1.5 and 1.7, as extra registers.
+//! because the register names are field IDs) and `card` (note, template, ordinal, deck, deleted).
+//! A card's suspension, flag and scheduling arrive with step 1.7, as extra registers.
 
 mod error;
 mod generate;
@@ -48,7 +48,7 @@ pub const NOTE_VALUE: DynamicTable = DynamicTable {
 pub const CARD: SyncedTable = SyncedTable {
     entity: "card",
     table: "card",
-    registers: &["note", "template", "ordinal", "deleted"],
+    registers: &["note", "template", "ordinal", "deck", "deleted"],
 };
 
 /// A note with its values for the live fields of its note type, in field order. A field with no
@@ -76,5 +76,7 @@ pub struct Card {
     pub template: Id,
     /// The cloze number, or 0 for a template that is not cloze.
     pub ordinal: u32,
+    /// The deck it is in. A card with none stored is in the Default deck.
+    pub deck: Id,
     pub deleted: bool,
 }

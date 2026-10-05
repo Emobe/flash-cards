@@ -44,6 +44,10 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         version: 4,
         apply: v4,
     },
+    Migration {
+        version: 5,
+        apply: v5,
+    },
 ];
 
 /// The newest version in `migrations`.
@@ -217,6 +221,46 @@ fn v4(tx: &Transaction) -> rusqlite::Result<()> {
         )?;
     }
     Ok(())
+}
+
+/// Version 5 (step 1.5): decks, option presets, and a `deck` register on cards. See `crate::deck`.
+///
+/// A card's `deck` is empty for the cards that exist already, which read as being in the Default
+/// deck, so no card is rewritten. The Default deck and preset are seeded with fixed IDs and the
+/// lowest clock. Every column has a default and nothing has a foreign key (ADR 0006, section 6).
+fn v5(tx: &Transaction) -> rusqlite::Result<()> {
+    tx.execute_batch(
+        "CREATE TABLE deck (
+            id BLOB PRIMARY KEY NOT NULL,
+            name TEXT NOT NULL DEFAULT '',
+            parent BLOB NOT NULL DEFAULT x'',
+            options_preset BLOB NOT NULL DEFAULT x'',
+            deleted INTEGER NOT NULL DEFAULT 0
+        ) WITHOUT ROWID;
+        CREATE TABLE options_preset (
+            id BLOB PRIMARY KEY NOT NULL,
+            name TEXT NOT NULL DEFAULT '',
+            new_per_day INTEGER NOT NULL DEFAULT 20,
+            reviews_per_day INTEGER NOT NULL DEFAULT 200,
+            learning_steps TEXT NOT NULL DEFAULT '1 10',
+            desired_retention REAL NOT NULL DEFAULT 0.9,
+            deleted INTEGER NOT NULL DEFAULT 0
+        ) WITHOUT ROWID;
+        ALTER TABLE card ADD COLUMN deck BLOB NOT NULL DEFAULT x'';
+        CREATE INDEX card_by_deck ON card (deck);",
+    )?;
+    // Frozen copies, as in `v2`: the guard only needs the names.
+    for name in ["deck", "options_preset"] {
+        install_guard(
+            tx,
+            &SyncedTable {
+                entity: name,
+                table: name,
+                registers: &[],
+            },
+        )?;
+    }
+    crate::deck::seed(tx)
 }
 
 /// What a database file is, before anything is written to it.

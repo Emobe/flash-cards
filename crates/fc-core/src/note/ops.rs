@@ -2,11 +2,14 @@
 //! connection serves the collection, so nothing changes in between). A change that edits a note also
 //! brings its cards in line, in the same transaction.
 
+use std::collections::HashSet;
+
 use rusqlite::types::Value;
 
 use super::generate::{NoteState, Plan, reconcile, wanted};
 use super::{CARD, NOTE, NOTE_VALUE, NoteError};
 use crate::collection::{Collection, CollectionError};
+use crate::deck::{dead_decks, default_deck};
 use crate::html::comparison_key;
 use crate::id::Id;
 use crate::notetype::NoteType;
@@ -60,15 +63,31 @@ impl Collection {
         }
     }
 
-    /// Adds a note, with values for fields by field ID (a field left out is empty), and makes its
-    /// cards. Refused with `NoCards` if no card would be made, because the note would be invisible.
+    /// Adds a note to the Default deck. See `add_note_to_deck`.
     pub fn add_note(&self, note_type: Id, values: &[(Id, &str)]) -> Result<AddedNote, NoteError> {
+        self.add_note_to_deck(default_deck(), note_type, values)
+    }
+
+    /// Adds a note, with values for fields by field ID (a field left out is empty), and makes its
+    /// cards in `deck`. Refused with `NoCards` if no card would be made, because the note would be
+    /// invisible, and with `NotFound` if the deck is deleted or missing.
+    pub fn add_note_to_deck(
+        &self,
+        deck: Id,
+        note_type: Id,
+        values: &[(Id, &str)],
+    ) -> Result<AddedNote, NoteError> {
+        if self.deck(deck)?.is_none_or(|found| found.deleted) {
+            return Err(NoteError::NotFound);
+        }
         let found = self.live_note_type(note_type)?;
         Self::check_fields(&found, values)?;
         let mut state = NoteState {
             id: Id::from_bytes([0; 16]),
             values: std::collections::HashMap::new(),
             cards: std::collections::HashMap::new(),
+            card_decks: std::collections::HashMap::new(),
+            deck: Some(deck),
         };
         for (field, value) in values {
             state.values.insert(*field, (*value).to_owned());
@@ -97,7 +116,7 @@ impl Collection {
                 }
             }
             state.id = id;
-            let done = reconcile(w, &plan, &state)?;
+            let done = reconcile(w, &plan, &state, &HashSet::new())?;
             Ok((id, done))
         })?;
         Ok(AddedNote {
@@ -158,11 +177,12 @@ impl Collection {
             _ => Vec::new(),
         };
         let plan = Plan::new(&found);
+        let dead = dead_decks(&self.conn)?;
         let done = self.write(|w| {
             for (field, value) in &changed {
                 w.set_value(NOTE_VALUE.entity, note, *field, value)?;
             }
-            reconcile(w, &plan, &state)
+            reconcile(w, &plan, &state, &dead)
         })?;
         Ok(NoteChange {
             added_cards: done.added,
@@ -200,7 +220,7 @@ impl Collection {
                 let plan = Plan::new(&found);
                 let done = self.write(|w| {
                     w.set(NOTE.entity, note, "deleted", flag(false))?;
-                    reconcile(w, &plan, &self.note_state(note)?)
+                    reconcile(w, &plan, &self.note_state(note)?, &HashSet::new())
                 })?;
                 Ok(NoteChange {
                     added_cards: done.added,

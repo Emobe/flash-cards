@@ -98,7 +98,7 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 **Carried over from 1.2 and 1.3:** the built-in templates already use `{{Field}}`, `{{FrontSide}}` and `{{cloze:Field}}`, so define the grammar to accept them (or migrate them). Step 1.3 added `crate::note::scan`, a lenient scanner that decides which cards a note has (fields, filters, `{{#F}}` and `{{^F}}` sections, cloze numbers) and rewrites `{{OldName}}` when a field is renamed. Replace it with this step's parser so there is one reading of the language, and keep the tests in `note/tests.rs` passing.
 
 
-**Status:** done (2026-10-05), pending Anthony's review. Built to ADR 0006 (build notes, step 1.4). `fc_core::template` (lexer, parser with errors, cloze, renderer) replaced `note::scan`; `Collection::render_card` returns the front and back as full HTML documents plus the media names; saving a template with a syntax error is refused, a merge-made bad template still keeps its cards and gives a clear error when rendered. `fc render <file> <note ID>`. Left for 1.10: media in CSS `url()` and scripts (needs a `frame.html` change and 1.10's names). Not wired to the card frame until Phase 2.
+**Status:** done (2026-10-05), merged (PR #13). Built to ADR 0006 (build notes, step 1.4). `fc_core::template` (lexer, parser with errors, cloze, renderer) replaced `note::scan`; `Collection::render_card` returns the front and back as full HTML documents plus the media names; saving a template with a syntax error is refused, a merge-made bad template still keeps its cards and gives a clear error when rendered. `fc render <file> <note ID>`. Left for 1.10: media in CSS `url()` and scripts (needs a `frame.html` change and 1.10's names). Not wired to the card frame until Phase 2.
 ---
 
 ## 1.5 Decks and deck options
@@ -110,6 +110,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 **Acceptance criteria:**
 - Create, rename, move (nest) and delete decks, with a defined behaviour for cards in a deleted deck.
 - Option presets with daily new and review limits, learning steps, desired retention. Presets can be shared by several decks.
+
+**Status:** done (2026-10-05), pending Anthony's review. Built to ADR 0006 (build notes, step 1.5). `fc_core::deck`: decks nest through a `parent` register, cycles and missing parents are settled when reading, deleting a deck deletes its sub-decks, cards and notes left empty (restorable), the Default deck and preset cannot be deleted. Presets: daily limits, learning steps, desired retention, shared by several decks, deleting one sends its decks to the Default preset. `fc decks`, `fc add-deck`, `fc add-note --deck`. Left for 1.7 and 1.8: the FSRS parameters and relearning steps registers, and what the limits mean in queues. Not in any UI or the web API.
 
 ---
 

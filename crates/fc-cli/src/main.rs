@@ -14,8 +14,12 @@ Usage:
   fc notetypes <file>
                    List the note types with their fields and templates
   fc notes <file>  List the notes with their fields and cards
-  fc add-note <file> <note type> <Field=value>...
-                   Add a note. Fields left out are empty. Warns about duplicates
+  fc decks <file>  List the decks as a tree with their card counts, and the option presets
+  fc add-deck <file> <deck>
+                   Add a deck. Use Parent::Child to put it inside an existing deck
+  fc add-note <file> <note type> [--deck <deck>] <Field=value>...
+                   Add a note to a deck (the Default deck if none is given). Fields left out are
+                   empty. Warns about duplicates
   fc render <file> <note ID>
                    Print the front and back HTML of each card of a note, and its media
   fc help          Show this text";
@@ -63,6 +67,12 @@ impl From<fc_core::template::RenderError> for Failure {
     }
 }
 
+impl From<fc_core::deck::DeckError> for Failure {
+    fn from(error: fc_core::deck::DeckError) -> Self {
+        Self::Core(error.to_string())
+    }
+}
+
 impl From<fc_core::collection::CollectionError> for Failure {
     fn from(error: fc_core::collection::CollectionError) -> Self {
         Self::Core(error.to_string())
@@ -101,6 +111,26 @@ fn card_name(note_type: &fc_core::notetype::NoteType, card: &fc_core::note::Card
     } else {
         format!("{template} {}", card.ordinal)
     }
+}
+
+/// The live deck at a path such as `Polish::Verbs`, ignoring case.
+fn find_deck(collection: &Collection, path: &str) -> Result<fc_core::deck::Deck, Failure> {
+    let wanted = path.to_lowercase();
+    let decks = collection.decks()?;
+    match decks.iter().find(|d| d.path.to_lowercase() == wanted) {
+        Some(deck) => Ok(deck.clone()),
+        None => {
+            let paths: Vec<&str> = decks.iter().map(|d| d.path.as_str()).collect();
+            Err(Failure::Core(format!(
+                "No deck called \"{path}\". The decks are: {}.",
+                paths.join(", ")
+            )))
+        }
+    }
+}
+
+fn plural(count: usize, word: &str) -> String {
+    format!("{count} {word}{}", if count == 1 { "" } else { "s" })
 }
 
 fn run(args: &[String]) -> Result<String, Failure> {
@@ -174,10 +204,73 @@ fn run(args: &[String]) -> Result<String, Failure> {
             collection.close()?;
             Ok(text)
         }
+        [command, file] if command == "decks" => {
+            let host =
+                host::host_for(file, std::path::Path::new(file).exists()).map_err(Failure::Core)?;
+            let collection = Collection::open(file, host)?;
+            let presets = collection.presets()?;
+            let mut text = format!("Decks in {file}:\n");
+            for deck in collection.decks()? {
+                let preset = presets
+                    .iter()
+                    .find(|p| p.id == deck.preset)
+                    .map_or("?", |p| p.name.as_str());
+                text.push_str(&format!(
+                    "\n{}{} ({}, preset {preset})",
+                    "  ".repeat(deck.depth),
+                    deck.display_name,
+                    plural(deck.cards, "card"),
+                ));
+            }
+            text.push_str("\n\nOption presets:");
+            for preset in &presets {
+                let steps: Vec<String> = preset.learning_steps.iter().map(u32::to_string).collect();
+                text.push_str(&format!(
+                    "\n{}: {} new a day, {} reviews a day, learning steps {} minutes, desired \
+                     retention {:.2}, used by {}",
+                    preset.name,
+                    preset.new_per_day,
+                    preset.reviews_per_day,
+                    if steps.is_empty() {
+                        "none".to_owned()
+                    } else {
+                        steps.join(" ")
+                    },
+                    preset.desired_retention,
+                    plural(preset.decks, "deck"),
+                ));
+            }
+            collection.close()?;
+            Ok(text)
+        }
+        [command, file, path] if command == "add-deck" => {
+            let host =
+                host::host_for(file, std::path::Path::new(file).exists()).map_err(Failure::Core)?;
+            let collection = Collection::open(file, host)?;
+            let (parent, name) = match path.rsplit_once(fc_core::deck::SEPARATOR) {
+                Some((parent, name)) => (Some(find_deck(&collection, parent)?.id), name),
+                None => (None, path.as_str()),
+            };
+            let id = collection.create_deck(name, parent)?;
+            collection.close()?;
+            Ok(format!("Added deck {path} ({id})"))
+        }
         [command, file, note_type, values @ ..] if command == "add-note" => {
             let host =
                 host::host_for(file, std::path::Path::new(file).exists()).map_err(Failure::Core)?;
             let collection = Collection::open(file, host)?;
+            let mut values = values.to_vec();
+            let deck = match values.iter().position(|v| v == "--deck") {
+                Some(at) => {
+                    let path = values
+                        .get(at + 1)
+                        .ok_or_else(|| Failure::Usage("--deck needs a deck.".to_owned()))?
+                        .clone();
+                    values.drain(at..=at + 1);
+                    find_deck(&collection, &path)?.id
+                }
+                None => fc_core::deck::default_deck(),
+            };
             let wanted = note_type.to_lowercase();
             let types = collection.note_types()?;
             let Some(found) = types.iter().find(|t| t.name.to_lowercase() == wanted) else {
@@ -188,7 +281,7 @@ fn run(args: &[String]) -> Result<String, Failure> {
                 )));
             };
             let mut given = Vec::new();
-            for value in values {
+            for value in &values {
                 let (name, text) = value
                     .split_once('=')
                     .ok_or_else(|| Failure::Usage(format!("\"{value}\" is not Field=value.")))?;
@@ -207,7 +300,7 @@ fn run(args: &[String]) -> Result<String, Failure> {
                     })?;
                 given.push((field.id, text));
             }
-            let added = collection.add_note(found.id, &given)?;
+            let added = collection.add_note_to_deck(deck, found.id, &given)?;
             collection.close()?;
             let mut text = format!(
                 "Added note {} with {} card{}",
@@ -264,7 +357,15 @@ fn run(args: &[String]) -> Result<String, Failure> {
         [command, ..]
             if matches!(
                 command.as_str(),
-                "new" | "info" | "notetypes" | "notes" | "add-note" | "render" | "help"
+                "new"
+                    | "info"
+                    | "notetypes"
+                    | "notes"
+                    | "decks"
+                    | "add-deck"
+                    | "add-note"
+                    | "render"
+                    | "help"
             ) =>
         {
             Err(Failure::Usage(format!(

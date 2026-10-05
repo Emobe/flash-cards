@@ -21,7 +21,7 @@ use crate::id::Id;
 use crate::sync::seed_row;
 
 /// "fc-builtin-ids-1": the namespace of every built-in ID.
-const NAMESPACE: Id = Id::from_bytes(*b"fc-builtin-ids-1");
+pub(crate) const NAMESPACE: Id = Id::from_bytes(*b"fc-builtin-ids-1");
 
 /// Positions of the first three fields or templates. Fixed text, never recomputed: see above.
 pub(crate) const POSITIONS: [&str; 3] = ["V", "l", "t"];

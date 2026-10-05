@@ -51,7 +51,7 @@ fn creates_then_opens_and_closes_a_collection() {
     let info = fc(&["info", file.path()]);
     assert!(info.status.success(), "{}", stderr(&info));
     let text = stdout(&info);
-    assert!(text.contains("Storage version: 4 (this build understands up to 4)"));
+    assert!(text.contains("Storage version: 5 (this build understands up to 5)"));
     assert!(text.contains("Device ID: "));
     assert!(text.contains("Created by core: 0.0.0"));
 }
@@ -244,4 +244,82 @@ fn renders_the_cards_of_a_note() {
     assert!(stderr(&missing).contains("No note"));
     let bad = fc(&["render", file.path(), "x"]);
     assert_eq!(bad.status.code(), Some(2));
+}
+
+#[test]
+fn adds_decks_and_notes_to_them_and_lists_the_tree() {
+    let file = TempFile::new("decks");
+    assert!(fc(&["new", file.path()]).status.success());
+
+    let polish = fc(&["add-deck", file.path(), "Polish"]);
+    assert!(polish.status.success(), "{}", stderr(&polish));
+    let verbs = fc(&["add-deck", file.path(), "polish::Verbs"]);
+    assert!(verbs.status.success(), "{}", stderr(&verbs));
+    let added = fc(&[
+        "add-note",
+        file.path(),
+        "Basic and reversed",
+        "--deck",
+        "Polish::Verbs",
+        "Front=pies",
+        "Back=dog",
+    ]);
+    assert!(added.status.success(), "{}", stderr(&added));
+    assert!(
+        fc(&["add-note", file.path(), "Basic", "Front=a", "Back=b"])
+            .status
+            .success()
+    );
+
+    let listed = fc(&["decks", file.path()]);
+    assert!(listed.status.success(), "{}", stderr(&listed));
+    let text = stdout(&listed);
+    assert!(
+        text.contains("\nDefault (1 card, preset Default)"),
+        "{text}"
+    );
+    assert!(
+        text.contains("\nPolish (0 cards, preset Default)"),
+        "{text}"
+    );
+    assert!(
+        text.contains("\n  Verbs (2 cards, preset Default)"),
+        "{text}"
+    );
+    assert!(
+        text.contains(
+            "Default: 20 new a day, 200 reviews a day, learning steps 1 10 minutes, desired retention 0.90, used by 3 decks"
+        ),
+        "{text}"
+    );
+}
+
+#[test]
+fn deck_commands_explain_what_went_wrong() {
+    let file = TempFile::new("deck-errors");
+    assert!(fc(&["new", file.path()]).status.success());
+
+    let missing_parent = fc(&["add-deck", file.path(), "Nope::Child"]);
+    assert!(!missing_parent.status.success());
+    assert!(stderr(&missing_parent).contains("No deck called \"Nope\". The decks are: Default."));
+
+    assert!(fc(&["add-deck", file.path(), "Polish"]).status.success());
+    let again = fc(&["add-deck", file.path(), "polish"]);
+    assert!(!again.status.success());
+    assert!(stderr(&again).contains("There is already one called \"polish\" here."));
+
+    let wrong_deck = fc(&[
+        "add-note",
+        file.path(),
+        "Basic",
+        "--deck",
+        "Nope",
+        "Front=a",
+    ]);
+    assert!(!wrong_deck.status.success());
+    assert!(stderr(&wrong_deck).contains("No deck called \"Nope\""));
+
+    let no_value = fc(&["add-note", file.path(), "Basic", "Front=a", "--deck"]);
+    assert_eq!(no_value.status.code(), Some(2));
+    assert!(stderr(&no_value).contains("--deck needs a deck."));
 }

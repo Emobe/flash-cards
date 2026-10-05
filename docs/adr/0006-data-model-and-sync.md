@@ -886,3 +886,92 @@ replaces step 1.3's stand-in (`note::scan`, deleted) with one reading of the lan
   `CardFrame` until Phase 2, and the web API and the bridge have no note methods), Windows, Firefox,
   Safari, the phone, the timing of reconciling 50,000 notes with the new parser (it reads each
   template once per note type, which should be no slower than 1.3's 3.5 s, but it was not measured).
+
+## Build notes (step 1.5)
+
+Decks and option presets, built to this ADR with no change to the decision. These are the choices
+step 1.5 left open.
+
+- **Tables (migration v5).** `deck` (name, parent, options_preset, deleted), `options_preset` (name,
+  new_per_day, reviews_per_day, learning_steps, desired_retention, deleted), and a `deck` register
+  added to `card`. The sync entity types are `deck` and `options_preset`. `parent` and
+  `options_preset` hold an ID, or are empty for none. From the indicative table in section 3, the FSRS
+  parameters register of a preset is not there yet: 1.7 and 1.8 own it, and section 10 allows adding
+  a register later. There are no relearning steps either, for the same reason.
+- **Default deck and preset.** Fixed IDs (`fc-builtin-ids-1` namespace, `default/deck` and
+  `default/preset`), seeded by migration 5 with the lowest clock and marked pushed, like the built-in
+  note types (the content is frozen in the same way). The Default deck and the Default preset can be
+  renamed and edited but **cannot be deleted** (`DeckError::Default`): a card with no deck is in the
+  Default deck, and a deck with no usable preset uses the Default preset. The Default deck always
+  reads as live, whatever its register says.
+- **Existing cards.** Migration 5 rewrites no card. A card whose `deck` is empty (every card made
+  before 1.5) reads as being in the Default deck, and has no clock for the register until it is moved.
+  Any real write beats a missing clock.
+- **Hierarchy.** A deck's `parent` register points at its parent, and `name` is only its own part.
+  The path people see joins the display names with `::`.
+  - A name cannot contain `::` (`NameHasSeparator`), so a path is never ambiguous in search (1.9).
+    This is checked on this device only. A name that arrives from elsewhere with `::` in it is shown
+    as written.
+  - A deck cannot be moved inside itself or its own sub-decks (`MoveIntoItself`). A move writes only the
+    moved deck.
+  - **Read-time rules, applied once in `deck::read::Tree::load`.** A parent that is missing, or the
+    deck itself, shows the deck at the top level. In a cycle, the deck whose `parent` register has the
+    highest `(hlc, device, id)` shows at the top level (section 6), so every device breaks it in the
+    same place. Same-named decks next to each other (ignoring case) get " (2)", " (3)" in ID order
+    among live decks. A fuzz test with 200 random merges (random parents, loops, missing parents,
+    clocks) checks that every deck shows once with a unique path, and that inserting the decks in two
+    different orders gives the same answer.
+  - Sibling names must be different, ignoring case, for the person on this device (`NameTaken`). A
+    merge can still produce two, which the rule above handles.
+- **Deleting a deck** writes the tombstones section 5 asks for, in one write: the deck, the decks
+  inside it, their live cards, and every note left with no live card. A card whose note has another
+  card in a different deck leaves that note alone. Cards keep their history (nothing is purged).
+  - If the Default deck was moved inside the deck being deleted, it is moved to the top level first,
+    and it and what is inside it are not deleted.
+  - **Restoring a deck** brings back the decks, cards and notes whose `deleted` clock is at or after the
+    deck's own, the rule 1.3 uses for note types. A card or note deleted on its own before stays in
+    the trash. Fails if a live deck next to it has its name.
+  - **"Still referenced, so still alive"** (section 5) now also holds for decks: a deleted deck with a
+    live card in it, or with a live deck inside it, reads as live (and so do the decks above it). Nothing
+    is written. Deleting it again tombstones what kept it alive.
+  - **An edit does not undo a deck delete.** The card reconcile does not restore a deleted card
+    whose deck is deleted, so editing a note or changing its note type cannot bring back a card the
+    user deleted with its deck. Restoring the note (`restore_note`) or the deck does bring it back.
+- **Cards and decks.** `Card` has a `deck`. `add_note` still puts cards in the Default deck, and
+  `add_note_to_deck` takes a live deck. A card made later by an edit goes to the deck of the note's live
+  cards (lowest card ID if they differ), otherwise of any card it has, otherwise the Default deck.
+  `move_cards` moves live cards into a live deck, refuses the whole move if any card is not live, and
+  writes only the cards whose deck changes.
+- **Presets.** `learning_steps` is a list of whole minutes, 1 to 1440, at most 8, stored as text
+  (`1 10`); an empty list is allowed. `desired_retention` is 0.70 to 0.99 (the range `scheduling`
+  already enforces). The daily limits are 0 to 9999. `set_preset_options` checks everything before
+  writing and writes only the registers that change, so two devices that change different options both
+  keep theirs. Values that arrive from elsewhere are read in range (clamped, invalid steps left out), so
+  reading never fails. The starting values (20 new cards and 200 reviews a day, steps `1 10`, retention
+  0.90) are placeholders for Anthony to confirm.
+  - Several decks can share a preset, and a new deck starts on the Default preset.
+  - **Deleting a preset** sends every deck that uses it to the Default preset (one register each), and
+    sets its `deleted` register. Restoring a preset does not give its decks back. A deleted preset that
+    a live deck uses (the deck was given it on another device) reads as live, as for decks.
+  - A deck whose preset is missing or empty uses the Default preset.
+- **Code.** `fc_core::deck` has `read` (the tree and its rules), `ops` (decks and cards), `preset`
+  and `error`. The scheduling code in 1.7 reads limits, steps and retention through `Collection::deck_preset`.
+- **CLI.** `fc decks <file>` prints the tree with card counts and the presets, `fc add-deck <file>
+  <Parent::Child>` adds a deck, and `fc add-note` takes `--deck`. The other deck and preset commands
+  wait for 1.14.
+- **Verified.**
+  - Linux: 48 new core tests (252 in `fc-core` in all), 2 new CLI tests (11 in all). They cover the tree
+    and its order, the name rules, moves and cycle checks, deleting and restoring with cards and notes,
+    cards in two decks, edits not undoing a delete, cycles broken in both directions, missing parents,
+    same names, "still referenced" for decks and presets, option validation and clamping, shared
+    presets, preset delete and restore, a clock for every register, raw SQL refused on the new tables,
+    and an upgrade from a real version-4 layout. `cargo xtask check` passes (it builds the wasm).
+  - The CLI on a copy of the real desktop collection (storage version 4) upgraded it to 5, made
+    nested decks and added notes into them. That collection has no notes, so the upgrade of old cards is
+    covered by the test only.
+- **Not verified:** Windows, Firefox, Safari, the phone and a browser (the web API and the bridge have
+  no deck methods, so nothing in a UI or the wasm API changed), merging decks from two collections
+  (step 1.11 writes the real merge, the tests here write remote registers with their clocks), the time
+  to read the deck tree and count cards with many decks and 50,000 cards (the tree is rebuilt on every
+  read, and counts group all live cards, which is likely fine; 1.14's large fake collection should
+  measure it).
