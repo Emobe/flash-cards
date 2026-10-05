@@ -1,7 +1,8 @@
 # 0007: Study queues, answering and the day boundary
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-06
+Accepted: 2026-10-06, with the changes under "Decisions on review".
 
 ## Context
 
@@ -68,11 +69,11 @@ minutes by step 1.5).
 
 ## Decisions and options
 
-Each part below lists the options and the one proposed.
+Each part below lists the options and the one chosen.
 
 ### 1. Learning steps and FSRS
 
-- **A. Steps decide timing, FSRS updates memory at every answer (proposed).** A new card goes through
+- **A. Steps decide timing, FSRS updates memory at every answer (chosen).** A new card goes through
   the preset's learning steps, a lapsed card through its relearning steps. While in steps, the step
   decides when the card comes back. Every answer, including same-day ones, updates the FSRS memory
   state with the elapsed study days (0 within a day). Graduation uses FSRS's interval.
@@ -110,10 +111,10 @@ The rules for option A:
 ### 2. The day boundary
 
 - **A. A collection-wide "day starts at" hour, applied with the device's current UTC offset
-  (proposed).** A study day is
+  (chosen).** A study day is
   `floor((unix_ms + utc_offset_minutes × 60,000 − start_hour × 3,600,000) / 86,400,000)`,
-  numbered from 1970-01-01. `start_hour` is 0 to 23, starting value 4 (so 1 am still counts as the
-  day before). It is a synced collection setting (part 8). "Today" uses the clock's current offset.
+  numbered from 1970-01-01. `start_hour` is 0 to 23, starting value 0 (midnight), changed in its own
+  setting. It is a synced collection setting (part 8). "Today" uses the clock's current offset.
   An event's day uses the offset recorded on the event.
 - **B. A time zone name (IANA) stored in the collection.** Dates would be computed in that zone
   whatever the device says.
@@ -141,7 +142,7 @@ today" is counted from the non-voided events of the current study day, by the ca
 a new card counts when its first answer is today, a review counts when the card was in the review
 state when answered. Learning and relearning answers do not count towards limits.
 
-- **A. Every deck on the path counts, including those above the one chosen (proposed).** A card in
+- **A. Every deck on the path counts, including those above the one chosen (chosen).** A card in
   `Polish::Vocab::Food` can be shown only while `Polish`, `Polish::Vocab` and `Polish::Vocab::Food`
   each have room left, whichever of them you chose to study.
   - Good: a limit means what it says. "20 new cards a day in Polish" is 20, even if the user studies
@@ -153,14 +154,21 @@ state when answered. Learning and relearning answers do not count towards limits
 - **C. Only the chosen deck's limit counts.** Simplest, but a sub-deck's own limit means nothing
   when the parent is studied.
 
-**Proposed: A.** It is a product decision, so Anthony to confirm.
+**Decided: A**, with a switch on each deck (Anthony, on review):
+
+- **"Limits include sub-decks"**, a deck register `limits_include_subdecks`, on by default. On, the
+  deck's limits count its own cards and everything inside it (option A). Off, they count only the
+  cards directly in the deck, so a parent used as a category ("Languages" holding "Polish" and
+  "Spanish") does not cap the decks inside it. Those use only their own limits.
+- It is on the deck, not the preset, because it is about how the tree is arranged, and one preset
+  can be shared by decks with different roles.
 
 The new and review limits are separate: new cards are not held back by a review backlog. Review
 debt features (later phase) can change this without changing anything stored.
 
 ### 4. Order of cards
 
-Proposed fixed rules for 1.7 (preset options for order can be added later without changing stored
+Fixed rules for 1.7 (preset options for order can be added later without changing stored
 data):
 
 1. **Learning and relearning cards that are due now**, earliest first.
@@ -172,14 +180,16 @@ data):
 3. **When nothing else is left**, a learning card due within 20 minutes (a constant) is shown early.
    Otherwise the queue says when the next learning card is due.
 
-**Siblings.** A new or review card is held back until tomorrow if another card of the same note was
-answered today (non-voided). Learning cards are not held back. This is a read-time rule that writes
-nothing, so it merges across devices, and undoing an answer lifts it. It is what stops "Basic and
-reversed" showing both directions back to back. Proposed on, with no option yet (Anthony to confirm).
+**Siblings.** Cards of the same note (both directions of "Basic and reversed", the numbers of a
+cloze) are separate cards with their own schedules, and each answer counts as its own review. A new
+or review card is held back until tomorrow if another card of the same note was answered today
+(non-voided), so the second is answered from memory and not from what was just seen. Learning cards
+are not held back. This is a read-time rule that writes nothing, so it merges across devices, and
+undoing an answer lifts it. A preset register `space_siblings`, on by default, turns it off.
 
 ### 5. How the queue is computed
 
-- **A. Computed from the database on each call (proposed).** One SQL pass over the local schedule
+- **A. Computed from the database on each call (chosen).** One SQL pass over the local schedule
   cache, joined with cards and decks, plus today's events for "done today" and siblings, then the
   limits applied in Rust. Finding 4: 38 ms for counts over every deck at 50,000 cards on Linux.
   - Good: no state outside the database, so a web worker restart or a merge needs nothing rebuilt.
@@ -189,12 +199,12 @@ reversed" showing both directions back to back. Proposed on, with no option yet 
 - **C. A queue kept in memory for a study session.** Fast between cards, but it must be rebuilt
   after a worker restart or a merge, and goes stale when another window changes something.
 
-**Proposed: A.** If the phone or the web is too slow for answering one card after another (Phase
+**Decided: A.** If the phone or the web is too slow for answering one card after another (Phase
 2), add option C on top of A as a cache, not instead of it.
 
 ### 6. Card events: storage
 
-- **One local table, `card_event`, with typed columns (proposed).** Columns: `id`, `card`, `kind`,
+- **One local table, `card_event`, with typed columns (chosen).** Columns: `id`, `card`, `kind`,
   `time_ms`, `utc_offset`, `device`, `previous`; for reviews `rating`, `duration_ms`; inputs
   `preset`, `desired_retention`, `parameters` (an ID, below), `steps` (the step list that applied, as
   text); result `state_before`, `state`, `step`, `stability`, `difficulty`, `due_day` or `due_ms`;
@@ -257,7 +267,7 @@ means the default. This is the "collection setting" entity in ADR 0006's indicat
 
 ### 10. Undo
 
-- **A. Undo voids the newest non-voided review made on this device (proposed).** It writes a void
+- **A. Undo voids the newest non-voided review made on this device (chosen).** It writes a void
   event, so it syncs (ADR 0006: "Undo of an answer that has already synced"). The fold then drops
   the review, which puts the card's state, today's counts and held-back siblings back as they were.
   Calling undo again goes back one more answer. It is refused if the card has a later event (from
@@ -285,12 +295,12 @@ will not offer it, and a merge can produce it anyway). Answering a deleted card 
   siblings and undo all read the events, so they merge across devices with no extra state.
 - Limits can be exceeded across devices for days studied offline on both (ADR 0006 section 11
   already says this).
-- New schema: two card registers, two preset registers, the `collection_setting`, `card_event` and
+- New schema: two card registers, a deck register, three preset registers, the `collection_setting`, `card_event` and
   `fsrs_parameter_set` tables (synced), and local `card_schedule` and push-state tables. The sync
   registry gains an append-only table kind next to `SyncedTable` and `DynamicTable`.
 - No new dependencies.
-- Card order options, a reposition action, a maximum interval option, a learn-ahead option and an
-  option to turn off sibling holding are left out. Each can be added later without migrating data.
+- Card order options, a reposition action, a maximum interval option and a learn-ahead option are
+  left out. Each can be added later without migrating data.
 
 ## Revisit if
 
@@ -303,12 +313,17 @@ will not offer it, and a merge can produce it anyway). Answering a deleted card 
   inputs out of the row).
 - The fold gives visibly different due dates across devices (ADR 0006 already lists this).
 
-## Open questions for Anthony
+## Decisions on review
 
-1. Limits on nested decks: every deck on the path counts, including decks above the one chosen
-   (part 3, option A)?
-2. Sibling holding on, with no option yet (part 4)?
-3. New cards spread evenly among reviews, rather than after them (part 4)?
-4. Starting values: the day starts at 4 am, relearning steps `10` minutes (with step 1.5's 20 new
-   and 200 reviews a day, steps `1 10`, retention 0.90).
-5. Splitting the build into two PRs (see `docs/plans/1.7-study-queues.md`).
+Anthony, 2026-10-06:
+
+1. **Limits on nested decks:** every deck on the path counts, including decks above the one chosen
+   (part 3, option A), plus the per-deck "limits include sub-decks" switch so a parent can be only a
+   category.
+2. **Siblings:** separate cards and separate reviews, held back until the next day by default, with
+   the preset switch `space_siblings` to turn it off (part 4).
+3. **New cards** are spread evenly among reviews (part 4).
+4. **The day starts at midnight** by default, set in its own setting (part 2). Relearning steps start
+   at `10` minutes (part 1). Step 1.5's 20 new and 200 reviews a day, steps `1 10` and retention 0.90
+   stay.
+5. **Two PRs**, 1.7a then 1.7b, as in `docs/plans/1.7-study-queues.md`.

@@ -4,7 +4,7 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.7 Study queues and answering: design session done. ADR 0007 (Proposed) and `docs/plans/1.7-study-queues.md` are on `step/1.7-study-queues`, waiting for Anthony's review. Nothing is built.
+1.7 Study queues and answering: ADR 0007 Accepted (2026-10-06) with Anthony's decisions, plan in `docs/plans/1.7-study-queues.md`, both on `step/1.7-study-queues`. Nothing is built. Next: merge the design branch, then build 1.7a.
 
 ## Branch
 
@@ -12,7 +12,7 @@ Kept current by every session. A new session reads this first.
 
 ## Done
 
-- 1.7 design session: ADR 0007 (Proposed) and the build plan. Throwaway experiments (scratch crate, Linux): FSRS-6 same-day answers through learning steps, `memory_state` matching step-by-step answers, queue queries at 50,000 cards (38 ms for counts over every deck). Not verified on the phone, the web or Windows.
+- 1.7 design session: ADR 0007 (Accepted) and the build plan. Throwaway experiments (scratch crate, Linux): FSRS-6 same-day answers through learning steps, `memory_state` matching step-by-step answers, queue queries at 50,000 cards (38 ms for counts over every deck). Not verified on the phone, the web or Windows.
 
 - 1.6 Tags (ADR 0006 build notes, step 1.6). Reviewed by Anthony and merged (PR #15). `fc_core::tag`, migration v6 (`note_tag`: note, tag text, present; a `DynamicTable` with a new `text_key` flag and `WriteTx::set_text_value`). A tag's identity is its name (matched ignoring case, stored as written), `::` makes a child. Add, remove, set, rename (a parent renames what is inside it, can merge onto an existing tag), delete; `tags` (tree with counts), `notes_with_tag(tag, include_children)` for search in 1.9. Read-time rules for two spellings after a merge. `fc tags`, `fc tag`, `fc untag`, `fc rename-tag`, `fc add-note --tag`, tags in `fc notes`. 37 more core tests (289 in `fc-core`), 2 more CLI tests (13). Verified on Linux (tests, CLI on a copy of the real desktop collection, v5 to v6, timings at 50,000 notes). Not run in a UI, a browser or the phone (nothing there changed).
 
@@ -37,12 +37,12 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review ADR 0007 and the plan, and answer the open questions at the end of the ADR (limits on nested decks, sibling holding, new cards spread among reviews, starting values, the split into 1.7a and 1.7b).
-- Then accept the ADR and run the build in a new session with Sonnet: `/step 1.7a`, then `/step 1.7b` after 1.7a is merged.
+- Anthony: merge `step/1.7-study-queues` (docs only).
+- Then a new session with Sonnet: `/step 1.7a`, then `/step 1.7b` after 1.7a is merged. The split is described in the plan, not as headings in the phase file.
 
 ## Open items
 
-- 1.7 design: see ADR 0007, "Open questions for Anthony". The phone and web timings of the queue are unverified; Phase 2 measures them in the real study screen.
+- 1.7 decisions are in ADR 0007, "Decisions on review": limits over the whole deck path with a per-deck "limits include sub-decks" switch, siblings held until the next day (preset switch), new cards spread among reviews, day starts at midnight, relearning steps `10`, two PRs. The phone and web timings of the queue are unverified; Phase 2 measures them in the real study screen.
 
 - 1.6 rules (Anthony reviewed 1.6 on 2026-10-06; say if any of these should change): a tag's identity is its name (so a rename rewrites the notes that have it, and an old name added on another device later stays); a tag name cannot contain whitespace (a tag is one word in the CLI and in search), cannot be empty, and has no empty part around `::`; tags match ignoring case and a new tag takes the spelling already in use; deleting a note keeps its tags (hidden from counts and search until restored); a rename also rewrites notes in the trash.
 - 1.6 not verified: Windows, Firefox, Safari, the phone, a browser (no web API or UI change), merging tags from two collections (1.11), timings on the phone and the web. Timings on Linux (release, 50,000 notes): rename a parent tag on all of them 2.0 s, add a tag to one note 64 ms (loads every tag row), `tags()` 77 ms.
