@@ -205,3 +205,43 @@ fn add_note_explains_what_went_wrong() {
     assert!(!no_cards.status.success());
     assert!(stderr(&no_cards).contains("would make no cards"));
 }
+
+#[test]
+fn renders_the_cards_of_a_note() {
+    let file = TempFile::new("render");
+    assert!(fc(&["new", file.path()]).status.success());
+    let added = fc(&[
+        "add-note",
+        file.path(),
+        "Cloze",
+        "Text={{c1::pies}} is a dog",
+        "Extra=<img src=\"pies.png\">",
+    ]);
+    assert!(added.status.success(), "{}", stderr(&added));
+    let output = stdout(&added);
+    let id = output.split_whitespace().nth(2).unwrap();
+
+    let rendered = fc(&["render", file.path(), id]);
+    assert!(rendered.status.success(), "{}", stderr(&rendered));
+    let text = stdout(&rendered);
+    assert!(text.contains("== Cloze 1 =="), "{text}");
+    assert!(
+        text.contains("<span class=\"cloze\">[...]</span> is a dog"),
+        "{text}"
+    );
+    assert!(
+        text.contains("<span class=\"cloze\">pies</span> is a dog"),
+        "{text}"
+    );
+    assert!(text.contains("-- media: pies.png --"), "{text}");
+
+    let missing = fc(&[
+        "render",
+        file.path(),
+        "00000000-0000-0000-0000-000000000000",
+    ]);
+    assert_eq!(missing.status.code(), Some(1));
+    assert!(stderr(&missing).contains("No note"));
+    let bad = fc(&["render", file.path(), "x"]);
+    assert_eq!(bad.status.code(), Some(2));
+}

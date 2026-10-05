@@ -757,7 +757,7 @@ left open.
     text, so a typo cannot make a thousand cards.
   - Names in templates are matched exactly (case-sensitive), as written. A removed field reads as
     empty.
-  - **This reading of templates is a stand-in for step 1.4** (`note::scan`, about 150 lines). It
+  - **This reading of templates was a stand-in for step 1.4** (`note::scan`, replaced and deleted in 1.4, see its build notes below). It
     never fails and reads a malformed template as far as it makes sense. 1.4 defines the grammar,
     its errors and the real renderer, and should replace the scanner with its parser.
 - **Adding a note.** `add_note` takes values by field ID and refuses a note that would make no
@@ -803,3 +803,86 @@ left open.
 - **Not verified:** Windows, Firefox, Safari, the phone at runtime (the migration to v4 on its real
   collection), reading notes back in a browser (the web API has no note methods yet), the scan and
   reconcile timings on the phone and the web, merging notes from two collections (1.11).
+
+## Build notes (step 1.4)
+
+The template language and card rendering, built to this ADR with no change to the decision. It
+replaces step 1.3's stand-in (`note::scan`, deleted) with one reading of the language,
+`fc_core::template`. These are the choices step 1.4 left open.
+
+- **Grammar.** A template has a front and a back. Text is HTML and is kept as written. Tags are in
+  `{{...}}`, with spaces around the inside allowed.
+  - `{{Field}}` shows a field's HTML as written. A name is matched exactly, spaces included
+    (`{{Add reverse}}`). A name the note type does not have reads as empty, as a removed field does.
+  - `{{filter:Field}}`, chained (`{{hint:text:Field}}`), the filter next to the field applying first.
+    The filters are `cloze`, `text` (the field as plain text: no tags, a space where a line ends, a
+    stray `<` or `>` escaped) and `hint` (nothing when the field is empty, otherwise
+    `<details class="hint"><summary>Field name</summary>...</details>`, which needs no JavaScript).
+    There are no other filters, and no `type:`, `Tags`, `Deck` or `Card` yet (decks are 1.5, tags
+    1.6).
+  - `{{#Field}}...{{/Field}}` shows its content when the field has content, `{{^Field}}...{{/Field}}`
+    when it has none. Sections nest. "Has content" is the rule of step 1.3 (`html::has_content`).
+  - `{{FrontSide}}` is the rendered front, for the back. On the front it is an error.
+  - A field's value is never read as template syntax, so a note cannot add tags to a template.
+  - A word before a colon that is not a filter is an error (`{{furigana:Word}}` from a newer app, or
+    a field whose name has a colon in it, like `a:b`, which cannot be used in a template as written).
+    A colon after a word with a space in it (`Time zone: x`) is part of the name.
+- **Cloze markers** in a field are `{{cN::answer}}` or `{{cN::answer::hint}}`, N from 1 to 500, as in
+  1.3. The first `::` that is not inside a nested marker starts the hint. Markers can nest (to 8
+  levels, deeper ones are text). Something that does not form a marker (no number, out of range, no
+  closing `}}`) is plain text. The last is a change from 1.3, which counted `{{c1::` with no `}}`
+  as cloze number 1: now it is text, and makes no card.
+  - On the front, the card's own number shows `<span class="cloze">[hint]</span>` (`[...]` with no
+    hint). On the back it shows `<span class="cloze">answer</span>`. Markers with other numbers show
+    their answer as plain text. A template that uses `cloze:` on a standard note type (ordinal 0)
+    hides nothing.
+- **Mistakes** are reported with a place (line and column, counted from 1 in characters) and a
+  sentence that says what to do: a `{{` with no `}}`, an empty tag (`{{}}`, `{{cloze:}}`), a section
+  never closed, an end tag with no section (a section skipped by an end tag of an outer one is
+  reported as never closed), an unknown filter, `{{FrontSide}}` on the front.
+  - **Lenient and strict.** The parser always returns a tree as well as the errors: an unclosed
+    section ends at the end of the template, a stray end tag is ignored, an unknown filter does
+    nothing, an empty tag is dropped, a `{{` with no `}}` is text. Card generation and renaming a
+    field use this reading, because edits and merges never refuse (section 5 of this ADR, step 1.3).
+    Rendering and saving use the errors.
+  - **Saving.** `add_template` and `set_template_text` refuse a side that has a mistake
+    (`NoteTypeError::Template`, "Nothing was saved."). A field name the note type does not have is not
+    a mistake, so removing or renaming a field never blocks saving a template. `template::unknown_fields`
+    lists them for a screen to warn about, and `template::check` returns the mistakes.
+  - **Rendering** a card whose template has a mistake (a merge can bring one) is
+    `RenderError::Template` with the same sentences and "Fix the template to see this card." Nothing is
+    shown for it, and its cards stay.
+- **Output.** `Collection::render_card(card)` returns `RenderedCard { front, back, media }`. Each side
+  is a complete document: `<!doctype html>`, `<meta charset>`, the note type's CSS in one `<style>`
+  (`</style` in the CSS is written `<\/style`, so the CSS cannot close its element), and a `<body
+  class="card">` holding the card. `[sound:name]` becomes `<audio controls src="name">`.
+  - **Media** lists the names in the `src` of `<img>`, `<audio>`, `<video>` and `<source>`, front then
+    back, without repeats. A web address, a `//` address, a `data:` or `blob:` URL is not listed (the
+    frame's CSP blocks them). These are the names the card frame looks up (ADR 0005). The exact name
+    format is step 1.10's.
+  - **Not done: media in CSS `url()`** and in scripts. ADR 0005 put it in Phase 1, but supporting it
+    changes the trusted `frame.html` and depends on 1.10's names. Step 1.10 should do both.
+  - **Safe for the sandbox** here means: the output holds only the note type's CSS, the template's
+    text, the note's field values and the few elements above, nothing is read as template syntax, and
+    no field is trusted. It is meant only for `CardFrame` (ADR 0005). It is not sanitised, and must
+    never be put in the app's DOM. The tests check that rendering adds no script, handler, link or
+    remote URL of its own.
+- **Code.** `template/` has `lex` (never fails), `parse` (tree and errors), `cloze`, `render` and the
+  public errors. `html.rs` has the HTML readings that 1.3 had in `scan` (`has_content`,
+  `comparison_key`) and the new ones (`plain_text`, `media_names`, `expand_sound`). Generation reads
+  the fronts of a note type once for all its notes (`generate::Plan`).
+- **CLI.** `fc render <file> <note ID>` prints the front, back and media of each card of a note.
+- **Also fixed:** a flaky 1.2 test (`equal_positions_are_ordered_by_id...`) that failed about 60% of
+  runs on master: it moved a tied field to the end, which changes nothing when that field is already
+  last, and which of the two it was depended on random IDs.
+- **Verified.**
+  - Linux: 47 more core tests than before (204 in `fc-core` in all, counting the ported `scan` tests, run 12 times with no failure), 1 new CLI test.
+    Every kind of mistake has a test that checks its message. A deterministic loop of 3,000 random
+    strings of template tokens through the lexer, parser, renderer, generation and rename found one
+    real bug (a slice in `safe_css` that split a multi-byte character), which is fixed. The CLI on a
+    copy of the real desktop collection (storage version 4) rendered a Polish cloze note with a hint
+    and an image. The release-profile wasm build compiles (`cargo xtask check`).
+- **Not verified:** a rendered card inside the real card frame (nothing wires `render_card` to
+  `CardFrame` until Phase 2, and the web API and the bridge have no note methods), Windows, Firefox,
+  Safari, the phone, the timing of reconciling 50,000 notes with the new parser (it reads each
+  template once per note type, which should be no slower than 1.3's 3.5 s, but it was not measured).
