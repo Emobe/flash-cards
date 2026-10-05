@@ -13,11 +13,16 @@ impl TempFile {
     fn path(&self) -> &str {
         self.0.to_str().unwrap()
     }
+
+    fn installation(&self) -> PathBuf {
+        PathBuf::from(format!("{}.installation", self.path()))
+    }
 }
 
 impl Drop for TempFile {
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.0);
+        let _ = std::fs::remove_file(self.installation());
     }
 }
 
@@ -46,7 +51,8 @@ fn creates_then_opens_and_closes_a_collection() {
     let info = fc(&["info", file.path()]);
     assert!(info.status.success(), "{}", stderr(&info));
     let text = stdout(&info);
-    assert!(text.contains("Storage version: 1 (this build understands up to 1)"));
+    assert!(text.contains("Storage version: 2 (this build understands up to 2)"));
+    assert!(text.contains("Device ID: "));
     assert!(text.contains("Created by core: 0.0.0"));
 }
 
@@ -64,6 +70,38 @@ fn refuses_to_overwrite_and_to_open_what_is_missing() {
     assert_eq!(info.status.code(), Some(1));
     assert!(stderr(&info).contains("No collection exists"));
     assert!(!missing.0.exists());
+    assert!(!missing.installation().exists());
+}
+
+fn device_id(output: &Output) -> String {
+    stdout(output)
+        .lines()
+        .find_map(|line| line.strip_prefix("Device ID: "))
+        .unwrap()
+        .to_owned()
+}
+
+#[test]
+fn the_device_id_is_kept_and_a_copied_collection_gets_its_own() {
+    let original = TempFile::new("device-original");
+    assert!(fc(&["new", original.path()]).status.success());
+    let id = device_id(&fc(&["info", original.path()]));
+    assert_eq!(id.len(), 36);
+    assert_eq!(device_id(&fc(&["info", original.path()])), id);
+
+    // Only the .db is copied, as when a collection is sent to another machine.
+    let copy = TempFile::new("device-copy");
+    std::fs::copy(&original.0, &copy.0).unwrap();
+    assert_ne!(device_id(&fc(&["info", copy.path()])), id);
+    // The original is not affected by the copy.
+    assert_eq!(device_id(&fc(&["info", original.path()])), id);
+
+    // Copying the installation file too is not a different installation: same device ID. This
+    // is why a restore must regenerate it explicitly (step 1.13).
+    let twin = TempFile::new("device-twin");
+    std::fs::copy(&original.0, &twin.0).unwrap();
+    std::fs::copy(original.installation(), twin.installation()).unwrap();
+    assert_eq!(device_id(&fc(&["info", twin.path()])), id);
 }
 
 #[test]

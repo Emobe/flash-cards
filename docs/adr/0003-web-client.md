@@ -188,8 +188,10 @@ Option A with storage option 1 and cancellation option i.
 - No `std::time::Instant`, `SystemTime`, `thread::sleep` or threads in `fc-core` or `fc-api`
   (finding 9). The current time comes from the host. How it is passed in is for step 0.7 (which
   handles clocks differing between devices) and 1.1.
-- Randomness for IDs uses `getrandom` with its `wasm_js` backend on the web. Unverified; checked
-  when 0.7 picks an ID scheme.
+- Randomness for IDs uses `getrandom` with its `wasm_js` backend on the web. Verified in a
+  browser in step 1.1b (ADR 0006, build notes). Clippy now bans `SystemTime`, `Instant`,
+  `thread::sleep` and `thread::spawn` in `fc-core` (`crates/fc-core/clippy.toml`), so the rule above
+  is enforced by `cargo xtask check`.
 - `cargo xtask check` runs clippy for `fc-wasm` on `wasm32-unknown-unknown`, which compiles
   `fc-core` and `fc-api` for that target too, so code that cannot compile for wasm fails the check.
   Code that compiles but traps (finding 9) cannot be caught this way. That is why the rule above

@@ -48,6 +48,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 **Review focus:** can any later step write a synced table without the clock being recorded?
 
+**Status:** done (2026-10-05), pending Anthony's review. Built to ADR 0006 (build notes, step 1.1b). One deviation: a collection that needs an unknown feature still opens, and `info()` lists the features (ADR 0006 section 10: sync pauses, study continues).
+
 **Notes:** see `docs/plans/0.7-data-model-sync.md`.
 
 ---

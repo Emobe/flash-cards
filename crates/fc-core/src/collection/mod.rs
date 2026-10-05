@@ -14,8 +14,26 @@ use std::time::Duration;
 
 use rusqlite::{Connection, OpenFlags};
 
+use crate::clock::Host;
+use crate::id::Id;
+use crate::sync::{SYNCED_TABLES, SyncedTable, state};
+
 pub use error::CollectionError;
-use migrate::{MIGRATIONS, Migration, State, latest, read_state, run};
+pub(crate) use migrate::{MIGRATIONS, Migration};
+use migrate::{State, latest, read_state, run};
+
+/// What a build knows about its collections: the migrations that bring one up to date, and the
+/// synced tables the newest schema has. Tests use smaller schemas.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Schema {
+    pub migrations: &'static [Migration],
+    pub tables: &'static [SyncedTable],
+}
+
+const CURRENT: Schema = Schema {
+    migrations: MIGRATIONS,
+    tables: SYNCED_TABLES,
+};
 
 /// Facts about an open collection.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,57 +44,77 @@ pub struct CollectionInfo {
     pub supported_schema_version: u32,
     /// Core version that created the collection.
     pub created_by: String,
+    /// This copy's device ID (ADR 0006, section 1).
+    pub device_id: Id,
+    /// Features the collection needs that this build does not know. While there are any, sync
+    /// stays paused and local study carries on (ADR 0006, section 10).
+    pub unsupported_features: Vec<String>,
 }
 
 /// An open collection. Dropping it closes it, but `close` reports a failure to do so.
 #[derive(Debug)]
 pub struct Collection {
-    conn: Connection,
+    pub(crate) conn: Connection,
     schema_version: u32,
+    pub(crate) host: Host,
+    pub(crate) schema: Schema,
 }
 
 impl Collection {
     /// Creates a new collection. Fails if the location already holds data.
-    pub fn create(location: &str) -> Result<Self, CollectionError> {
-        Self::create_with(location, MIGRATIONS)
+    pub fn create(location: &str, host: Host) -> Result<Self, CollectionError> {
+        Self::create_with(location, CURRENT, host)
     }
 
     /// Opens an existing collection and migrates it to the newest schema. Fails if there is none.
-    pub fn open(location: &str) -> Result<Self, CollectionError> {
-        Self::open_with(location, MIGRATIONS)
+    /// If it was last opened by another installation (a copied file), it gets a new device ID.
+    pub fn open(location: &str, host: Host) -> Result<Self, CollectionError> {
+        Self::open_with(location, CURRENT, host)
     }
 
     /// Opens the collection at `location`, creating it if nothing is there yet.
-    pub fn open_or_create(location: &str) -> Result<Self, CollectionError> {
-        match Self::open(location) {
-            Err(CollectionError::NotFound) => Self::create(location),
+    pub fn open_or_create(location: &str, host: Host) -> Result<Self, CollectionError> {
+        match Self::open(location, host.clone()) {
+            Err(CollectionError::NotFound) => Self::create(location, host),
             other => other,
         }
     }
 
-    fn create_with(location: &str, migrations: &[Migration]) -> Result<Self, CollectionError> {
+    pub(crate) fn create_with(
+        location: &str,
+        schema: Schema,
+        host: Host,
+    ) -> Result<Self, CollectionError> {
         let mut conn = connect(location, true)?;
         match read_state(&conn)? {
             State::Empty => {}
             State::Collection(_) => return Err(CollectionError::AlreadyExists),
         }
-        run(&mut conn, migrations, &State::Empty)?;
-        Ok(Self {
-            conn,
-            schema_version: latest(migrations),
-        })
+        run(&mut conn, schema.migrations, &State::Empty)?;
+        Self::finish(conn, schema, host)
     }
 
-    fn open_with(location: &str, migrations: &[Migration]) -> Result<Self, CollectionError> {
+    pub(crate) fn open_with(
+        location: &str,
+        schema: Schema,
+        host: Host,
+    ) -> Result<Self, CollectionError> {
         let mut conn = connect(location, false)?;
-        let state = read_state(&conn)?;
-        if matches!(state, State::Empty) {
+        let opened = read_state(&conn)?;
+        if matches!(opened, State::Empty) {
             return Err(CollectionError::NotFound);
         }
-        run(&mut conn, migrations, &state)?;
+        run(&mut conn, schema.migrations, &opened)?;
+        Self::finish(conn, schema, host)
+    }
+
+    fn finish(mut conn: Connection, schema: Schema, host: Host) -> Result<Self, CollectionError> {
+        state::identify(&mut conn, &host)?;
         Ok(Self {
             conn,
-            schema_version: latest(migrations),
+            schema_version: latest(schema.migrations),
+            host,
+            schema,
         })
     }
 
@@ -88,8 +126,10 @@ impl Collection {
         )?;
         Ok(CollectionInfo {
             schema_version: self.schema_version,
-            supported_schema_version: latest(MIGRATIONS),
+            supported_schema_version: latest(self.schema.migrations),
             created_by,
+            device_id: self.device_id()?,
+            unsupported_features: self.unsupported_features()?,
         })
     }
 

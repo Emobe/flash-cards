@@ -17,6 +17,8 @@ pub use bindings::generate_bindings;
 pub use context::OpContext;
 pub use error::{ApiError, ErrorKind};
 pub use fc_core::Core;
+pub use fc_core::clock::{Clock, Host, Reading};
+pub use fc_core::id::Id;
 pub use notice::{CoreEvent, EventSink, Notice, NullSink, Progress};
 
 use serde::{Serialize, de::DeserializeOwned};
@@ -221,15 +223,23 @@ mod tests {
     #[test]
     fn collection_info_describes_the_open_collection() {
         let core = Core::new();
-        core.open_collection(":memory:").unwrap();
+        let host = Host {
+            clock: std::sync::Arc::new(fc_core::clock::ManualClock::new(1_700_000_000_000)),
+            installation_id: Id::from_bytes(*b"installation-one"),
+        };
+        core.open_collection(":memory:", host).unwrap();
         let ctx = OpContext::uncancellable();
         let out = dispatch(&core, "getCollectionInfo", Value::Null, &ctx).unwrap();
+        let device_id = out.output["deviceId"].as_str().unwrap().to_owned();
+        assert!(device_id.parse::<Id>().is_ok(), "{device_id}");
         assert_eq!(
             out.output,
             json!({
-                "schemaVersion": 1,
-                "supportedSchemaVersion": 1,
+                "schemaVersion": 2,
+                "supportedSchemaVersion": 2,
                 "createdBy": fc_core::version(),
+                "deviceId": device_id,
+                "unsupportedFeatures": [],
             })
         );
     }

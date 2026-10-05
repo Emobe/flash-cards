@@ -4,11 +4,15 @@
 //! It must stay free of Tauri, UI and
 //! platform-specific dependencies (see `docs/adr/0001-workspace-layout.md`).
 
+pub mod clock;
 pub mod collection;
+pub mod id;
 pub mod scheduling;
+pub mod sync;
 
 use std::sync::Mutex;
 
+use clock::Host;
 use collection::{Collection, CollectionError};
 
 /// Version of the core library, taken from its Cargo manifest.
@@ -32,8 +36,8 @@ impl Core {
 
     /// Opens the collection at a path or `file:` URI, creating it if nothing is there yet. Replaces
     /// (and closes) any collection that was open.
-    pub fn open_collection(&self, location: &str) -> Result<(), CollectionError> {
-        let collection = Collection::open_or_create(location)?;
+    pub fn open_collection(&self, location: &str, host: Host) -> Result<(), CollectionError> {
+        let collection = Collection::open_or_create(location, host)?;
         *self.collection.lock().expect("collection lock") = Some(collection);
         Ok(())
     }

@@ -29,6 +29,11 @@ pub struct CollectionInfo {
     pub schema_version: u32,
     pub supported_schema_version: u32,
     pub created_by: String,
+    /// This copy's device ID, a UUID string.
+    pub device_id: String,
+    /// Features the collection needs that this build does not know. Sync stays paused while there
+    /// are any.
+    pub unsupported_features: Vec<String>,
 }
 
 /// Facts about the open collection.
@@ -47,6 +52,8 @@ impl Method for GetCollectionInfo {
             schema_version: info.schema_version,
             supported_schema_version: info.supported_schema_version,
             created_by: info.created_by,
+            device_id: info.device_id.to_string(),
+            unsupported_features: info.unsupported_features,
         })
     }
 }

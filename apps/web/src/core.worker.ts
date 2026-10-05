@@ -44,12 +44,46 @@ function isFinal(error: unknown): error is string {
   }
 }
 
+/**
+ * An ID for this browser profile that lives outside the collection (ADR 0006, section 1), so a
+ * collection file moved into another browser is recognised as a copy. IndexedDB, because workers
+ * have no `localStorage`. If IndexedDB is unavailable the ID is new on every load, which only
+ * costs a new device ID, never a shared one.
+ */
+async function installationId(): Promise<string> {
+  try {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("fc-installation", 1);
+      request.onupgradeneeded = () => request.result.createObjectStore("kv");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    // Read and write in one transaction so two tabs starting at once agree.
+    return await new Promise<string>((resolve, reject) => {
+      const tx = db.transaction("kv", "readwrite");
+      const store = tx.objectStore("kv");
+      const get = store.get("installationId");
+      get.onsuccess = () => {
+        if (typeof get.result === "string") return resolve(get.result);
+        const fresh = crypto.randomUUID();
+        store.put(fresh, "installationId");
+        tx.oncomplete = () => resolve(fresh);
+      };
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  } catch (error) {
+    console.warn("No stored installation ID, using a temporary one", error);
+    return crypto.randomUUID();
+  }
+}
+
 /** Resolves to `undefined` when open, else to the final `ApiError` (JSON) or `null` if just busy. */
-async function openWithRetry(): Promise<string | null | undefined> {
+async function openWithRetry(installation: string): Promise<string | null | undefined> {
   const deadline = Date.now() + OPEN_GIVE_UP_MS;
   for (;;) {
     try {
-      await open("collection.db");
+      await open("collection.db", installation);
       return undefined;
     } catch (error) {
       if (isFinal(error)) return error;
@@ -63,7 +97,7 @@ async function openWithRetry(): Promise<string | null | undefined> {
 const opened = (async () => {
   await loadWasm();
   init(onNotice);
-  return openWithRetry();
+  return openWithRetry(await installationId());
 })();
 
 scope.onmessage = async ({ data: request }) => {

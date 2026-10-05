@@ -5,9 +5,10 @@
 #![cfg(target_arch = "wasm32")]
 
 use std::cell::RefCell;
+use std::sync::Arc;
 
-use fc_api::{ApiError, Core, EventSink, Notice, OpContext, dispatch};
-use js_sys::{Function, Object, Reflect, Uint8Array};
+use fc_api::{ApiError, Clock, Core, EventSink, Host, Id, Notice, OpContext, Reading, dispatch};
+use js_sys::{Date, Function, Object, Reflect, Uint8Array};
 use sqlite_wasm_rs::WasmOsCallback;
 use sqlite_wasm_vfs::sahpool::{OpfsSAHPoolCfg, install};
 use wasm_bindgen::prelude::*;
@@ -58,18 +59,42 @@ fn thrown(error: &ApiError) -> JsValue {
     JsValue::from_str(&serde_json::to_string(error).unwrap_or_default())
 }
 
+/// The browser's clock: `Date.now()` and the time zone offset. Zero-sized, so `Send + Sync`.
+#[derive(Debug)]
+struct JsClock;
+
+impl Clock for JsClock {
+    fn now(&self) -> Reading {
+        Reading {
+            // `Date.now()` is a whole number of milliseconds.
+            unix_ms: Date::now() as i64,
+            // `getTimezoneOffset()` is minutes *behind* UTC, so the sign flips.
+            utc_offset_minutes: -(Date::new_0().get_timezone_offset() as i32),
+        }
+    }
+}
+
 /// Installs the `opfs-sahpool` VFS (not as the default) and opens the collection in it, creating
 /// it on first use. Throws an `ApiError` as a JSON string, for example `updateRequired` for a
 /// collection from a newer app. Fails while another tab holds the OPFS handles.
+/// `installation_id` is a UUID string the worker keeps outside the collection (ADR 0006).
 #[wasm_bindgen]
-pub async fn open(name: String) -> Result<(), JsValue> {
+pub async fn open(name: String, installation_id: String) -> Result<(), JsValue> {
+    let installation_id = installation_id.parse::<Id>().map_err(|_| {
+        console_error("The installation ID is not a UUID");
+        thrown(&ApiError::internal())
+    })?;
+    let host = Host {
+        clock: Arc::new(JsClock),
+        installation_id,
+    };
     install::<WasmOsCallback>(&OpfsSAHPoolCfg::default(), false)
         .await
         .map_err(|e| {
             console_error(&format!("Could not install the OPFS VFS: {e}"));
             thrown(&ApiError::internal())
         })?;
-    CORE.with(|core| core.open_collection(&format!("file:{name}?vfs=opfs-sahpool")))
+    CORE.with(|core| core.open_collection(&format!("file:{name}?vfs=opfs-sahpool"), host))
         .map_err(|e| {
             console_error(&format!("Could not open the collection: {e:?}"));
             thrown(&ApiError::from(e))

@@ -15,6 +15,8 @@ function renderApp() {
         schemaVersion: 1,
         supportedSchemaVersion: 1,
         createdBy: "9.9.9",
+        deviceId: "01234567-89ab-7cde-8f01-23456789abcd",
+        unsupportedFeatures: [],
       }),
       spikeSchedule: ({ ratings }) => ({
         reviews: ratings.map((_, i) => ({ intervalDays: 2 + i, stability: 1, difficulty: 1 })),
