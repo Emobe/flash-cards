@@ -11,6 +11,9 @@
       "path": "apps/native"
     },
     {
+      "path": "apps/web"
+    },
+    {
       "path": "scripts"
     }
   ]

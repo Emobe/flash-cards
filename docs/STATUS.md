@@ -4,7 +4,7 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-0.4 Web client spike: design done, awaiting Anthony's review. ADR 0003 (Proposed) and `docs/plans/0.4-web-spike.md`. Once accepted: Sonnet build, `/step 0.4`.
+0.4 Web client spike: build in progress (ADR 0003 Accepted). `cargo xtask check` passes.
 
 ## Branch
 
@@ -19,8 +19,12 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review ADR 0003 and the plan, then accept or adjust. Nothing is built until it is Accepted.
-- Build session: everything in the plan.
+Done so far (plan steps 1 to 6): toolchain target, `fc-core` spike store, `fc-api` spike methods and `debugPanic`, `fc-wasm`, `cargo xtask wasm`, `apps/web` (worker, transport with tests, spike panel, `web:*` scripts).
+
+Left:
+- Manual checks in headless Brave (persist across reload and restart, cancel, panic, second tab, desktop app still works). Use `~/.cargo/bin` on PATH.
+- Docs (plan step 7): README prerequisites and web commands, CLAUDE.md `bun run web:dev`, ADR 0001 amendment, ADR 0003 build notes with measurements.
+- Final report in PR format, mark the step done.
 
 ## Open items
 
