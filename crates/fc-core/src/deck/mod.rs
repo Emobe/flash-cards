@@ -54,6 +54,8 @@ pub const PRESET: SyncedTable = SyncedTable {
         "reviews_per_day",
         "learning_steps",
         "desired_retention",
+        "relearning_steps",
+        "fsrs_parameters",
         "deleted",
     ],
 };
@@ -65,6 +67,7 @@ pub const SEPARATOR: &str = "::";
 pub const DEFAULT_NEW_PER_DAY: u32 = 20;
 pub const DEFAULT_REVIEWS_PER_DAY: u32 = 200;
 pub const DEFAULT_LEARNING_STEPS: &str = "1 10";
+pub const DEFAULT_RELEARNING_STEPS: &str = "10";
 pub const DEFAULT_DESIRED_RETENTION: f64 = 0.9;
 
 /// The ID of the Default deck, the same in every collection.
@@ -146,7 +149,13 @@ pub struct Preset {
     pub reviews_per_day: u32,
     /// Minutes between the steps a new or lapsed card goes through before FSRS sets its interval.
     pub learning_steps: Vec<u32>,
+    /// Minutes between the steps a lapsed card goes through again. Empty means a lapse is a review
+    /// card again with a shorter interval.
+    pub relearning_steps: Vec<u32>,
     pub desired_retention: f64,
+    /// The FSRS parameters, 21 numbers, or empty for the defaults. Written by the optimiser (1.8).
+    /// A stored value that is not a valid set reads as empty, so reading never fails.
+    pub fsrs_parameters: Vec<f32>,
     /// Live decks that use it.
     pub decks: usize,
     pub deleted: bool,

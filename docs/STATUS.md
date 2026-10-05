@@ -4,11 +4,23 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.7 Study queues and answering: ADR 0007 Accepted (2026-10-06) with Anthony's decisions, plan in `docs/plans/1.7-study-queues.md`, both on `step/1.7-study-queues`. Nothing is built. Next: merge the design branch, then build 1.7a.
+1.7a Answering and the schedule, in progress on `step/1.7a-answering` (plan: `docs/plans/1.7-study-queues.md`, ADR 0007 Accepted). 1.7b (queues) comes after 1.7a is merged.
 
 ## Branch
 
-`step/1.7-study-queues` (from master after PR #15).
+`step/1.7a-answering` (from master after PR #16).
+
+## 1.7a progress
+
+- [x] 1. Migration v7: preset registers `relearning_steps` and `fsrs_parameters` (`Preset`, `PresetChange.relearning_steps`), `collection_setting` with `day_start_hour` / `set_day_start_hour`, append-only `card_event` and `fsrs_parameter_set` (new `AppendOnlyTable` kind, guard triggers, `WriteTx::insert_row`), local `card_schedule` and `unpushed_row`. Tests in `study/tests.rs`.
+- [ ] 2. `scheduling`: `study_day`, the state machine, fuzz, parameter-set ID, previews.
+- [ ] 3. `study::answer`, events, cache update.
+- [ ] 4. Fold and `rebuild_schedule`, `schedule_cache_version`.
+- [ ] 5. `undo_answer`.
+- [ ] 6. CLI: `fc answer`, `fc undo`, `fc schedule`, `--now`, `--utc-offset`.
+- [ ] 7. Docs (ADR 0007 build notes, phase file), full `cargo xtask check`, real-collection run, report.
+
+Deviations so far: `card_event` has an extra `day` column (the study day, written with the event, so recomputing never depends on a start hour that changed later). `WriteTx::insert_row` is generic instead of `insert_event` / `insert_parameter_set`.
 
 ## Done
 

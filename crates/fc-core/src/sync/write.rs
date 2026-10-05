@@ -6,7 +6,7 @@ use rusqlite::{
     Connection, OptionalExtension, Transaction, TransactionBehavior, params, params_from_iter,
 };
 
-use super::registry::{DYNAMIC_TABLES, GUARD_TABLE};
+use super::registry::{APPEND_ONLY_TABLES, DYNAMIC_TABLES, GUARD_TABLE};
 use super::{Hlc, SyncedTable, state};
 use crate::clock::Host;
 use crate::collection::{Collection, CollectionError};
@@ -102,6 +102,58 @@ impl WriteTx<'_> {
             self.record(entity, id, field)?;
         }
         Ok(())
+    }
+
+    /// Adds a row to an append-only table (a card event, a parameter set). Every column must be
+    /// given a value (`Null` for one the row does not use). A row with this ID that exists already is
+    /// the same row, so nothing happens. Returns whether the row was added. A new row is listed as
+    /// not pushed yet.
+    pub fn insert_row(
+        &mut self,
+        entity: &str,
+        id: Id,
+        values: Vec<(&str, Value)>,
+    ) -> Result<bool, CollectionError> {
+        let table = APPEND_ONLY_TABLES
+            .iter()
+            .find(|t| t.entity == entity)
+            .ok_or_else(|| problem(format!("`{entity}` is not an append-only entity type")))?;
+        for column in table.columns {
+            if values.iter().filter(|(field, _)| field == column).count() != 1 {
+                return Err(problem(format!(
+                    "`{entity}` needs exactly one value for column `{column}`"
+                )));
+            }
+        }
+        if let Some((field, _)) = values.iter().find(|(f, _)| !table.columns.contains(f)) {
+            return Err(problem(format!("`{entity}` has no column `{field}`")));
+        }
+        let name = table.table;
+        let columns: String = values
+            .iter()
+            .map(|(field, _)| format!(", \"{field}\""))
+            .collect();
+        let marks = ", ?".repeat(values.len());
+        let args = std::iter::once(Value::Blob(id.as_bytes().to_vec()))
+            .chain(values.iter().map(|(_, value)| value.clone()));
+        let added = self.tx.execute(
+            &format!("INSERT OR IGNORE INTO \"{name}\" (id{columns}) VALUES (?{marks})"),
+            params_from_iter(args),
+        )?;
+        if added == 1 {
+            self.tx.execute(
+                "INSERT OR IGNORE INTO unpushed_row (entity_type, row_id) VALUES (?1, ?2)",
+                params![entity, id],
+            )?;
+        }
+        Ok(added == 1)
+    }
+
+    /// The connection of this transaction, for reading and for the local tables (`card_schedule`).
+    /// Synced tables must be written through the methods above, which keep their clocks: the guard
+    /// is open here and will not catch a raw write.
+    pub(crate) fn local(&self) -> &Connection {
+        &self.tx
     }
 
     /// Changes one register of an existing row.

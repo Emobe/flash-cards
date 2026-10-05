@@ -124,6 +124,13 @@ impl Scheduler {
     }
 }
 
+/// The 21 FSRS-6 parameters for a set of 17, 19 or 21 numbers (older FSRS versions have fewer, and
+/// `fsrs` fills them the same way it does when it loads them). `None` for any other count or a
+/// number that is not finite.
+pub fn fill_parameters(parameters: &[f32]) -> Option<Vec<f32>> {
+    fsrs::check_and_fill_parameters(parameters).ok()
+}
+
 /// The default FSRS-6 parameters.
 pub fn default_parameters() -> &'static [f32] {
     &DEFAULT_PARAMETERS

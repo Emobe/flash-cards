@@ -24,8 +24,8 @@ mod write;
 
 pub use hlc::Hlc;
 pub use registry::{
-    DYNAMIC_TABLES, DynamicTable, LOCAL_TABLES, SYNCED_TABLES, SyncedTable, install_dynamic_guard,
-    install_guard,
+    APPEND_ONLY_TABLES, AppendOnlyTable, DYNAMIC_TABLES, DynamicTable, LOCAL_TABLES, SYNCED_TABLES,
+    SyncedTable, install_append_only_guard, install_dynamic_guard, install_guard,
 };
 pub use requires::SUPPORTED_FEATURES;
 pub use unknown::UnknownRegister;

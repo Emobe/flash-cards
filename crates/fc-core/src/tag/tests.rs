@@ -637,7 +637,7 @@ fn a_version_5_collection_upgrades_and_keeps_its_notes() {
     old.close().unwrap();
 
     let upgraded = Collection::open(location, host(&clock)).unwrap();
-    assert_eq!(upgraded.info().unwrap().schema_version, 6);
+    assert_eq!(upgraded.info().unwrap().schema_version, 7);
     check_schema(&upgraded.conn, SYNCED_TABLES).unwrap();
     assert!(upgraded.note(n).unwrap().is_some());
     assert!(upgraded.note_tags(n).unwrap().is_empty());

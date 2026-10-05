@@ -15,7 +15,7 @@
 use rusqlite::{Connection, Transaction, TransactionBehavior};
 
 use super::error::CollectionError;
-use crate::sync::{SyncedTable, install_guard};
+use crate::sync::{AppendOnlyTable, SyncedTable, install_append_only_guard, install_guard};
 
 /// Marks a database as one of ours ("FCCL").
 pub(super) const APPLICATION_ID: i32 = 0x4643_4343;
@@ -51,6 +51,10 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 6,
         apply: v6,
+    },
+    Migration {
+        version: 7,
+        apply: v7,
     },
 ];
 
@@ -291,6 +295,114 @@ fn v6(tx: &Transaction) -> rusqlite::Result<()> {
             registers: &[],
         },
     )
+}
+
+/// Version 7 (step 1.7a): answering. See `crate::study`.
+///
+/// - `options_preset` gets `relearning_steps` and `fsrs_parameters`. The Default preset keeps the
+///   column defaults (steps `10`, the default parameters), the same on every device, so it needs no
+///   clock rows;
+/// - `collection_setting`: synced settings, the first being the hour the study day starts;
+/// - `card_event` and `fsrs_parameter_set`: append-only synced tables, which the database refuses to
+///   change or delete;
+/// - `card_schedule`: the local cache folded from card events, and `unpushed_row`, the local list of
+///   append-only rows a sync has not pushed. A card with no `card_schedule` row is new.
+///
+/// Nothing has a foreign key and no existing row is rewritten.
+fn v7(tx: &Transaction) -> rusqlite::Result<()> {
+    tx.execute_batch(
+        "ALTER TABLE options_preset ADD COLUMN relearning_steps TEXT NOT NULL DEFAULT '10';
+        ALTER TABLE options_preset ADD COLUMN fsrs_parameters TEXT NOT NULL DEFAULT '';
+        CREATE TABLE collection_setting (
+            id BLOB PRIMARY KEY NOT NULL,
+            key TEXT NOT NULL DEFAULT '',
+            value TEXT NOT NULL DEFAULT ''
+        ) WITHOUT ROWID;
+        CREATE TABLE fsrs_parameter_set (
+            id BLOB PRIMARY KEY NOT NULL,
+            values_f32 BLOB NOT NULL
+        ) WITHOUT ROWID;
+        CREATE TABLE card_event (
+            id BLOB PRIMARY KEY NOT NULL,
+            card BLOB NOT NULL,
+            kind TEXT NOT NULL,
+            time_ms INTEGER NOT NULL,
+            utc_offset INTEGER NOT NULL,
+            device BLOB NOT NULL,
+            previous BLOB,
+            day INTEGER NOT NULL,
+            rating INTEGER,
+            duration_ms INTEGER,
+            preset BLOB,
+            desired_retention REAL,
+            parameters BLOB,
+            steps TEXT,
+            state_before INTEGER,
+            state INTEGER,
+            step INTEGER,
+            stability REAL,
+            difficulty REAL,
+            due_day INTEGER,
+            due_ms INTEGER,
+            target BLOB
+        ) WITHOUT ROWID;
+        CREATE INDEX card_event_by_card ON card_event (card, time_ms);
+        CREATE INDEX card_event_by_time ON card_event (time_ms);
+        CREATE INDEX card_event_by_day ON card_event (day);
+        CREATE TABLE card_schedule (
+            card BLOB PRIMARY KEY NOT NULL,
+            state INTEGER NOT NULL,
+            step INTEGER NOT NULL DEFAULT 0,
+            due_day INTEGER,
+            due_ms INTEGER,
+            stability REAL,
+            difficulty REAL,
+            last_day INTEGER NOT NULL,
+            last_event BLOB NOT NULL,
+            answers INTEGER NOT NULL DEFAULT 0,
+            lapses INTEGER NOT NULL DEFAULT 0
+        ) WITHOUT ROWID;
+        CREATE INDEX card_schedule_by_due_day ON card_schedule (state, due_day);
+        CREATE INDEX card_schedule_by_due_ms ON card_schedule (due_ms);
+        CREATE TABLE unpushed_row (
+            entity_type TEXT NOT NULL,
+            row_id BLOB NOT NULL,
+            PRIMARY KEY (entity_type, row_id)
+        ) WITHOUT ROWID;",
+    )?;
+    // The Default preset's new registers hold the column defaults on every device, so they get the
+    // lowest clock, already pushed, like the rest of the seed (`seed_row`).
+    for field in ["relearning_steps", "fsrs_parameters"] {
+        tx.execute(
+            "INSERT INTO register_clock (entity_type, entity_id, field, hlc, device, pushed)
+             VALUES ('options_preset', ?1, ?2, 0, ?3, 1)",
+            rusqlite::params![
+                crate::deck::default_preset(),
+                field,
+                crate::id::Id::from_bytes([0; 16])
+            ],
+        )?;
+    }
+    // Frozen copies, as in `v2`: the guard only needs the names.
+    install_guard(
+        tx,
+        &SyncedTable {
+            entity: "collection_setting",
+            table: "collection_setting",
+            registers: &["key", "value"],
+        },
+    )?;
+    for name in ["card_event", "fsrs_parameter_set"] {
+        install_append_only_guard(
+            tx,
+            &AppendOnlyTable {
+                entity: name,
+                table: name,
+                columns: &[],
+            },
+        )?;
+    }
+    Ok(())
 }
 
 /// What a database file is, before anything is written to it.

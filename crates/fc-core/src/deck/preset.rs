@@ -11,7 +11,7 @@ use super::ops::{blob, clean_name, flag, text};
 use super::read::Tree;
 use super::{
     DECK, DEFAULT_DESIRED_RETENTION, DEFAULT_LEARNING_STEPS, DEFAULT_NEW_PER_DAY,
-    DEFAULT_REVIEWS_PER_DAY, DeckError, PRESET, Preset, default_preset,
+    DEFAULT_RELEARNING_STEPS, DEFAULT_REVIEWS_PER_DAY, DeckError, PRESET, Preset, default_preset,
 };
 use crate::collection::Collection;
 use crate::id::Id;
@@ -29,6 +29,7 @@ pub struct PresetChange {
     pub new_per_day: Option<u32>,
     pub reviews_per_day: Option<u32>,
     pub learning_steps: Option<Vec<u32>>,
+    pub relearning_steps: Option<Vec<u32>>,
     pub desired_retention: Option<f64>,
 }
 
@@ -65,6 +66,20 @@ pub(super) fn parse_steps(stored: &str) -> Vec<u32> {
         .filter(|minutes| (1..=MAX_STEP_MINUTES).contains(minutes))
         .take(MAX_STEPS)
         .collect()
+}
+
+/// The FSRS parameters as stored: numbers separated by spaces, or empty for the defaults. A value
+/// that is not a valid set (a wrong count, a number that is not finite) reads as the defaults. A
+/// set from an older FSRS version is filled to 21 numbers.
+pub(super) fn parse_parameters(stored: &str) -> Vec<f32> {
+    let numbers: Option<Vec<f32>> = stored
+        .split_whitespace()
+        .map(|word| word.parse::<f32>().ok())
+        .collect();
+    numbers
+        .filter(|numbers| !numbers.is_empty())
+        .and_then(|numbers| crate::scheduling::fill_parameters(&numbers))
+        .unwrap_or_default()
 }
 
 fn check_steps(steps: &[u32]) -> Result<(), DeckError> {
@@ -113,7 +128,7 @@ fn load(conn: &Connection, tree: &Tree) -> Result<Vec<Stored>, DeckError> {
     }
     let mut statement = conn.prepare(&format!(
         "SELECT p.id, p.name, p.new_per_day, p.reviews_per_day, p.learning_steps,
-                p.desired_retention, p.deleted, {}
+                p.desired_retention, p.deleted, {}, p.relearning_steps, p.fsrs_parameters
          FROM options_preset p",
         effectively_deleted()
     ))?;
@@ -128,11 +143,13 @@ fn load(conn: &Connection, tree: &Tree) -> Result<Vec<Stored>, DeckError> {
                     new_per_day: row.get::<_, i64>(2)?.clamp(0, MAX_LIMIT.into()) as u32,
                     reviews_per_day: row.get::<_, i64>(3)?.clamp(0, MAX_LIMIT.into()) as u32,
                     learning_steps: parse_steps(&row.get::<_, String>(4)?),
+                    relearning_steps: parse_steps(&row.get::<_, String>(8)?),
                     desired_retention: if retention.is_nan() {
                         DEFAULT_DESIRED_RETENTION
                     } else {
                         retention.clamp(MIN_RETENTION, MAX_RETENTION)
                     },
+                    fsrs_parameters: parse_parameters(&row.get::<_, String>(9)?),
                     decks: users.get(&id).copied().unwrap_or(0),
                     deleted: row.get::<_, i64>(7)? != 0,
                 },
@@ -233,6 +250,8 @@ impl Collection {
                     ),
                     ("learning_steps", text(DEFAULT_LEARNING_STEPS)),
                     ("desired_retention", Value::Real(DEFAULT_DESIRED_RETENTION)),
+                    ("relearning_steps", text(DEFAULT_RELEARNING_STEPS)),
+                    ("fsrs_parameters", text("")),
                     ("deleted", flag(false)),
                 ],
             )?;
@@ -260,6 +279,9 @@ impl Collection {
             check_limit(limit)?;
         }
         if let Some(steps) = &change.learning_steps {
+            check_steps(steps)?;
+        }
+        if let Some(steps) = &change.relearning_steps {
             check_steps(steps)?;
         }
         if let Some(retention) = change.desired_retention {
@@ -295,6 +317,18 @@ impl Collection {
                     PRESET.entity,
                     id,
                     "learning_steps",
+                    text(&join_steps(steps)),
+                )?;
+            }
+            if let Some(steps) = change
+                .relearning_steps
+                .as_ref()
+                .filter(|s| **s != current.relearning_steps)
+            {
+                w.set(
+                    PRESET.entity,
+                    id,
+                    "relearning_steps",
                     text(&join_steps(steps)),
                 )?;
             }
