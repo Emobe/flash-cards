@@ -134,12 +134,14 @@ pub fn run() {
         // A new main-frame load starts a new session: the token is claimed again by the new page.
         // Card frames must not reset it (ADR 0005), so only the `main` webview counts.
         .on_page_load(|webview, payload| {
+            #[cfg(debug_assertions)]
+            eprintln!(
+                "[page-load] {} {:?} {}",
+                webview.label(),
+                payload.event(),
+                payload.url()
+            );
             if payload.event() == PageLoadEvent::Started && webview.label() == "main" {
-                #[cfg(debug_assertions)]
-                eprintln!(
-                    "[gate] main page load started ({}): token reset",
-                    payload.url()
-                );
                 webview.state::<Arc<Gate>>().reset();
             }
         })
