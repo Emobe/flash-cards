@@ -590,3 +590,72 @@ Anthony asked Claude Code to make these four calls. Each is the option the Propo
   the cache as a register written only by the fold.
 - **The server needs to enforce semantic rules.** Then run `fc-core` on the server (option C's
   strength) for those rules only.
+
+## Build notes (step 1.1b)
+
+The sync foundation (section 13, items 1 to 3 and 7), built to this ADR with no change to the
+decision. These are the choices step 1.1b left open.
+
+- **IDs.** `fc_core::id::Id` is 16 bytes, a lowercase hyphenated UUID string in text, a `BLOB` in
+  SQLite. `Id::new_v7(ms, random)` takes both inputs, `Id::generate(ms)` adds `getrandom`.
+  `Id::new_v5` is there for deterministic IDs (cards from 1.3, requirements here). Only canonical
+  lowercase text parses. `uuid` is pinned `=1.27.0` with the `v5` feature, which pulls in
+  `sha1_smol` (a new, small, pure-Rust package in the lockfile).
+- **Clock.** `Clock::now()` gives Unix ms and the UTC offset in minutes. A `Host` bundles it with the
+  installation ID and is passed to `Collection::create` and `open`, so there is one clock per open
+  collection. `fc-core` cannot read the system clock: `clippy.toml` bans the types and calls, and
+  `cargo xtask check` runs clippy. `ManualClock` is the fake for tests. `fc-native` and `fc-cli`
+  use `chrono` (`=0.4.45`, `clock` feature only, already in the lockfile through Tauri) for the
+  local UTC offset. `fc-wasm` uses `Date.now()` and `getTimezoneOffset()`.
+- **HLC.** A `u64`: 48 bits of ms, 16 bits of counter. `next(now) = max(now << 16, last + 1)`, so a
+  full counter carries into the milliseconds. Stored as SQLite's signed integer (ms are limited to
+  47 bits, year 6429). Saved in `meta` (`hlc_last`) in the same transaction as the write, and moved
+  up by `observe_hlc` or by storing an unknown register. Each register write gets its own stamp.
+- **Device and installation IDs.** Both are in `meta`. On every open, a missing device ID or an
+  installation ID that differs from the host's gives a new device ID (`identify`). Where the host
+  keeps the installation ID: `fc-native` in `app_config_dir/installation-id` (so copying the data
+  directory does not carry it), `fc-cli` in `<collection>.installation`, the web worker in
+  IndexedDB (a temporary ID if IndexedDB is unavailable, which only costs a new device ID per
+  load). `regenerate_device_id()` is for restore and import (1.13). A copied file opened by the
+  same installation keeps its device ID: this is why restore must call it explicitly. Old writes
+  keep the old device ID, history is not rewritten.
+- **Registers and the write path.**
+  - A synced table is a `SyncedTable` (entity type, table, register names). The register name is
+    the column name, and every table has `id BLOB PRIMARY KEY`. The list is `SYNCED_TABLES`.
+  - `register_clock` is keyed by `(entity_type, entity_id, field)` with `hlc`, `device` and
+    `pushed`. Entity and field are strings, as the sync format needs.
+  - `Collection::write(|w| ...)` is the only way to change a synced table. `WriteTx` has `insert`
+    (every register must be given, so every register has a clock), `set`, `get` and `new_id`, and no
+    raw SQL. Failure rolls back the value, the clock and the saved HLC together.
+  - **Guard triggers.** `install_guard` (called in the migration that creates a table) makes SQLite
+    abort an INSERT or UPDATE unless a `write_guard` row exists, which only `write` creates, inside
+    its transaction. A DELETE always aborts (hard delete is for the purge in 1.11). So even a
+    forgotten `conn.execute` cannot write a synced table without going through `write`.
+  - **Tests.** `check_schema` fails if a table is neither in `LOCAL_TABLES` nor a `SyncedTable`, if
+    a synced table has a column that is not `id` or a register, or if a guard trigger is missing. It
+    runs on the real schema, and its own failures are tested.
+  - **For 1.11:** the merge applies remote registers with the remote `(hlc, device)`, so it needs
+    its own write method that opens the guard. A migration that must rewrite synced rows needs the
+    same. Neither exists yet.
+- **Unknown data.** `unknown_register` has an untyped `value` column, so any SQLite value is kept as
+  received. `store_unknown_register` keeps the higher `(hlc, device)` (tested: four orders and
+  repeats give the same result) and refuses a register this build knows. `knows_register` is the
+  classifier. Unknown events and entity-level data wait for 1.7 and 1.11.
+- **`requires`.** One `requirement` row per feature, ID `UUIDv5("fc-requirement-1", feature)`, with
+  registers `feature` and `active`, both defaulted so a row that arrives half filled is harmless.
+  `require_feature` writes through `write` and `info()` returns `unsupported_features`. **A
+  collection that needs an unknown feature still opens**: section 10 says sync pauses and local
+  study continues, so the open is not refused. Phase 4 must read `unsupported_features` before
+  syncing. `SUPPORTED_FEATURES` is empty. Per-entity `requires` registers are added by the steps
+  that need them.
+- **Migration v2** adds `register_clock`, `unknown_register`, `write_guard` and `requirement`. It
+  upgraded a real 1.1a collection (a copy of the desktop one, and then the desktop app itself).
+- **Verified.**
+  - Linux: 64 core tests, the CLI end to end, the desktop app migrating its real collection.
+  - Browser: release wasm in headless Brave 143 (Chromium) on Linux. A new collection gets a UUIDv7
+    device ID, which proves `getrandom` works with `wasm_js` in a browser. The ID is the same after
+    a browser restart. With only the stored installation ID wiped (a collection that moved to another
+    browser profile) the device ID changed.
+  - Android: the debug APK builds (with `chrono`). It was not installed or run.
+- **Not verified:** Windows, Firefox, Safari, the phone at runtime, clock and device IDs under real
+  multi-device sync (Phase 4), speed or size of `register_clock` at 50,000 notes.
