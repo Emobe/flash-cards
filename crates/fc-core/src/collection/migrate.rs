@@ -36,6 +36,10 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         version: 2,
         apply: v2,
     },
+    Migration {
+        version: 3,
+        apply: v3,
+    },
 ];
 
 /// The newest version in `migrations`.
@@ -105,6 +109,67 @@ fn v2(tx: &Transaction) -> rusqlite::Result<()> {
             registers: &["feature", "active"],
         },
     )
+}
+
+/// Version 3 (step 1.2): note types, their fields and their templates, and the built-in note types
+/// (Basic, Basic and reversed, Cloze) with fixed IDs. See `crate::notetype`.
+///
+/// Every column has a default, so a row that arrives with only some of its registers is harmless
+/// (ADR 0006, section 6). Rows point at their note type by ID with no foreign key.
+fn v3(tx: &Transaction) -> rusqlite::Result<()> {
+    tx.execute_batch(
+        "CREATE TABLE note_type (
+            id BLOB PRIMARY KEY NOT NULL,
+            name TEXT NOT NULL DEFAULT '',
+            kind TEXT NOT NULL DEFAULT 'standard',
+            css TEXT NOT NULL DEFAULT '',
+            sort_field BLOB,
+            deleted INTEGER NOT NULL DEFAULT 0
+        ) WITHOUT ROWID;
+        CREATE TABLE note_type_field (
+            id BLOB PRIMARY KEY NOT NULL,
+            note_type BLOB NOT NULL DEFAULT x'',
+            name TEXT NOT NULL DEFAULT '',
+            position TEXT NOT NULL DEFAULT '',
+            deleted INTEGER NOT NULL DEFAULT 0
+        ) WITHOUT ROWID;
+        CREATE INDEX note_type_field_by_note_type ON note_type_field (note_type);
+        CREATE TABLE template (
+            id BLOB PRIMARY KEY NOT NULL,
+            note_type BLOB NOT NULL DEFAULT x'',
+            name TEXT NOT NULL DEFAULT '',
+            position TEXT NOT NULL DEFAULT '',
+            front TEXT NOT NULL DEFAULT '',
+            back TEXT NOT NULL DEFAULT '',
+            deleted INTEGER NOT NULL DEFAULT 0
+        ) WITHOUT ROWID;
+        CREATE INDEX template_by_note_type ON template (note_type);",
+    )?;
+    // Frozen copies, as in `v2`: the guard only needs the names.
+    for (entity, registers) in [
+        (
+            "note_type",
+            &["name", "kind", "css", "sort_field", "deleted"][..],
+        ),
+        (
+            "note_type_field",
+            &["note_type", "name", "position", "deleted"][..],
+        ),
+        (
+            "template",
+            &["note_type", "name", "position", "front", "back", "deleted"][..],
+        ),
+    ] {
+        install_guard(
+            tx,
+            &SyncedTable {
+                entity,
+                table: entity,
+                registers,
+            },
+        )?;
+    }
+    crate::notetype::builtin::seed(tx)
 }
 
 /// What a database file is, before anything is written to it.

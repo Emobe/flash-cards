@@ -51,7 +51,7 @@ fn creates_then_opens_and_closes_a_collection() {
     let info = fc(&["info", file.path()]);
     assert!(info.status.success(), "{}", stderr(&info));
     let text = stdout(&info);
-    assert!(text.contains("Storage version: 2 (this build understands up to 2)"));
+    assert!(text.contains("Storage version: 3 (this build understands up to 3)"));
     assert!(text.contains("Device ID: "));
     assert!(text.contains("Created by core: 0.0.0"));
 }
@@ -129,4 +129,20 @@ fn bad_usage_exits_with_2_and_prints_the_usage() {
         assert!(stderr(&output).contains("Usage:"), "{args:?}");
     }
     assert!(fc(&["help"]).status.success());
+}
+
+#[test]
+fn lists_the_built_in_note_types() {
+    let file = TempFile::new("notetypes");
+    assert!(fc(&["new", file.path()]).status.success());
+    let listed = fc(&["notetypes", file.path()]);
+    assert!(listed.status.success(), "{}", stderr(&listed));
+    let text = stdout(&listed);
+    assert!(text.contains("Basic (standard)"));
+    assert!(text.contains("Fields: Front, Back"));
+    assert!(text.contains("Basic and reversed (standard)"));
+    assert!(text.contains("Templates: Card 1, Card 2"));
+    assert!(text.contains("Cloze (cloze)"));
+    assert!(text.contains("Fields: Text, Extra"));
+    assert!(!text.contains("Deleted"));
 }

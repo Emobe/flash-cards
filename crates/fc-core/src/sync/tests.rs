@@ -511,7 +511,7 @@ fn a_1_1a_collection_is_upgraded_and_gets_a_device_id() {
 
     let upgraded = Collection::open(db.path(), host(&clock, b"installation-one")).unwrap();
     let info = upgraded.info().unwrap();
-    assert_eq!(info.schema_version, 2);
+    assert_eq!(info.schema_version, info.supported_schema_version);
     assert!(upgraded.device_id().is_ok());
     check_schema(&upgraded.conn, SYNCED_TABLES).unwrap();
     let word: String = upgraded

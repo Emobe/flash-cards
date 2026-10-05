@@ -29,7 +29,7 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 **Review focus:** how painful will future schema changes be?
 
-**Status:** done (2026-10-05), pending Anthony's check of the phone (see `docs/STATUS.md`). Built to ADR 0003 (build notes, step 1.1a). The CLI criterion is met by a minimal `crates/fc-cli` (`fc new`, `fc info`) that 1.14 extends.
+**Status:** done (2026-10-05), merged. The phone showed the collection line (storage version 2). Built to ADR 0003 (build notes, step 1.1a). The CLI criterion is met by a minimal `crates/fc-cli` (`fc new`, `fc info`) that 1.14 extends.
 
 ---
 
@@ -48,7 +48,7 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 **Review focus:** can any later step write a synced table without the clock being recorded?
 
-**Status:** done (2026-10-05), pending Anthony's review. Built to ADR 0006 (build notes, step 1.1b). One deviation: a collection that needs an unknown feature still opens, and `info()` lists the features (ADR 0006 section 10: sync pauses, study continues).
+**Status:** done (2026-10-05), merged (PR #10). Built to ADR 0006 (build notes, step 1.1b). One deviation: a collection that needs an unknown feature still opens, and `info()` lists the features (ADR 0006 section 10: sync pauses, study continues).
 
 **Notes:** see `docs/plans/0.7-data-model-sync.md`.
 
@@ -64,6 +64,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Built-ins exist: Basic, Basic and reversed, Cloze.
 - Create, rename and delete note types; add, rename, reorder and remove fields; add and remove templates.
 - Changes that would affect existing notes are handled predictably and tested.
+
+**Status:** done (2026-10-05), pending Anthony's review. Built to ADR 0006 (build notes, step 1.2). Two things were left for later steps: renaming a field does not rewrite `{{Field}}` references in templates (needs the 1.4 parser), and the notes-level tests run against a stand-in table until 1.3 adds notes. The CLI has `fc notetypes` to list; the commands that change note types are 1.14.
 
 ---
 
@@ -90,6 +92,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Field substitution, conditional sections, front side inclusion on the back, cloze rendering for front and back, references to media.
 - Malformed templates produce a clear error, not a crash.
 - Output is safe to hand to the sandbox from 0.6.
+
+**Carried over from 1.2:** the built-in templates already use `{{Field}}`, `{{FrontSide}}` and `{{cloze:Field}}`, so define the grammar to accept them (or migrate them). Renaming a field must also update `{{OldName}}` in the templates, or report them: 1.2 does not.
 
 ---
 
