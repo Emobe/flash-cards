@@ -29,6 +29,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 **Review focus:** how painful will future schema changes be?
 
+**Status:** done (2026-10-05), pending Anthony's check of the phone (see `docs/STATUS.md`). Built to ADR 0003 (build notes, step 1.1a). The CLI criterion is met by a minimal `crates/fc-cli` (`fc new`, `fc info`) that 1.14 extends.
+
 ---
 
 ## 1.1b Sync foundation

@@ -9,6 +9,7 @@ Planning docs are in [`docs/`](docs/README.md); the layout is explained in
 ```
 crates/fc-core     Rust core library (domain logic)
 crates/fc-api      The core's public API: one dispatcher for every host, generates the TS bindings
+crates/fc-cli      Developer CLI (`fc`): drives the core from a terminal
 crates/fc-wasm     Web host: the core compiled to wasm for the browser worker (empty on native targets)
 apps/native        Tauri v2 host for desktop and Android (src-tauri/) and its Vite entry
 apps/web           Web client: Vite entry, the core worker and the web transport
@@ -129,6 +130,7 @@ Run from the repository root.
 | `cargo xtask check` | Run every check (Rust fmt, clippy, tests, cargo-deny; Biome, TypeScript, Vitest). Must pass before a PR. |
 | `cargo xtask fmt` | Format all Rust and JS/TS code |
 | `cargo xtask bindings` | Regenerate the TypeScript bindings after changing an API type in `crates/fc-api` |
+| `cargo run -p fc-cli -- new <file>` | Create an empty collection with the developer CLI (`info <file>` opens it and prints facts; `help` lists commands) |
 | `bun run dev` | Launch the desktop app with hot reload (via `scripts/dev.ts`) |
 | `cargo xtask wasm [--release]` | Build `fc-wasm` and generate its JS glue into `apps/web/src/wasm` (gitignored) |
 | `bun run web:dev` | Build the wasm core, then run the web client with the Vite dev server |
