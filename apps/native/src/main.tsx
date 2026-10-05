@@ -10,12 +10,16 @@ if (!root) {
   throw new Error("Missing #root element in index.html");
 }
 
-const client = new CoreClient(createTauriTransport());
+// A card that navigates its own frame to the app gets a blank page, not a second copy of the app
+// holding a transport (ADR 0005).
+if (window.top === window) {
+  const client = new CoreClient(createTauriTransport());
 
-createRoot(root).render(
-  <StrictMode>
-    <CoreProvider client={client}>
-      <App />
-    </CoreProvider>
-  </StrictMode>,
-);
+  createRoot(root).render(
+    <StrictMode>
+      <CoreProvider client={client}>
+        <App />
+      </CoreProvider>
+    </StrictMode>,
+  );
+}
