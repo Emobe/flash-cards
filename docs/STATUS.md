@@ -4,22 +4,22 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-0.3a UI-to-core bridge, call path: done, awaiting review. Plan: `docs/plans/0.3-bridge.md`, ADR 0002 (Accepted). 0.3b (notices, long operations, attachments) follows as a separate PR.
+0.3b UI-to-core bridge, notices, long operations, attachments: in progress. Plan: `docs/plans/0.3-bridge.md`, ADR 0002 (Accepted). Follows 0.3a (merged).
 
 ## Branch
 
-`step/0.3a-bridge` (from `step/0.3-bridge`).
+`step/0.3b-bridge-notices` (from `master`).
 
 ## Done
 
 - Planning docs (`docs/`).
 - 0.1 Repository and workspace boilerplate. Verified on Manjaro only.
 - 0.2 Android build. Debug APK and USB live reload verified on the phone, workflow runs through Bun. Includes a 16 KB page alignment fix.
-- 0.3a UI-to-core bridge, call path: code complete, `cargo xtask check` passes. Verified on desktop (value, error, no IPC warning, gating, type sync) and on the phone (value). Phone error path needs Anthony to tap Divide with divisor 0 (CLAUDE.md forbids tapping the phone). Ready for PR review.
+- 0.3a UI-to-core bridge, call path. Merged (PR #3). Verified on desktop and on the phone (value and the divide-by-zero error, checked by Anthony).
 
 ## Remaining in this step
 
-- Anthony: review 0.3a, check the divide error on the phone, merge. Then 0.3b (notices, long operations, attachments), per `docs/plans/0.3-bridge.md`.
+- 0.3b: fc-api notices and operation context, fc-native `subscribe` and `cancel`, core-client progress, cancel, events and attachments, Tauri transport, tests, Android attachment timings into ADR 0002.
 
 ## Open items
 
