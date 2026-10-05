@@ -1,0 +1,219 @@
+//! Which cards a note has, and bringing the stored cards in line with that.
+
+use std::collections::HashMap;
+
+use rusqlite::types::Value;
+
+use super::CARD;
+use super::scan::{cloze_numbers, front_shows_content};
+use crate::collection::{Collection, CollectionError};
+use crate::id::Id;
+use crate::notetype::{Kind, NoteType};
+use crate::sync::WriteTx;
+
+/// The ID of the card a note makes from a template, for a cloze number (0 when the template is not
+/// cloze). The same inputs always give the same ID, on every device.
+pub fn card_id(note: Id, template: Id, ordinal: u32) -> Id {
+    let mut name = [0u8; 20];
+    name[..16].copy_from_slice(template.as_bytes());
+    name[16..].copy_from_slice(&ordinal.to_be_bytes());
+    Id::new_v5(note, &name)
+}
+
+/// What the cards of a note are now: its values by field ID, and the cards it has stored, with
+/// whether each is deleted.
+pub(super) struct NoteState {
+    pub id: Id,
+    pub values: HashMap<Id, String>,
+    pub cards: HashMap<Id, bool>,
+}
+
+/// The cards a note should have, as `(template, ordinal)`, in template order.
+pub(super) fn wanted(note_type: &NoteType, values: &HashMap<Id, String>) -> Vec<(Id, u32)> {
+    // Values by field name, for the live fields only: a removed field reads as empty. If a merge
+    // left two fields with one name, the first in order is the one a template reads.
+    let mut by_name: HashMap<&str, &str> = HashMap::new();
+    for field in &note_type.fields {
+        let value = values.get(&field.id).map_or("", String::as_str);
+        by_name.entry(field.name.as_str()).or_insert(value);
+    }
+    let value = |name: &str| by_name.get(name).map(|v| (*v).to_owned());
+    let mut wanted = Vec::new();
+    for template in &note_type.templates {
+        match note_type.kind {
+            Kind::Standard => {
+                if front_shows_content(&template.front, &value) {
+                    wanted.push((template.id, 0));
+                }
+            }
+            Kind::Cloze => {
+                for number in cloze_numbers(&template.front, &value) {
+                    wanted.push((template.id, number));
+                }
+            }
+        }
+    }
+    wanted
+}
+
+/// What reconciling did to a note's cards.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub(super) struct Reconciled {
+    /// Cards that were created or came back.
+    pub added: Vec<Id>,
+    /// Cards that were deleted.
+    pub removed: Vec<Id>,
+}
+
+fn flag(on: bool) -> Value {
+    Value::Integer(i64::from(on))
+}
+
+fn blob(id: Id) -> Value {
+    Value::Blob(id.as_bytes().to_vec())
+}
+
+/// Makes the cards of one live note match its note type, in the write `w`.
+pub(super) fn reconcile(
+    w: &mut WriteTx<'_>,
+    note_type: &NoteType,
+    note: &NoteState,
+) -> Result<Reconciled, CollectionError> {
+    let mut done = Reconciled::default();
+    let mut keep = Vec::new();
+    for (template, ordinal) in wanted(note_type, &note.values) {
+        let id = card_id(note.id, template, ordinal);
+        keep.push(id);
+        match note.cards.get(&id) {
+            Some(false) => {}
+            Some(true) => {
+                w.set(CARD.entity, id, "deleted", flag(false))?;
+                done.added.push(id);
+            }
+            None => {
+                w.insert(
+                    CARD.entity,
+                    id,
+                    vec![
+                        ("note", blob(note.id)),
+                        ("template", blob(template)),
+                        ("ordinal", Value::Integer(i64::from(ordinal))),
+                        ("deleted", flag(false)),
+                    ],
+                )?;
+                done.added.push(id);
+            }
+        }
+    }
+    let mut stale: Vec<Id> = note
+        .cards
+        .iter()
+        .filter(|(id, deleted)| !**deleted && !keep.contains(id))
+        .map(|(id, _)| *id)
+        .collect();
+    stale.sort();
+    for id in stale {
+        w.set(CARD.entity, id, "deleted", flag(true))?;
+        done.removed.push(id);
+    }
+    Ok(done)
+}
+
+impl Collection {
+    /// The stored state of one note.
+    pub(super) fn note_state(&self, note: Id) -> Result<NoteState, CollectionError> {
+        let mut values = HashMap::new();
+        let mut statement = self
+            .conn
+            .prepare("SELECT field, value FROM note_field_value WHERE note = ?1")?;
+        for row in statement.query_map([note], |row| Ok((row.get(0)?, row.get(1)?)))? {
+            let (field, value): (Id, String) = row?;
+            values.insert(field, value);
+        }
+        let mut cards = HashMap::new();
+        let mut statement = self
+            .conn
+            .prepare("SELECT id, deleted FROM card WHERE note = ?1")?;
+        for row in statement.query_map([note], |row| {
+            Ok((row.get::<_, Id>(0)?, row.get::<_, i64>(1)? != 0))
+        })? {
+            let (id, deleted) = row?;
+            cards.insert(id, deleted);
+        }
+        Ok(NoteState {
+            id: note,
+            values,
+            cards,
+        })
+    }
+
+    /// The stored state of every live note of a note type, by note ID.
+    fn note_states(&self, note_type: Id) -> Result<Vec<NoteState>, CollectionError> {
+        let mut by_note: HashMap<Id, NoteState> = HashMap::new();
+        let mut statement = self
+            .conn
+            .prepare("SELECT id FROM note WHERE note_type = ?1 AND deleted = 0 ORDER BY id")?;
+        let ids = statement
+            .query_map([note_type], |row| row.get::<_, Id>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        for id in &ids {
+            by_note.insert(
+                *id,
+                NoteState {
+                    id: *id,
+                    values: HashMap::new(),
+                    cards: HashMap::new(),
+                },
+            );
+        }
+        let mut statement = self.conn.prepare(
+            "SELECT v.note, v.field, v.value FROM note_field_value v
+             JOIN note n ON n.id = v.note WHERE n.note_type = ?1 AND n.deleted = 0",
+        )?;
+        for row in statement.query_map([note_type], |row| {
+            Ok((
+                row.get::<_, Id>(0)?,
+                row.get::<_, Id>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })? {
+            let (note, field, value) = row?;
+            if let Some(state) = by_note.get_mut(&note) {
+                state.values.insert(field, value);
+            }
+        }
+        let mut statement = self.conn.prepare(
+            "SELECT c.note, c.id, c.deleted FROM card c
+             JOIN note n ON n.id = c.note WHERE n.note_type = ?1 AND n.deleted = 0",
+        )?;
+        for row in statement.query_map([note_type], |row| {
+            Ok((
+                row.get::<_, Id>(0)?,
+                row.get::<_, Id>(1)?,
+                row.get::<_, i64>(2)? != 0,
+            ))
+        })? {
+            let (note, card, deleted) = row?;
+            if let Some(state) = by_note.get_mut(&note) {
+                state.cards.insert(card, deleted);
+            }
+        }
+        Ok(ids.iter().filter_map(|id| by_note.remove(id)).collect())
+    }
+
+    /// Makes the cards of every live note of a note type match its fields and templates. Called
+    /// inside the write that changed the note type, so the change and its cards commit together.
+    pub(crate) fn reconcile_note_type(
+        &self,
+        w: &mut WriteTx<'_>,
+        note_type: Id,
+    ) -> Result<(), CollectionError> {
+        let Some(found) = self.note_type(note_type).map_err(CollectionError::from)? else {
+            return Ok(());
+        };
+        for note in self.note_states(note_type)? {
+            reconcile(w, &found, &note)?;
+        }
+        Ok(())
+    }
+}

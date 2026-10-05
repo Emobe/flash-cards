@@ -4,13 +4,15 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.2 Note types and fields: built, `cargo xtask check` passes, waiting for Anthony's review of the PR. Next: 1.3 Notes and card generation (new session, Sonnet, `/step 1.3`). It must tombstone the notes and cards of a deleted note type, add the "still referenced, so still alive" rule, and repeat the 1.2 stand-in-table tests with real notes (see ADR 0006 build notes, step 1.2).
+1.3 Notes and card generation: built, `cargo xtask check` passes, waiting for Anthony's review of the PR. Next: 1.4 Template rendering (new session, Sonnet, `/step 1.4`). It must replace `note::scan` with the real parser (see the 1.4 brief) and keep `note/tests.rs` passing.
 
 ## Branch
 
-`step/1.2-note-types` (from master after PR #10).
+`step/1.3-notes-cards` (from master after PR #11).
 
 ## Done
+
+- 1.3 Notes and card generation (ADR 0006 build notes, step 1.3). `fc_core::note`: tables `note`, `note_field_value` (a dynamic table: values are registers named by field ID) and `card` (migration v4), deterministic card IDs, card generation for standard and cloze types, `reconcile` on every note or note type change, add, edit (only changed fields are written), delete and restore notes, duplicate warning on the first field, note type delete tombstones its notes and cards, the "still referenced, so still alive" rule for note types, renaming a field rewrites templates. The 1.2 stand-in tests were redone with real notes. `fc notes` and `fc add-note`. 44 new core tests (157 in `fc-core`), 2 CLI tests. Verified on Linux (tests, CLI on a copy of the real desktop collection, v3 to v4), in headless Brave (new collection at version 4, reopened after a restart) and the APK builds. Not installed on the phone.
 
 - 1.2 Note types and fields (ADR 0006 build notes). `fc_core::notetype`: tables `note_type`, `note_type_field`, `template` (migration v3), the built-ins Basic, Basic and reversed, Cloze with fixed IDs seeded with the lowest clock (`sync::seed_row`), create, rename, delete and restore note types, add, rename, reorder, remove and restore fields and templates, fractional-index positions (a move writes one register), name and last-item rules, sort field fallback, read models. `fc notetypes <file>` lists them. 49 new core tests (113 in `fc-core`). Verified on Linux (tests, CLI on a fresh collection and on a copy of the real desktop collection upgraded v2 to v3) and in headless Brave (new collection at storage version 3, survives reload and a new browser process). Android: Anthony installed the debug APK on the phone and it shows "Collection storage version 3", so the v2 to v3 migration ran on the phone's real collection.
 
@@ -27,10 +29,14 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review and merge the 1.2 PR. (The phone check is done: version 3.) The desktop app will migrate your real collection to v3 the next time it runs.
-- Then 1.3: new session, Sonnet, `/step 1.3`.
+- Anthony: review and merge the 1.3 PR. Optional phone check: `bun run android:install`, the phone should show "Collection storage version 4" (I only built the APK). The desktop app will migrate your real collection to v4 the next time it runs.
+- Then 1.4: new session, Sonnet, `/step 1.4`.
 
 ## Open items
+
+- 1.3 not verified: Windows, Firefox, Safari, the phone at runtime, notes read back in a browser (the web API has no note methods yet), timings on the phone and the web, merging notes from two collections (1.11). Timings (Linux, release): duplicate scan over 50,000 notes 60 ms; adding a template to a type with 50,001 notes 3.5 s.
+- 1.3 leaves for later steps: replace `note::scan` with 1.4's parser; cards have no deck until 1.5 (a card with none reads as the Default deck); suspension, flags and scheduling columns come with 1.7; the merge write method for remote note registers and a per-note reconcile after a merge (1.11); the rule "alive while referenced" for decks (1.5); the CLI commands that change notes after the first two (1.14).
+- No new dependencies in 1.3.
 
 - 1.2 not verified: Windows, Firefox, Safari, the seeded rows read back in a browser (only the storage version was), merging note types from two collections (1.11).
 - 1.2 leaves for later steps: renaming a field does not rewrite `{{OldName}}` in templates (1.4, which also defines the template grammar the built-ins already use); tombstones for the notes and cards of a deleted note type and the "alive while referenced" rule (1.3); the CLI commands that change note types (1.14). Built-in content is frozen: changing it needs a new migration (ADR 0006 build notes, step 1.2).

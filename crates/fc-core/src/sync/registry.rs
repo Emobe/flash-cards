@@ -3,6 +3,7 @@
 use rusqlite::Transaction;
 
 use super::requires;
+use crate::note;
 use crate::notetype;
 
 /// A table whose fields merge between devices, one register per field.
@@ -22,7 +23,27 @@ pub const SYNCED_TABLES: &[SyncedTable] = &[
     notetype::NOTE_TYPE,
     notetype::FIELD,
     notetype::TEMPLATE,
+    note::NOTE,
+    note::CARD,
 ];
+
+/// A table of registers whose names are not fixed: one row per `(owner, key)`, where the key is an
+/// ID chosen by the data (a note's field values are keyed by field ID, ADR 0006, section 1). In sync
+/// data the register's entity is `entity`, the entity ID is the owner and the register name is the
+/// key as UUID text. Its columns are exactly `owner`, `key` and `value`, and it gets the same guard
+/// triggers as a [`SyncedTable`]. Written only through [`WriteTx::set_value`](super::WriteTx).
+#[derive(Debug, Clone, Copy)]
+pub struct DynamicTable {
+    /// The entity type in sync data. Its fixed registers are in a [`SyncedTable`] of the same name.
+    pub entity: &'static str,
+    pub table: &'static str,
+    pub owner: &'static str,
+    pub key: &'static str,
+    pub value: &'static str,
+}
+
+/// Every dynamic table, in the newest schema.
+pub const DYNAMIC_TABLES: &[DynamicTable] = &[note::NOTE_VALUE];
 
 /// Tables that exist only on this device and never sync.
 pub const LOCAL_TABLES: &[&str] = &["meta", "register_clock", "unknown_register", "write_guard"];
@@ -30,16 +51,24 @@ pub const LOCAL_TABLES: &[&str] = &["meta", "register_clock", "unknown_register"
 /// One row in `write_guard` exists only while a `WriteTx` is open.
 pub(super) const GUARD_TABLE: &str = "write_guard";
 
-fn trigger_names(table: &SyncedTable) -> [String; 3] {
-    ["insert", "update", "delete"].map(|op| format!("{}_guard_{op}", table.table))
+fn trigger_names(table: &str) -> [String; 3] {
+    ["insert", "update", "delete"].map(|op| format!("{table}_guard_{op}"))
 }
 
 /// Makes the database refuse writes to `table` outside a `WriteTx`: an INSERT or UPDATE needs the
 /// guard row, and a DELETE is never allowed (ADR 0006, section 5: only a purge may delete, and it
 /// is designed in step 1.11). Call it in the migration that creates the table.
 pub fn install_guard(tx: &Transaction, table: &SyncedTable) -> rusqlite::Result<()> {
-    let [insert, update, delete] = trigger_names(table);
-    let name = table.table;
+    install_guard_on(tx, table.table)
+}
+
+/// The same guard for a [`DynamicTable`].
+pub fn install_dynamic_guard(tx: &Transaction, table: &DynamicTable) -> rusqlite::Result<()> {
+    install_guard_on(tx, table.table)
+}
+
+fn install_guard_on(tx: &Transaction, name: &str) -> rusqlite::Result<()> {
+    let [insert, update, delete] = trigger_names(name);
     tx.execute_batch(&format!(
         "CREATE TRIGGER {insert} BEFORE INSERT ON {name}
            WHEN NOT EXISTS (SELECT 1 FROM {GUARD_TABLE})
@@ -73,7 +102,8 @@ pub(crate) fn check_schema(
         names("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'");
     let triggers = names("SELECT name FROM sqlite_master WHERE type = 'trigger'");
     for name in &existing {
-        let synced = tables.iter().any(|t| t.table == name);
+        let synced = tables.iter().any(|t| t.table == name)
+            || DYNAMIC_TABLES.iter().any(|t| t.table == name);
         if !synced && !LOCAL_TABLES.contains(&name.as_str()) {
             problems.push(format!(
                 "table `{name}` is neither in LOCAL_TABLES nor a SyncedTable"
@@ -102,7 +132,30 @@ pub(crate) fn check_schema(
                 table.table
             ));
         }
-        for trigger in trigger_names(table) {
+        for trigger in trigger_names(table.table) {
+            if !triggers.contains(&trigger) {
+                problems.push(format!("`{}` has no trigger `{trigger}`", table.table));
+            }
+        }
+    }
+    for table in DYNAMIC_TABLES {
+        if !existing.iter().any(|name| name == table.table) {
+            continue;
+        }
+        let mut columns = names(&format!(
+            "SELECT name FROM pragma_table_info('{}')",
+            table.table
+        ));
+        columns.sort();
+        let mut expected = vec![table.owner, table.key, table.value];
+        expected.sort_unstable();
+        if columns != expected {
+            problems.push(format!(
+                "columns of `{}` are {columns:?}, but its declaration says {expected:?}",
+                table.table
+            ));
+        }
+        for trigger in trigger_names(table.table) {
             if !triggers.contains(&trigger) {
                 problems.push(format!("`{}` has no trigger `{trigger}`", table.table));
             }

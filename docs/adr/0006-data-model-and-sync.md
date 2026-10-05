@@ -720,3 +720,86 @@ choices step 1.2 left open.
   - Android: the debug APK builds. Anthony installed it on the phone, which showed storage version 3 (the migration, including the seed, ran on its real collection).
 - **Not verified:** Windows, Firefox, Safari, the seeded rows read back in a
   browser (only the version was), merging note types from two collections (step 1.11).
+
+## Build notes (step 1.3)
+
+Notes and cards, built to this ADR with no change to the decision. These are the choices step 1.3
+left open.
+
+- **Tables (migration v4).** `note` (note_type, deleted), `note_field_value` and `card` (note,
+  template, ordinal, deleted). The sync entity types are `note` and `card`. A card's deck,
+  suspension, flag, buried-until and new-card position from the indicative table in section 3 are not
+  there: the steps that need them (1.5, 1.7) add them as registers, which section 10 allows. Until
+  1.5 a card has no deck.
+- **Note values are dynamic registers.** Section 3 says "one register per field value (by field
+  ID)", and the registry assumed one column per register. So `note_field_value` is a `DynamicTable`
+  next to `SyncedTable`: one row per `(note, field)`, no `id`. In sync data the entity is `note`, the
+  entity ID is the note, and the register name is the field ID as UUID text. It has the same guard
+  triggers and the same clock rows (`register_clock` with `field` = the field ID text).
+  `WriteTx::set_value` is its only write path: it writes nothing and stamps nothing when the value
+  does not change (so edits to different fields of a note merge field by field), and an empty value
+  that was never set is not stored (a missing row reads as empty, and any real write beats it).
+  `check_schema` checks its columns and triggers, and `knows_register` treats a UUID-named register
+  of `note` as known, so such a register is never filed as unknown data.
+- **Card IDs.** `UUIDv5(namespace = note ID, name = template ID bytes ‖ ordinal as 4 bytes, big
+  endian)`. The ordinal is the cloze number, or 0 for a standard template.
+- **Which cards a note has.** One rule, `generate::wanted`, applied by `reconcile` on every change to
+  a note and every change to its note type: wanted and missing cards are created, wanted and deleted
+  cards are restored (same ID, so same history), live and unwanted cards are deleted. Only registers
+  that change are written.
+  - A **standard** template applies when its front would show a filled field. A field is empty if it
+    is only whitespace, `&nbsp;` or tags that show nothing; `<img>`, `<audio>`, `<video>`, `<picture>`,
+    `<svg>`, `<object>`, `<embed>` and `<iframe>` count as content. Sections (`{{#F}}`, `{{^F}}`)
+    hide what is inside them, so `{{#Add reverse}}{{Back}}{{/Add reverse}}` makes the optional
+    reverse card.
+  - A **cloze** type makes one card per distinct number in `{{cN::...}}` markers of the fields the
+    front shows through `cloze:`. Numbers are 1 to 500 (`scan::MAX_CLOZE`); a larger number is plain
+    text, so a typo cannot make a thousand cards.
+  - Names in templates are matched exactly (case-sensitive), as written. A removed field reads as
+    empty.
+  - **This reading of templates is a stand-in for step 1.4** (`note::scan`, about 150 lines). It
+    never fails and reads a malformed template as far as it makes sense. 1.4 defines the grammar,
+    its errors and the real renderer, and should replace the scanner with its parser.
+- **Adding a note.** `add_note` takes values by field ID and refuses a note that would make no
+  cards (`NoCards`: an empty front, or a cloze note with no cloze). It is the only refusal of this
+  kind: edits never refuse, because a merge can produce the same state, and the card simply goes to
+  the trash.
+- **Duplicates.** On the first live field of the note type, compared after removing tags, collapsing
+  spaces and lower-casing. Returned with the result of `add_note`, and of `set_note_fields` when it
+  changed the first field. Never a block. `find_duplicates` is public for a UI that checks while
+  typing. It scans the first-field values of one note type, with no cache. At 50,000 notes it
+  took 60 ms (native release, Linux, from a throwaway test: `fc-core` may not read the clock, so the
+  timing test is not kept; 1.14's fake collection should measure it again). A cache would have to be rebuilt on every field reorder and
+  merge, so it waits until a measurement on the phone or the web says it is needed.
+- **Deleting.** Deleting a note tombstones its cards. Deleting a note type tombstones its notes and
+  their cards (section 5). Restoring a note reconciles it, so it gets back the cards it should have
+  and not those removed before. Restoring a note type restores the notes deleted along with it,
+  recognised by their `deleted` clock being at or after the note type's own, so a note deleted on
+  its own earlier stays in the trash. Removing a template deletes its cards and restoring it brings
+  back the same ones.
+- **"Still referenced, so still alive"** (section 5) is a read-time rule for note types: one whose
+  `deleted` register is set but which has a live note reads as live, in `note_types`,
+  `deleted_note_types` and `note_type`, and can be edited. Nothing is written. Deleting it again
+  tombstones the notes that kept it alive. The same rule for decks comes with 1.5.
+- **Card visibility.** A card is listed when its own `deleted` register is clear and its note is live.
+- **Renaming a field** rewrites `{{OldName}}` in every template of the note type (removed ones too),
+  including filters and sections, and then reconciles. Without this, cards would disappear on a
+  rename. (This was carried over to 1.4 from 1.2. 1.4 keeps the full grammar, and should reuse or
+  replace `scan::rename_field`.)
+- **Note type changes reconcile every live note of the type**, in the same transaction as the
+  change. Adding a template to a type with 50,001 notes took 3.5 s natively (release). It is a rare
+  operation; on the phone and the web it will be slower and 1.14's large fake collection should
+  time it.
+- **Not done here:** card events and scheduling columns (1.7), decks (1.5), tags (1.6), the merge of
+  note registers (1.11: a remote `note` register must be applied through a write method that opens
+  the guard, then `reconcile_note_type` or a per-note reconcile recomputes cards), and a purge.
+- **Verified.**
+  - Linux: 44 new core tests (157 in `fc-core` in all, plus two CLI tests), including the 1.2 stand-in tests redone with real notes, a v3 to v4 upgrade, the guards
+    refusing raw SQL on the new tables, and every register having a clock. The CLI (`fc notes`,
+    `fc add-note`) on a fresh collection and on a copy of the real desktop collection (v3 to v4).
+  - Browser: release wasm in headless Brave 143 creates a collection at storage version 4 in OPFS
+    and reopens it after a browser restart.
+  - Android: the debug APK builds.
+- **Not verified:** Windows, Firefox, Safari, the phone at runtime (the migration to v4 on its real
+  collection), reading notes back in a browser (the web API has no note methods yet), the scan and
+  reconcile timings on the phone and the web, merging notes from two collections (1.11).

@@ -23,7 +23,10 @@ mod unknown;
 mod write;
 
 pub use hlc::Hlc;
-pub use registry::{LOCAL_TABLES, SYNCED_TABLES, SyncedTable, install_guard};
+pub use registry::{
+    DYNAMIC_TABLES, DynamicTable, LOCAL_TABLES, SYNCED_TABLES, SyncedTable, install_dynamic_guard,
+    install_guard,
+};
 pub use requires::SUPPORTED_FEATURES;
 pub use unknown::UnknownRegister;
 pub(crate) use write::seed_row;

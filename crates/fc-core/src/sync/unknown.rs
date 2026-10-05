@@ -28,6 +28,10 @@ impl Collection {
             .tables
             .iter()
             .any(|t| t.entity == entity_type && t.registers.contains(&field))
+            || (super::DYNAMIC_TABLES
+                .iter()
+                .any(|t| t.entity == entity_type && field.parse::<Id>().is_ok())
+                && self.schema.tables.iter().any(|t| t.entity == entity_type))
     }
 
     /// Keeps a register this build does not know. The higher `(hlc, device)` wins, so applying

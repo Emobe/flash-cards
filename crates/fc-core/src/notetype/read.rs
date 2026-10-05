@@ -86,14 +86,31 @@ pub(super) fn item_info(
     rows.next().transpose()
 }
 
-/// What is stored about one note type: its kind, and whether it is deleted.
-pub(super) fn note_type_info(conn: &Connection, id: Id) -> rusqlite::Result<Option<(Kind, bool)>> {
-    let mut statement = conn.prepare("SELECT kind, deleted FROM note_type WHERE id = ?1")?;
+/// A note type is deleted if its `deleted` register says so and no live note still uses it. A note
+/// added on another device while this one deleted the type keeps it alive (ADR 0006, section 5).
+/// Decided here, when reading, so nothing is written and nothing can loop.
+const EFFECTIVELY_DELETED: &str = "(nt.deleted <> 0 AND NOT EXISTS
+    (SELECT 1 FROM note n WHERE n.note_type = nt.id AND n.deleted = 0))";
+
+/// What is stored about one note type.
+pub(super) struct TypeInfo {
+    pub kind: Kind,
+    /// What its `deleted` register says.
+    pub register_deleted: bool,
+    /// Whether it is deleted as far as anyone can tell: the register, unless a live note keeps it.
+    pub deleted: bool,
+}
+
+pub(super) fn note_type_info(conn: &Connection, id: Id) -> rusqlite::Result<Option<TypeInfo>> {
+    let mut statement = conn.prepare(&format!(
+        "SELECT kind, deleted, {EFFECTIVELY_DELETED} FROM note_type nt WHERE id = ?1"
+    ))?;
     let mut rows = statement.query_map(params![id], |row| {
-        Ok((
-            Kind::from_text(&row.get::<_, String>(0)?),
-            row.get::<_, i64>(1)? != 0,
-        ))
+        Ok(TypeInfo {
+            kind: Kind::from_text(&row.get::<_, String>(0)?),
+            register_deleted: row.get::<_, i64>(1)? != 0,
+            deleted: row.get::<_, i64>(2)? != 0,
+        })
     })?;
     rows.next().transpose()
 }
@@ -103,10 +120,10 @@ fn load(
     only: Option<Id>,
     deleted: Option<bool>,
 ) -> Result<Vec<NoteType>, NoteTypeError> {
-    let mut statement = conn.prepare(
-        "SELECT id, name, kind, css, sort_field, deleted FROM note_type
-         WHERE (?1 IS NULL OR id = ?1) AND (?2 IS NULL OR deleted = ?2)",
-    )?;
+    let mut statement = conn.prepare(&format!(
+        "SELECT id, name, kind, css, sort_field, {EFFECTIVELY_DELETED} FROM note_type nt
+         WHERE (?1 IS NULL OR id = ?1) AND (?2 IS NULL OR {EFFECTIVELY_DELETED} = ?2)"
+    ))?;
     let rows = statement
         .query_map(params![only, deleted], |row| {
             Ok((

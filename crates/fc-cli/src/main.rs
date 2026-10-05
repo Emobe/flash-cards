@@ -13,6 +13,9 @@ Usage:
   fc info <file>   Open a collection, print facts about it, and close it
   fc notetypes <file>
                    List the note types with their fields and templates
+  fc notes <file>  List the notes with their fields and cards
+  fc add-note <file> <note type> <Field=value>...
+                   Add a note. Fields left out are empty. Warns about duplicates
   fc help          Show this text";
 
 fn main() -> ExitCode {
@@ -40,6 +43,18 @@ enum Failure {
     Core(String),
 }
 
+impl From<fc_core::note::NoteError> for Failure {
+    fn from(error: fc_core::note::NoteError) -> Self {
+        Self::Core(error.to_string())
+    }
+}
+
+impl From<fc_core::notetype::NoteTypeError> for Failure {
+    fn from(error: fc_core::notetype::NoteTypeError) -> Self {
+        Self::Core(error.to_string())
+    }
+}
+
 impl From<fc_core::collection::CollectionError> for Failure {
     fn from(error: fc_core::collection::CollectionError) -> Self {
         Self::Core(error.to_string())
@@ -64,6 +79,20 @@ fn describe(note_type: &fc_core::notetype::NoteType) -> String {
         fields.join(", "),
         templates.join(", ")
     )
+}
+
+/// The name of a card: its template, with the cloze number for a cloze card.
+fn card_name(note_type: &fc_core::notetype::NoteType, card: &fc_core::note::Card) -> String {
+    let template = note_type
+        .templates
+        .iter()
+        .find(|t| t.id == card.template)
+        .map_or("?", |t| t.name.as_str());
+    if card.ordinal == 0 {
+        template.to_owned()
+    } else {
+        format!("{template} {}", card.ordinal)
+    }
 }
 
 fn run(args: &[String]) -> Result<String, Failure> {
@@ -115,10 +144,94 @@ fn run(args: &[String]) -> Result<String, Failure> {
             }
             Ok(text)
         }
+        [command, file] if command == "notes" => {
+            let host =
+                host::host_for(file, std::path::Path::new(file).exists()).map_err(Failure::Core)?;
+            let collection = Collection::open(file, host)?;
+            let mut text = format!("Notes in {file}:");
+            for note_type in collection.note_types()? {
+                for note in collection.notes(note_type.id)? {
+                    text.push_str(&format!("\n\n{} {}", note_type.name, note.id));
+                    for field in &note.fields {
+                        text.push_str(&format!("\n  {}: {}", field.name, field.value));
+                    }
+                    let names: Vec<String> = collection
+                        .cards_of_note(note.id)?
+                        .iter()
+                        .map(|card| card_name(&note_type, card))
+                        .collect();
+                    text.push_str(&format!("\n  Cards: {}", names.join(", ")));
+                }
+            }
+            collection.close()?;
+            Ok(text)
+        }
+        [command, file, note_type, values @ ..] if command == "add-note" => {
+            let host =
+                host::host_for(file, std::path::Path::new(file).exists()).map_err(Failure::Core)?;
+            let collection = Collection::open(file, host)?;
+            let wanted = note_type.to_lowercase();
+            let types = collection.note_types()?;
+            let Some(found) = types.iter().find(|t| t.name.to_lowercase() == wanted) else {
+                let names: Vec<&str> = types.iter().map(|t| t.name.as_str()).collect();
+                return Err(Failure::Core(format!(
+                    "No note type called \"{note_type}\". The note types are: {}.",
+                    names.join(", ")
+                )));
+            };
+            let mut given = Vec::new();
+            for value in values {
+                let (name, text) = value
+                    .split_once('=')
+                    .ok_or_else(|| Failure::Usage(format!("\"{value}\" is not Field=value.")))?;
+                let field = found
+                    .fields
+                    .iter()
+                    .find(|f| f.name == name)
+                    .ok_or_else(|| {
+                        let names: Vec<&str> =
+                            found.fields.iter().map(|f| f.name.as_str()).collect();
+                        Failure::Core(format!(
+                            "{} has no field \"{name}\". Its fields are: {}.",
+                            found.name,
+                            names.join(", ")
+                        ))
+                    })?;
+                given.push((field.id, text));
+            }
+            let added = collection.add_note(found.id, &given)?;
+            collection.close()?;
+            let mut text = format!(
+                "Added note {} with {} card{}",
+                added.id,
+                added.cards.len(),
+                if added.cards.len() == 1 { "" } else { "s" }
+            );
+            if !added.duplicates.is_empty() {
+                text.push_str(&format!(
+                    "\nWarning: {} duplicate of the first field already exists: {}",
+                    added.duplicates.len(),
+                    added
+                        .duplicates
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ));
+            }
+            Ok(text)
+        }
         [] => Err(Failure::Usage("No command given.".to_owned())),
-        [command, ..] if matches!(command.as_str(), "new" | "info" | "notetypes" | "help") => Err(
-            Failure::Usage(format!("Wrong number of arguments for \"{command}\".")),
-        ),
+        [command, ..]
+            if matches!(
+                command.as_str(),
+                "new" | "info" | "notetypes" | "notes" | "add-note" | "help"
+            ) =>
+        {
+            Err(Failure::Usage(format!(
+                "Wrong number of arguments for \"{command}\"."
+            )))
+        }
         [command, ..] => Err(Failure::Usage(format!("Unknown command \"{command}\"."))),
     }
 }

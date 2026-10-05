@@ -80,6 +80,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Editing fields adds or removes cards correctly (for example, filling a previously empty field used by a template).
 - Duplicate detection on the first field, as a warning not a block.
 
+**Status:** done (2026-10-05), pending Anthony's review. Built to ADR 0006 (build notes, step 1.3). The reading of templates that decides which cards exist is a small stand-in (`note::scan`) for 1.4's parser. Renaming a field now rewrites `{{OldName}}` in templates. The CLI has `fc notes` and `fc add-note`.
+
 ---
 
 ## 1.4 Template rendering
@@ -93,7 +95,7 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Malformed templates produce a clear error, not a crash.
 - Output is safe to hand to the sandbox from 0.6.
 
-**Carried over from 1.2:** the built-in templates already use `{{Field}}`, `{{FrontSide}}` and `{{cloze:Field}}`, so define the grammar to accept them (or migrate them). Renaming a field must also update `{{OldName}}` in the templates, or report them: 1.2 does not.
+**Carried over from 1.2 and 1.3:** the built-in templates already use `{{Field}}`, `{{FrontSide}}` and `{{cloze:Field}}`, so define the grammar to accept them (or migrate them). Step 1.3 added `crate::note::scan`, a lenient scanner that decides which cards a note has (fields, filters, `{{#F}}` and `{{^F}}` sections, cloze numbers) and rewrites `{{OldName}}` when a field is renamed. Replace it with this step's parser so there is one reading of the language, and keep the tests in `note/tests.rs` passing.
 
 ---
 
