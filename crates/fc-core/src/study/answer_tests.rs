@@ -11,13 +11,13 @@ use crate::scheduling::{
     CardState, Due, Rating, Scheduler, default_parameters, fuzz, parameter_set_id, study_day,
 };
 
-const DAY: i64 = 86_400_000;
-const HOUR: i64 = 3_600_000;
-const MINUTE: i64 = 60_000;
+pub(super) const DAY: i64 = 86_400_000;
+pub(super) const HOUR: i64 = 3_600_000;
+pub(super) const MINUTE: i64 = 60_000;
 /// 2023-11-14 00:00 UTC, which is study day 19,675 at a midnight start and offset 0.
-const DAY0: i64 = 19_675 * DAY;
+pub(super) const DAY0: i64 = 19_675 * DAY;
 
-fn host(clock: &Arc<ManualClock>) -> Host {
+pub(super) fn host(clock: &Arc<ManualClock>) -> Host {
     Host {
         clock: clock.clone(),
         installation_id: Id::from_bytes(*b"installation-one"),
@@ -25,13 +25,13 @@ fn host(clock: &Arc<ManualClock>) -> Host {
 }
 
 /// A collection whose clock is at 09:00 UTC on `DAY0`.
-fn setup() -> (Collection, Arc<ManualClock>) {
+pub(super) fn setup() -> (Collection, Arc<ManualClock>) {
     let clock = Arc::new(ManualClock::new(DAY0 + 9 * HOUR));
     let c = Collection::create(":memory:", host(&clock)).unwrap();
     (c, clock)
 }
 
-fn basic_card(c: &Collection, front: &str) -> Id {
+pub(super) fn basic_card(c: &Collection, front: &str) -> Id {
     let f: Vec<Id> = c
         .note_type(builtin::basic())
         .unwrap()
@@ -45,11 +45,11 @@ fn basic_card(c: &Collection, front: &str) -> Id {
         .cards[0]
 }
 
-fn events(c: &Collection, card: Id) -> Vec<CardEvent> {
+pub(super) fn events(c: &Collection, card: Id) -> Vec<CardEvent> {
     c.card_events(card).unwrap()
 }
 
-fn good(c: &Collection, card: Id) -> Answered {
+pub(super) fn good(c: &Collection, card: Id) -> Answered {
     c.answer(card, Rating::Good, 3_000).unwrap()
 }
 
@@ -108,7 +108,7 @@ fn an_answer_records_every_input_and_result() {
         event.parameters,
         Some(parameter_set_id(default_parameters()))
     );
-    assert_eq!(event.steps.as_deref(), Some("1 10"));
+    assert_eq!(event.steps.as_deref(), Some("1 10|10"));
     assert_eq!(event.state_before, Some(CardState::New));
     assert_eq!(event.state, Some(CardState::Learning));
     assert_eq!(event.step, Some(1));
@@ -207,7 +207,7 @@ fn an_answer_uses_the_options_of_the_cards_deck() {
     let [event] = events(&c, card).try_into().unwrap();
     assert_eq!(event.preset, Some(preset));
     assert_eq!(event.desired_retention, Some(0.8));
-    assert_eq!(event.steps.as_deref(), Some("5 60 600"));
+    assert_eq!(event.steps.as_deref(), Some("5 60 600|10"));
     assert_eq!(event.due_ms, Some(event.time_ms + 60 * MINUTE));
 }
 
@@ -314,7 +314,7 @@ fn again_on_a_review_card_is_a_lapse_that_goes_through_the_relearning_steps() {
     assert_eq!((schedule.answers, schedule.lapses), (3, 1));
     let last = events(&c, card).pop().unwrap();
     assert_eq!(last.state_before, Some(CardState::Review));
-    assert_eq!(last.steps.as_deref(), Some("10"));
+    assert_eq!(last.steps.as_deref(), Some("1 10|10"));
 
     clock.advance(10 * MINUTE);
     let back = good(&c, card);
@@ -340,7 +340,7 @@ fn a_preset_without_steps_graduates_at_once() {
     assert_eq!(answered.state, CardState::Review);
     assert_eq!(answered.interval_days, Some(2));
     let [event] = events(&c, card).try_into().unwrap();
-    assert_eq!(event.steps.as_deref(), Some(""));
+    assert_eq!(event.steps.as_deref(), Some("|"));
 }
 
 // ---- Event time ----

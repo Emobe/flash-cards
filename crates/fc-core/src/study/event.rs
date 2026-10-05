@@ -56,8 +56,9 @@ pub struct CardEvent {
     pub day: i64,
     pub rating: Option<Rating>,
     pub duration_ms: Option<u32>,
-    /// The inputs: the preset, its desired retention, the FSRS parameter set (by ID) and the steps
-    /// that applied (whole minutes separated by spaces, empty for none).
+    /// The inputs: the preset, its desired retention, the FSRS parameter set (by ID) and both step
+    /// lists, learning then relearning (whole minutes separated by spaces, a bar between the
+    /// lists: `1 10|10`).
     pub preset: Option<Id>,
     pub desired_retention: Option<f64>,
     pub parameters: Option<Id>,
@@ -124,11 +125,12 @@ impl CardEvent {
 }
 
 /// The columns `from_row` reads, in its order.
-const SELECT: &str = "id, card, kind, time_ms, utc_offset, device, previous, day, rating,
+pub(super) const SELECT: &str =
+    "id, card, kind, time_ms, utc_offset, device, previous, day, rating,
     duration_ms, preset, desired_retention, parameters, steps, state_before, state, step,
     stability, difficulty, due_day, due_ms, target FROM card_event";
 
-fn from_row(row: &Row<'_>) -> rusqlite::Result<CardEvent> {
+pub(super) fn from_row(row: &Row<'_>) -> rusqlite::Result<CardEvent> {
     let stability: Option<f64> = row.get(17)?;
     let difficulty: Option<f64> = row.get(18)?;
     Ok(CardEvent {

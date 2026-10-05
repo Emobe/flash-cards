@@ -42,13 +42,26 @@ pub(crate) fn join_steps(steps: &[u32]) -> String {
         .join(" ")
 }
 
-/// The steps that applied to an answer given from `state`, as an event records them: the learning
-/// steps for a new or learning card, the relearning steps for a review or relearning card.
-fn steps_for(state: CardState, preset: &Preset) -> &[u32] {
-    match state {
-        CardState::New | CardState::Learning => &preset.learning_steps,
-        CardState::Review | CardState::Relearning => &preset.relearning_steps,
-    }
+/// Both step lists of a preset as an event records them: the learning steps, a bar, the relearning
+/// steps (`1 10|10`). A concurrent event is recomputed from whatever state the card is in when the
+/// fold reaches it, which can differ from the state it was answered in, so it needs both.
+pub(crate) fn steps_text(preset: &Preset) -> String {
+    format!(
+        "{}|{}",
+        join_steps(&preset.learning_steps),
+        join_steps(&preset.relearning_steps)
+    )
+}
+
+/// The inverse of `steps_text`. A missing or malformed part is an empty list.
+pub(crate) fn parse_steps_text(text: &str) -> (Vec<u32>, Vec<u32>) {
+    let (learning, relearning) = text.split_once('|').unwrap_or((text, ""));
+    let parse = |part: &str| {
+        part.split_whitespace()
+            .filter_map(|word| word.parse().ok())
+            .collect()
+    };
+    (parse(learning), parse(relearning))
 }
 
 /// The 21 parameters a preset uses: its own, or the defaults.
@@ -91,17 +104,9 @@ impl Collection {
         let parameters = effective_parameters(&preset);
         let scheduler = Scheduler::new(Some(&parameters), preset.desired_retention as f32)?;
         let id = state::new_id(&self.host)?;
-        let state_before = cached.as_ref().map_or(CardState::New, |c| c.state);
-        let applied_steps = steps_for(state_before, &preset);
-        let steps = match state_before {
-            CardState::New | CardState::Learning => Steps {
-                learning: applied_steps,
-                relearning: &[],
-            },
-            CardState::Review | CardState::Relearning => Steps {
-                learning: &[],
-                relearning: applied_steps,
-            },
+        let steps = Steps {
+            learning: &preset.learning_steps,
+            relearning: &preset.relearning_steps,
         };
         let applied = compute(cached.as_ref(), day, time_ms, rating, steps, &scheduler, id)?;
         let event = CardEvent {
@@ -118,7 +123,7 @@ impl Collection {
             preset: Some(preset.id),
             desired_retention: Some(preset.desired_retention),
             parameters: Some(parameter_set_id(&parameters)),
-            steps: Some(join_steps(applied_steps)),
+            steps: Some(steps_text(&preset)),
             state_before: Some(applied.state_before),
             state: Some(applied.state),
             step: Some(applied.step),

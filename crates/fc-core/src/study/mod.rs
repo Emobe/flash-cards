@@ -12,6 +12,9 @@ mod answer;
 mod answer_tests;
 mod error;
 mod event;
+mod fold;
+#[cfg(test)]
+mod fold_tests;
 mod schedule;
 mod settings;
 #[cfg(test)]
@@ -24,6 +27,8 @@ pub use answer::Answered;
 pub use error::StudyError;
 pub use event::{CardEvent, EventKind};
 pub use schedule::CardSchedule;
+
+pub(crate) use fold::check_cache;
 pub use settings::DEFAULT_DAY_START_HOUR;
 
 /// The sync entity types and register and column names are part of the sync format and never change
