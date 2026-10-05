@@ -4,11 +4,11 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-0.5 Scheduling spike: built and verified on desktop, in the browser and on the phone. ADR 0004 accepted, build notes added. `cargo xtask check` passes. Awaiting Anthony's review. 0.4 was reviewed and merged (PR #5).
+0.6 Sandboxed card rendering spike: design session (ADR 0005) in progress. 0.5 was reviewed and merged (PR #6).
 
 ## Branch
 
-`step/0.5-scheduling-spike`.
+`step/0.6-card-sandbox`.
 
 ## Done
 
@@ -16,13 +16,13 @@ Kept current by every session. A new session reads this first.
 - 0.1 Repository and workspace boilerplate. Verified on Manjaro only.
 - 0.2 Android build. Debug APK and USB live reload verified on the phone, workflow runs through Bun. Includes a 16 KB page alignment fix.
 - 0.4 Web client spike: core runs in wasm in a worker, SQLite persists in OPFS across reload and restart, cancel by worker restart (about 2 s), panic recovery. Reviewed and merged (PR #5).
-- 0.5 Scheduling spike: `fsrs` 6.6.2 chosen (ADR 0004). Intervals 2, 11, 46, 163, 497 on desktop, native and wasm. Optimiser works on wasm (66 ms for 2,000 cards). Phone: same intervals, optimiser 77 ms for 200 cards. Awaiting review.
+- 0.5 Scheduling spike: `fsrs` 6.6.2 chosen (ADR 0004). Intervals 2, 11, 46, 163, 497 on desktop, native and wasm. Optimiser works on wasm (66 ms for 2,000 cards). Phone: same intervals, optimiser 77 ms for 200 cards. Reviewed and merged (PR #6).
 - 0.3 UI-to-core bridge. 0.3a (call path, PR #3) and 0.3b (notices, progress, cancellation, events and attachments, PR #4) reviewed by Anthony and merged. Verified on desktop and the phone. Attachment round trip 1 MB: 40 ms desktop, 75 ms phone. 5 MB: 181 ms desktop, 250 ms phone.
 
 ## Remaining in this step
 
-- Anthony: review the branch.
-- Then merge. Next: 0.6 Sandboxed card rendering spike (Opus, /adr 0.6).
+- Claude: write ADR 0005 (Proposed) and the build plan.
+- Anthony: review the ADR. Then the build (Sonnet, /step 0.6).
 
 ## Open items
 
