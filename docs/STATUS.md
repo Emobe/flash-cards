@@ -4,7 +4,7 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-0.4 Web client spike: design session in progress (Opus, `/adr 0.4`). Writing ADR 0003 and `docs/plans/0.4-web-spike.md`.
+0.4 Web client spike: design done, awaiting Anthony's review. ADR 0003 (Proposed) and `docs/plans/0.4-web-spike.md`. Once accepted: Sonnet build, `/step 0.4`.
 
 ## Branch
 
@@ -19,10 +19,13 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Write ADR 0003 (Proposed) and the build plan, then stop for Anthony's review.
+- Anthony: review ADR 0003 and the plan, then accept or adjust. Nothing is built until it is Accepted.
+- Build session: everything in the plan.
 
 ## Open items
 
+- Installed for the 0.4 experiment (per-user, approved): the `wasm32-unknown-unknown` target for toolchain 1.98.1 and `wasm-bindgen-cli` 0.2.129 in `~/.cargo/bin`. `~/.cargo/bin` is not on the PATH of Claude's shell, so call it by full path or add it to PATH (not done).
+- Web (0.4 design): verified only in headless Brave (Chromium) on Linux. Firefox, Safari and mobile browsers are unverified.
 - Android: call path, progress, cancel, events and attachments verified (0.3a, 0.3b). Reload behaviour of the notice channel on the phone is not.
 - The phone may still have the APK with the temporary 0.3b check harness. Run `bun run android:build` then `bun run android:install` to replace it.
 - Windows: desktop launch and `cargo xtask check` from step 0.1 are unverified and deferred to a manual check by Anthony.
