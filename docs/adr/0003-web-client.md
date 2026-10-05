@@ -292,3 +292,40 @@ in wasm unchanged. The web differs from native in ways the UI must allow for:
 - Large collections (100 MB and over, Phase 5 imports) are slow to open or hit quota limits.
 - Bundle size or start-up time on phones becomes a problem (add `wasm-opt`, lazy loading).
 - Windows cannot build the wasm target with a reasonable setup.
+
+## Build notes (step 0.4)
+
+Built to this ADR with no change to the decision. Measured in headless Brave 143 (Chromium) on
+Linux, driven over the DevTools protocol from a throwaway script outside the repo. The spike code
+(`fc_core::spike`, the `spike*` API methods, `SpikePanel`) is temporary and goes in step 1.1.
+
+- **Persistence.** Notes added through `spikeAddNote` were listed again after a page reload, after
+  a graceful browser restart (same profile), and after a `SIGKILL` of the browser followed by a new
+  launch. Tested with the production build (`web:build`, `web:preview`).
+- **Cancel.** Cancelling a running `debugSlow` rejected with `cancelled`. A call made right after
+  waited for the restart: 2,040, 2,033 and 2,043 ms until the core answered, the same as finding 7.
+  Progress arrived while the call ran (3 of 10 after 1.8 s).
+- **Panic.** `debugPanic` rejected with "Something went wrong. Reload the page to continue.", the
+  panic message reached the console, and the next call was answered by the new worker after about
+  130 to 200 ms (three runs). `debugSlow` runs on the web through the `Date.now()` busy-wait.
+- **Second tab.** A second tab got "The collection is open in another tab. Close the other tab,
+  then reload this one." after the 5 s of retries.
+- **Calls.** `getCoreInfo` took about 1 ms from the panel. The divide form works as on native.
+- **Phone width.** At 360 px wide the page has no horizontal scroll. Real mobile browsers are not
+  tested (they need HTTPS for OPFS).
+- **Size.** The release wasm is 1,836 KB (713 KB gzipped), larger than finding 4's 1.35 MB because
+  this build has no `opt-level = "s"` or LTO, and the API crate is included. Not tuned in the
+  spike; `web:build` makes no release-profile changes so native builds are unaffected. Part of
+  the Phase 6 size work together with `wasm-opt`.
+- **Harness lesson.** Starting a browser on a profile while an earlier process was still holding
+  it (killed test scripts leaving Brave running) gave an empty list or "open in another tab" for
+  a long time, which looked like data loss or a failed trap recovery. With one browser at a time,
+  all runs above were consistent. The product does show the other-tab message in that case, but
+  the wait is the full 5 s, and a trap recovery depends on the old worker's handles being freed.
+- **Dependencies added.** `rusqlite` (fc-core, bundled on native), `js-sys` (fc-api and fc-wasm, wasm only; in fc-api for
+  the `debugSlow` busy-wait, removed with the debug methods), `wasm-bindgen`,
+  `wasm-bindgen-futures`, `sqlite-wasm-rs` and `sqlite-wasm-vfs` (fc-wasm only), exactly
+  as listed under Consequences.
+- **Not verified:** Firefox, Safari, mobile browsers, Windows, the phone (the spike is web-only),
+  the visual appearance of the desktop app after this change (it compiled and its window opened,
+  with bundled SQLite now in `fc-native`).

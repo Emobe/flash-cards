@@ -101,7 +101,7 @@ scripts                 Bun scripts (dev launcher)
 ## Assumptions (kept up to date as later ADRs land)
 
 - Generated Rust-to-TypeScript bindings live in `packages/core-client/src/generated/`, committed (answered in 0.3, ADR 0002).
-- Whether the core also compiles to a wasm package under `packages/` (0.4).
+- Whether the core also compiles to a wasm package under `packages/` (0.4, answered: no, see Amendments).
 - The Bun toolchain and `cargo xtask check` behave the same on Windows as on Linux. Not yet
   verified: deferred to a manual check by Anthony (see the 0.1 acceptance criteria).
 - Data model and sync strategy (0.7) do not change crate boundaries.
@@ -112,7 +112,7 @@ scripts                 Bun scripts (dev launcher)
 
 ## Revisit if
 
-- The web approach (0.4) requires the core to ship as a JS package with its own build, adding a
+- The web client later needs the core to ship as a JS package with its own build, adding a
   `packages/fc-core-wasm` member.
 - Bun incompatibilities appear in Vite, Vitest, Tauri or a later dependency.
 - CI is introduced (needs a zero-cost option; see `PRODUCT.md`).
@@ -127,3 +127,4 @@ scripts                 Bun scripts (dev launcher)
   so "desktop" was misleading. Renamed before the Android project was generated, because Android
   loads the Rust library by name (`fc_native_lib`). No other change to the decision.
 - **2026-10-05, step 0.3:** added `crates/fc-api` and `packages/core-client` (ADR 0002). `packages/ui` talks to the core only through a `CoreClient` supplied by the app shell. `cargo xtask bindings` regenerates the TypeScript bindings. No other change to the decision.
+- **2026-10-05, step 0.4:** added `crates/fc-wasm` (the web host, the counterpart of `fc-native`, empty on native targets) and `apps/web` (Vite entry, core worker, web transport), per ADR 0003. The "core as a wasm package under `packages/`" assumption is answered with no: `cargo xtask wasm` generates the wasm-bindgen glue into the gitignored `apps/web/src/wasm`, so no `packages/fc-core-wasm` member exists. `cargo xtask check` now also runs clippy for `fc-wasm` on `wasm32-unknown-unknown` and builds the glue before `tsc`.

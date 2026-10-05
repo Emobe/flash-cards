@@ -9,7 +9,9 @@ Planning docs are in [`docs/`](docs/README.md); the layout is explained in
 ```
 crates/fc-core     Rust core library (domain logic)
 crates/fc-api      The core's public API: one dispatcher for every host, generates the TS bindings
+crates/fc-wasm     Web host: the core compiled to wasm for the browser worker (empty on native targets)
 apps/native        Tauri v2 host for desktop and Android (src-tauri/) and its Vite entry
+apps/web           Web client: Vite entry, the core worker and the web transport
 packages/ui        Shared React UI
 packages/core-client  Typed TypeScript client for the core API (no React, no Tauri)
 xtask              Repository tasks (`cargo xtask ...`)
@@ -35,7 +37,15 @@ curl -fsSL https://bun.sh/install | bash
 
 # Licence and advisory checker
 cargo install --locked cargo-deny
+
+# Web client (step 0.4): clang compiles SQLite to wasm32, and the wasm-bindgen CLI must match the
+# version in Cargo.lock exactly (`cargo xtask wasm` tells you the command if it does not)
+sudo pacman -S --needed clang
+cargo install wasm-bindgen-cli --version 0.2.129 --locked
 ```
+
+The `wasm32-unknown-unknown` Rust target is installed automatically from `rust-toolchain.toml`.
+`cargo xtask check` needs the web prerequisites, since it builds `fc-wasm`.
 
 ### Windows
 
@@ -45,6 +55,8 @@ cargo install --locked cargo-deny
 3. Rust via [rustup](https://rustup.rs/) (MSVC toolchain).
 4. Bun: `powershell -c "irm bun.sh/install.ps1 | iex"`
 5. `cargo install --locked cargo-deny`
+6. Web client: LLVM's `clang` with the wasm32 target, and
+   `cargo install wasm-bindgen-cli --version 0.2.129 --locked`. Not verified on Windows.
 
 Not yet verified on Windows: deferred to a manual check by Anthony (see `docs/phases/00-foundations.md`).
 
@@ -118,6 +130,10 @@ Run from the repository root.
 | `cargo xtask fmt` | Format all Rust and JS/TS code |
 | `cargo xtask bindings` | Regenerate the TypeScript bindings after changing an API type in `crates/fc-api` |
 | `bun run dev` | Launch the desktop app with hot reload (via `scripts/dev.ts`) |
+| `cargo xtask wasm [--release]` | Build `fc-wasm` and generate its JS glue into `apps/web/src/wasm` (gitignored) |
+| `bun run web:dev` | Build the wasm core, then run the web client with the Vite dev server |
+| `bun run web:build` | Release wasm build, then a production web build in `apps/web/dist` |
+| `bun run web:preview` | Serve the production web build locally |
 
 Android commands are listed under [Android](#android-manjaro).
 
