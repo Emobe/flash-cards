@@ -15,7 +15,7 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 ---
 
-## 1.1 Collection storage and migrations
+## 1.1a Collection storage and migrations
 
 **Model:** Sonnet build (/step)
 
@@ -28,6 +28,25 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Storage works on all targets per the web ADR.
 
 **Review focus:** how painful will future schema changes be?
+
+---
+
+## 1.1b Sync foundation
+
+**Model:** Sonnet build (/step)
+
+**Goal:** everything later steps need so that every synced table is tracked from the start (ADR 0006, section 13, items 1 to 3 and 7).
+
+**Acceptance criteria:**
+- 128-bit IDs (UUIDv7 from host time and `getrandom`), stored as 16-byte blobs and exposed as UUID strings. `getrandom` checked in a browser.
+- Time comes from a host-supplied `Clock` on native, web and in tests; `fc-core` never reads the clock.
+- A hybrid logical clock saved in the collection, and a device ID that is regenerated when a collection is copied, restored or imported.
+- One write path that records `(hlc, device, pushed?)` per register in the same transaction, with a test that fails if a synced table can be written without it.
+- A generic store for unknown entity types and registers, and collection-level `requires` checked on open.
+
+**Review focus:** can any later step write a synced table without the clock being recorded?
+
+**Notes:** see `docs/plans/0.7-data-model-sync.md`.
 
 ---
 
@@ -159,10 +178,11 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 **Model:** Opus design session (/adr), then Sonnet build (/step)
 
-**Goal:** everything the sync ADR says Phase 1 must record is recorded.
+**Goal:** everything the sync ADR says Phase 1 must record is recorded, and two collections merge as ADR 0006 describes.
 
 **Acceptance criteria:**
-- Every user-visible change produces the tracking data defined in the ADR.
+- Every user-visible change produces the tracking data defined in the ADR (the foundation is from 1.1b; this step checks every table against it).
+- A merge function applies remote registers and card events, advances the HLC and recomputes caches.
 - Tests simulate two collections making changes independently and merging them locally, covering the edge cases listed in step 0.7.
 
 **Review focus:** compare against the ADR line by line.

@@ -1,7 +1,8 @@
 # 0006: Data model and sync strategy
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-05
+Accepted: 2026-10-05. Anthony delegated the open product decisions to Claude Code; they are recorded under "Decisions on review".
 
 ## Context
 
@@ -548,9 +549,30 @@ skew check.
   SHA-256 comes from `sha2` (already in the lockfile) in step 1.10. Each is stated in its PR.
 - **Doc consequence: change tracking is not only step 1.11.** Items 1 to 8 of section 13 must exist
   from step 1.1 onwards, or each step from 1.2 to 1.10 writes untracked data that 1.11 would have to
-  retrofit. The plan (`docs/plans/0.7-data-model-sync.md`) proposes moving the foundation into 1.1
-  and leaving 1.11 the merge function, the two-collection tests and the details. That changes the
-  phase plan and needs Anthony's agreement.
+  retrofit. So `phases/01-core.md` now has 1.1a (storage and migrations) and 1.1b (sync
+  foundation), and 1.11 keeps the merge function, the two-collection tests and the details.
+
+## Decisions on review
+
+Anthony asked Claude Code to make these four calls. Each is the option the Proposed ADR recommended.
+
+1. **Edit on one device, delete on another: the delete wins.** The edit is merged into the deleted
+   item, so restoring it from the trash shows the edit. Reason: the delete was an explicit intent,
+   and nothing is lost because the content stays in the trash. "Edit wins" would bring back items
+   the user removed, with no way for them to know why.
+2. **The same field edited on two devices: the later edit wins, with no prompt.** The losing text is
+   kept in the losing device's superseded-values log so a later UI can offer it back. Reason: a
+   prompt is what `PRODUCT.md` rules out, and a character-level merge is real-time collaborative
+   editing, a non-goal. Revisit if this loses work in practice (see below).
+3. **Same-named decks after a first-sync merge stay separate** until the user merges them with the
+   "merge decks" action (Phase 3). Reason: merging decks automatically by name would move cards and
+   mix option presets without the user asking, and two decks with the same name is visible and
+   easy to fix. The UI disambiguates them.
+4. **The sync foundation moves into Phase 1's first steps.** Step 1.1 is split into 1.1a (collection
+   storage and migrations, as before) and 1.1b (sync foundation: IDs, clock, HLC, device ID, register
+   clocks and the write path, the unknown-data store, `requires`). Reason: one PR per coherent change,
+   and every table from 1.2 onwards is then tracked from the start. Step 1.11 keeps the merge
+   function, the two-collection tests and the remaining details.
 
 ## Revisit if
 

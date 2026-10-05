@@ -4,7 +4,7 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-0.7 Data model and sync strategy (design only): ADR 0006 written, **Proposed**, waiting for Anthony's review. Handoff plan in `docs/plans/0.7-data-model-sync.md`.
+0.7 Data model and sync strategy (design only): ADR 0006 **Accepted** (Anthony delegated the four open decisions; recorded in the ADR). Handoff plan in `docs/plans/0.7-data-model-sync.md`. Step 1.1 is now split into 1.1a and 1.1b in `phases/01-core.md`.
 
 ## Branch
 
@@ -22,13 +22,8 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review ADR 0006 (review focus: anything that could ever need a "choose a side" prompt) and the plan. Decide:
-  - delete wins with a trash and restore (proposed), rather than edit wins;
-  - same-field edits: last writer wins, with the losing text kept locally and no prompt;
-  - same-named decks after a first-sync merge stay separate until merged by the user;
-  - moving the sync foundation into step 1.1 (or a split 1.1a/1.1b), which changes `phases/01-core.md`.
-- On acceptance: set ADR 0006 to Accepted, update `phases/01-core.md` if the 1.1 change is agreed, open the PR.
-- Then 1.1: new session, Sonnet, `/step 1.1`.
+- Anthony: review and merge the 0.7 PR (docs only).
+- Then 1.1a: new session, Sonnet, `/step 1.1a`. Then 1.1b.
 
 ## Open items
 
