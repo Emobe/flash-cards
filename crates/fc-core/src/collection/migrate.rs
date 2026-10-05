@@ -48,6 +48,10 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         version: 5,
         apply: v5,
     },
+    Migration {
+        version: 6,
+        apply: v6,
+    },
 ];
 
 /// The newest version in `migrations`.
@@ -261,6 +265,32 @@ fn v5(tx: &Transaction) -> rusqlite::Result<()> {
         )?;
     }
     crate::deck::seed(tx)
+}
+
+/// Version 6 (step 1.6): note tags. See `crate::tag`.
+///
+/// One row per `(note, tag)`, where `tag` is the text as written and `present` is `1` or empty, so
+/// removing a tag is a write and rows are never deleted. Nothing has a foreign key (ADR 0006,
+/// section 6) and no existing row is rewritten.
+fn v6(tx: &Transaction) -> rusqlite::Result<()> {
+    tx.execute_batch(
+        "CREATE TABLE note_tag (
+            note BLOB NOT NULL,
+            tag TEXT NOT NULL,
+            present TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (note, tag)
+        ) WITHOUT ROWID;
+        CREATE INDEX note_tag_by_tag ON note_tag (tag);",
+    )?;
+    // A frozen copy, as in `v2`: the guard only needs the name.
+    install_guard(
+        tx,
+        &SyncedTable {
+            entity: "note_tag",
+            table: "note_tag",
+            registers: &[],
+        },
+    )
 }
 
 /// What a database file is, before anything is written to it.

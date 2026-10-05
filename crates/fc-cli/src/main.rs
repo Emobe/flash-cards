@@ -17,9 +17,16 @@ Usage:
   fc decks <file>  List the decks as a tree with their card counts, and the option presets
   fc add-deck <file> <deck>
                    Add a deck. Use Parent::Child to put it inside an existing deck
-  fc add-note <file> <note type> [--deck <deck>] <Field=value>...
+  fc add-note <file> <note type> [--deck <deck>] [--tag <tag>]... <Field=value>...
                    Add a note to a deck (the Default deck if none is given). Fields left out are
                    empty. Warns about duplicates
+  fc tags <file>   List the tags as a tree with the number of notes
+  fc tag <file> <note ID> <tag>...
+                   Add tags to a note. Use parent::child to put a tag inside another
+  fc untag <file> <note ID> <tag>...
+                   Take tags off a note
+  fc rename-tag <file> <tag> <new name>
+                   Rename a tag on every note, together with the tags inside it
   fc render <file> <note ID>
                    Print the front and back HTML of each card of a note, and its media
   fc help          Show this text";
@@ -69,6 +76,12 @@ impl From<fc_core::template::RenderError> for Failure {
 
 impl From<fc_core::deck::DeckError> for Failure {
     fn from(error: fc_core::deck::DeckError) -> Self {
+        Self::Core(error.to_string())
+    }
+}
+
+impl From<fc_core::tag::TagError> for Failure {
+    fn from(error: fc_core::tag::TagError) -> Self {
         Self::Core(error.to_string())
     }
 }
@@ -127,6 +140,16 @@ fn find_deck(collection: &Collection, path: &str) -> Result<fc_core::deck::Deck,
             )))
         }
     }
+}
+
+fn open(file: &str) -> Result<Collection, Failure> {
+    let host = host::host_for(file, std::path::Path::new(file).exists()).map_err(Failure::Core)?;
+    Ok(Collection::open(file, host)?)
+}
+
+fn note_id(text: &str) -> Result<fc_core::id::Id, Failure> {
+    text.parse()
+        .map_err(|_| Failure::Usage(format!("\"{text}\" is not a note ID.")))
 }
 
 fn plural(count: usize, word: &str) -> String {
@@ -199,6 +222,10 @@ fn run(args: &[String]) -> Result<String, Failure> {
                         .map(|card| card_name(&note_type, card))
                         .collect();
                     text.push_str(&format!("\n  Cards: {}", names.join(", ")));
+                    let tags = collection.note_tags(note.id)?;
+                    if !tags.is_empty() {
+                        text.push_str(&format!("\n  Tags: {}", tags.join(" ")));
+                    }
                 }
             }
             collection.close()?;
@@ -243,6 +270,67 @@ fn run(args: &[String]) -> Result<String, Failure> {
             collection.close()?;
             Ok(text)
         }
+        [command, file] if command == "tags" => {
+            let collection = open(file)?;
+            let mut text = format!("Tags in {file}:\n");
+            let tags = collection.tags()?;
+            if tags.is_empty() {
+                text.push_str("\n(none)");
+            }
+            for tag in tags {
+                let own = tag
+                    .name
+                    .rsplit(fc_core::tag::SEPARATOR)
+                    .next()
+                    .unwrap_or("");
+                text.push_str(&format!(
+                    "\n{}{own} ({}{})",
+                    "  ".repeat(tag.depth),
+                    plural(tag.notes, "note"),
+                    if tag.total > tag.notes {
+                        format!(", {} with what is inside", tag.total)
+                    } else {
+                        String::new()
+                    }
+                ));
+            }
+            collection.close()?;
+            Ok(text)
+        }
+        [command, file, note, tags @ ..] if command == "tag" || command == "untag" => {
+            if tags.is_empty() {
+                return Err(Failure::Usage(format!("\"{command}\" needs a tag.")));
+            }
+            let note = note_id(note)?;
+            let collection = open(file)?;
+            let tags: Vec<&str> = tags.iter().map(String::as_str).collect();
+            let text = if command == "tag" {
+                let added = collection.add_tags(&[note], &tags)?;
+                format!("Added {} to the note", plural(added, "tag"))
+            } else {
+                let removed = collection.remove_tags(&[note], &tags)?;
+                format!("Removed {} from the note", plural(removed, "tag"))
+            };
+            let now = collection.note_tags(note)?;
+            collection.close()?;
+            Ok(format!(
+                "{text}. Tags now: {}",
+                if now.is_empty() {
+                    "none".to_owned()
+                } else {
+                    now.join(" ")
+                }
+            ))
+        }
+        [command, file, from, to] if command == "rename-tag" => {
+            let collection = open(file)?;
+            let changed = collection.rename_tag(from, to)?;
+            collection.close()?;
+            Ok(format!(
+                "Renamed {from} to {to} on {}",
+                plural(changed, "note")
+            ))
+        }
         [command, file, path] if command == "add-deck" => {
             let host =
                 host::host_for(file, std::path::Path::new(file).exists()).map_err(Failure::Core)?;
@@ -260,6 +348,20 @@ fn run(args: &[String]) -> Result<String, Failure> {
                 host::host_for(file, std::path::Path::new(file).exists()).map_err(Failure::Core)?;
             let collection = Collection::open(file, host)?;
             let mut values = values.to_vec();
+            let mut tags = Vec::new();
+            while let Some(at) = values.iter().position(|v| v == "--tag") {
+                let tag = values
+                    .get(at + 1)
+                    .ok_or_else(|| Failure::Usage("--tag needs a tag.".to_owned()))?
+                    .clone();
+                values.drain(at..=at + 1);
+                tags.push(tag);
+            }
+            let tag_names: Vec<&str> = tags.iter().map(String::as_str).collect();
+            // Check the tags before anything is written.
+            for tag in &tag_names {
+                fc_core::tag::check(tag)?;
+            }
             let deck = match values.iter().position(|v| v == "--deck") {
                 Some(at) => {
                     let path = values
@@ -301,6 +403,7 @@ fn run(args: &[String]) -> Result<String, Failure> {
                 given.push((field.id, text));
             }
             let added = collection.add_note_to_deck(deck, found.id, &given)?;
+            collection.add_tags(&[added.id], &tag_names)?;
             collection.close()?;
             let mut text = format!(
                 "Added note {} with {} card{}",
@@ -364,6 +467,10 @@ fn run(args: &[String]) -> Result<String, Failure> {
                     | "decks"
                     | "add-deck"
                     | "add-note"
+                    | "tags"
+                    | "tag"
+                    | "untag"
+                    | "rename-tag"
                     | "render"
                     | "help"
             ) =>

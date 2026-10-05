@@ -139,6 +139,29 @@ impl WriteTx<'_> {
         key: Id,
         value: &str,
     ) -> Result<(), CollectionError> {
+        self.set_dynamic(entity, owner, &key, &key.to_string(), value)
+    }
+
+    /// The same for a dynamic table whose key is text (a note's tag), written under the register
+    /// name `key` as it is.
+    pub fn set_text_value(
+        &mut self,
+        entity: &str,
+        owner: Id,
+        key: &str,
+        value: &str,
+    ) -> Result<(), CollectionError> {
+        self.set_dynamic(entity, owner, &key, key, value)
+    }
+
+    fn set_dynamic(
+        &mut self,
+        entity: &str,
+        owner: Id,
+        key: &dyn rusqlite::ToSql,
+        register: &str,
+        value: &str,
+    ) -> Result<(), CollectionError> {
         let table = DYNAMIC_TABLES
             .iter()
             .find(|t| t.entity == entity)
@@ -162,7 +185,7 @@ impl WriteTx<'_> {
             ),
             params![owner, key, value],
         )?;
-        self.record(entity, owner, &key.to_string())
+        self.record(entity, owner, register)
     }
 
     /// Reads one value, inside this transaction.

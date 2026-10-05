@@ -6,6 +6,7 @@ use super::requires;
 use crate::deck;
 use crate::note;
 use crate::notetype;
+use crate::tag;
 
 /// A table whose fields merge between devices, one register per field.
 #[derive(Debug, Clone, Copy)]
@@ -37,16 +38,20 @@ pub const SYNCED_TABLES: &[SyncedTable] = &[
 /// triggers as a [`SyncedTable`]. Written only through [`WriteTx::set_value`](super::WriteTx).
 #[derive(Debug, Clone, Copy)]
 pub struct DynamicTable {
-    /// The entity type in sync data. Its fixed registers are in a [`SyncedTable`] of the same name.
+    /// The entity type in sync data. Its fixed registers are in a [`SyncedTable`] of the same name,
+    /// unless `text_key` is set.
     pub entity: &'static str,
     pub table: &'static str,
     pub owner: &'static str,
     pub key: &'static str,
     pub value: &'static str,
+    /// The key is text chosen by the person (a tag), not an ID. The register name in sync data is
+    /// the text as written, and the entity has no fixed registers.
+    pub text_key: bool,
 }
 
 /// Every dynamic table, in the newest schema.
-pub const DYNAMIC_TABLES: &[DynamicTable] = &[note::NOTE_VALUE];
+pub const DYNAMIC_TABLES: &[DynamicTable] = &[note::NOTE_VALUE, tag::NOTE_TAG];
 
 /// Tables that exist only on this device and never sync.
 pub const LOCAL_TABLES: &[&str] = &["meta", "register_clock", "unknown_register", "write_guard"];
