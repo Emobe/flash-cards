@@ -13,8 +13,11 @@ export type ToWorker = {
 export type FromWorker =
   /** The collection is open. */
   | { type: "ready" }
-  /** The collection could not be opened (another tab holds it). */
-  | { type: "openFailed" }
+  /**
+   * The collection could not be opened. `error` is the `ApiError` as JSON text when the core
+   * said why (a newer collection, a file that is not one). Without it, another tab holds it.
+   */
+  | { type: "openFailed"; error?: string }
   | { type: "reply"; id: number; output: string; bytes: Uint8Array }
   /** `error` is the `ApiError` as JSON text. */
   | { type: "error"; id: number; error: string }

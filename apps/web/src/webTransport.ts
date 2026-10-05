@@ -31,6 +31,7 @@ export function createWebTransport(createWorker: () => WorkerLike): Transport {
   const queue: Pending[] = [];
   let running: Pending | undefined;
   let worker: WorkerLike;
+  let openError: unknown = OPEN_ELSEWHERE;
   let state: "starting" | "ready" | "failed" = "starting";
   let nextId = 1;
 
@@ -38,6 +39,7 @@ export function createWebTransport(createWorker: () => WorkerLike): Transport {
     const current = createWorker();
     worker = current;
     state = "starting";
+    openError = OPEN_ELSEWHERE;
     current.onmessage = ({ data }) => {
       if (current === worker) handle(data);
     };
@@ -58,7 +60,7 @@ export function createWebTransport(createWorker: () => WorkerLike): Transport {
 
   function pump() {
     if (state === "failed") {
-      for (const item of queue.splice(0)) item.reject(OPEN_ELSEWHERE);
+      for (const item of queue.splice(0)) item.reject(openError);
       return;
     }
     const next = queue[0];
@@ -92,7 +94,8 @@ export function createWebTransport(createWorker: () => WorkerLike): Transport {
         return;
       case "openFailed":
         state = "failed";
-        running?.reject(OPEN_ELSEWHERE);
+        if (message.error) openError = parseError(message.error);
+        running?.reject(openError);
         running = undefined;
         pump();
         return;

@@ -845,6 +845,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "fc-cli"
+version = "0.0.0"
+dependencies = [
+ "fc-core",
+]
+
+[[package]]
 name = "fc-core"
 version = "0.0.0"
 dependencies = [

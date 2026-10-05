@@ -3,13 +3,13 @@
 //! See `docs/adr/0002-ui-core-bridge.md`.
 
 mod bindings;
+mod collection;
 mod context;
 #[cfg(debug_assertions)]
 mod debug;
 mod error;
 mod examples;
 mod notice;
-mod spike;
 mod spike_card;
 mod spike_scheduling;
 
@@ -108,8 +108,7 @@ methods! {
     always: [
         examples::GetCoreInfo,
         examples::ExampleDivide,
-        spike::SpikeAddNote,
-        spike::SpikeListNotes,
+        collection::GetCollectionInfo,
         spike_card::SpikeCardMedia,
         spike_scheduling::SpikeSchedule,
         spike_scheduling::SpikeOptimise,
@@ -213,39 +212,52 @@ mod tests {
     }
 
     #[test]
-    fn spike_methods_need_an_open_collection() {
-        let err = call("spikeListNotes", Value::Null).unwrap_err();
+    fn collection_info_needs_an_open_collection() {
+        let err = call("getCollectionInfo", Value::Null).unwrap_err();
         assert_eq!(err.kind, ErrorKind::NotFound);
         assert_eq!(err.message, "No collection is open.");
-        let err = call("spikeAddNote", json!({ "text": "hi" })).unwrap_err();
-        assert_eq!(err.kind, ErrorKind::NotFound);
     }
 
     #[test]
-    fn spike_notes_are_added_and_listed() {
+    fn collection_info_describes_the_open_collection() {
         let core = Core::new();
-        core.open_spike(":memory:").unwrap();
+        core.open_collection(":memory:").unwrap();
         let ctx = OpContext::uncancellable();
-        let added = dispatch(&core, "spikeAddNote", json!({ "text": "one" }), &ctx).unwrap();
-        assert_eq!(added.output, json!({ "notes": ["one"] }));
-        dispatch(&core, "spikeAddNote", json!({ "text": "two" }), &ctx).unwrap();
-        let listed = dispatch(&core, "spikeListNotes", Value::Null, &ctx).unwrap();
-        assert_eq!(listed.output, json!({ "notes": ["one", "two"] }));
+        let out = dispatch(&core, "getCollectionInfo", Value::Null, &ctx).unwrap();
+        assert_eq!(
+            out.output,
+            json!({
+                "schemaVersion": 1,
+                "supportedSchemaVersion": 1,
+                "createdBy": fc_core::version(),
+            })
+        );
     }
 
     #[test]
-    fn spike_notes_must_be_between_1_and_1000_characters() {
-        let core = Core::new();
-        core.open_spike(":memory:").unwrap();
-        let ctx = OpContext::uncancellable();
-        for text in [String::new(), "x".repeat(1001)] {
-            let err = dispatch(&core, "spikeAddNote", json!({ "text": text }), &ctx).unwrap_err();
-            assert_eq!(err.kind, ErrorKind::InvalidInput);
-            assert_eq!(
-                err.message,
-                "A note must be between 1 and 1000 characters. Change the text and try again."
-            );
+    fn collection_errors_become_readable_api_errors() {
+        use fc_core::collection::CollectionError as E;
+        let cases = [
+            (E::NotFound, ErrorKind::NotFound),
+            (E::AlreadyExists, ErrorKind::InvalidInput),
+            (E::NotACollection, ErrorKind::InvalidInput),
+            (
+                E::TooNew {
+                    found: 9,
+                    supported: 1,
+                },
+                ErrorKind::UpdateRequired,
+            ),
+            (E::InUse, ErrorKind::Unavailable),
+        ];
+        for (error, kind) in cases {
+            let message = error.to_string();
+            let api = ApiError::from(error);
+            assert_eq!(api.kind, kind);
+            assert_eq!(api.message, message);
         }
+        let hidden = ApiError::from(E::Storage("disk I/O error at /secret".to_owned()));
+        assert_eq!(hidden, ApiError::internal());
     }
 
     #[cfg(debug_assertions)]

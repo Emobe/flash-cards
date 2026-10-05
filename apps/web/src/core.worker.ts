@@ -33,15 +33,28 @@ function onNotice(json: string) {
   scope.postMessage({ type: "notice", notice: json });
 }
 
-async function openWithRetry(): Promise<boolean> {
+/** Errors that waiting cannot fix: the collection is newer, or the file is not a collection. */
+function isFinal(error: unknown): error is string {
+  if (typeof error !== "string") return false;
+  try {
+    const kind = (JSON.parse(error) as { kind?: string }).kind;
+    return kind === "updateRequired" || kind === "invalidInput";
+  } catch {
+    return false;
+  }
+}
+
+/** Resolves to `undefined` when open, else to the final `ApiError` (JSON) or `null` if just busy. */
+async function openWithRetry(): Promise<string | null | undefined> {
   const deadline = Date.now() + OPEN_GIVE_UP_MS;
   for (;;) {
     try {
       await open("collection.db");
-      return true;
+      return undefined;
     } catch (error) {
+      if (isFinal(error)) return error;
       console.warn("Could not open the collection yet", error);
-      if (Date.now() >= deadline) return false;
+      if (Date.now() >= deadline) return null;
       await new Promise((resolve) => setTimeout(resolve, OPEN_RETRY_MS));
     }
   }
@@ -54,7 +67,7 @@ const opened = (async () => {
 })();
 
 scope.onmessage = async ({ data: request }) => {
-  if (!(await opened)) return;
+  if ((await opened) !== undefined) return;
   try {
     const reply = call(request.method, request.input, request.bytes, request.op);
     const bytes = reply.bytes as Uint8Array;
@@ -76,7 +89,12 @@ scope.onmessage = async ({ data: request }) => {
 };
 
 opened.then(
-  (ok) => scope.postMessage({ type: ok ? "ready" : "openFailed" }),
+  (failure) =>
+    scope.postMessage(
+      failure === undefined
+        ? { type: "ready" }
+        : { type: "openFailed", ...(failure === null ? {} : { error: failure }) },
+    ),
   (error: unknown) => {
     console.error("The core failed to load", error);
     scope.postMessage({ type: "openFailed" });

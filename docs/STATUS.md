@@ -4,11 +4,11 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-0.7 Data model and sync strategy (design only): ADR 0006 **Accepted** (Anthony delegated the four open decisions; recorded in the ADR). Handoff plan in `docs/plans/0.7-data-model-sync.md`. Step 1.1 is now split into 1.1a and 1.1b in `phases/01-core.md`.
+1.1a Collection storage and migrations. Branch `step/1.1a-collection-storage`. In progress; plan was approved (minimal `fc-cli` crate, native host opens the collection at startup).
 
 ## Branch
 
-`step/0.7-data-model-sync` (from master after PR #7).
+`step/1.1a-collection-storage` (from master after PR #8).
 
 ## Done
 
@@ -22,8 +22,9 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review and merge the 0.7 PR (docs only).
-- Then 1.1a: new session, Sonnet, `/step 1.1a`. Then 1.1b.
+- Done so far: `fc_core::collection` (create, open, close, migrations, errors, tests), the notes spike removed, `getCollectionInfo` and two new error kinds in `fc-api`, web open errors (`openFailed` carries the `ApiError`), `crates/fc-cli` (`fc new`, `fc info`).
+- To do: native host opens the collection in the app data dir and the UI shows its info; `cargo xtask check`; verify on the web (headless Brave), the phone and desktop; ADR 0003 build notes; PR report.
+- Then 1.1b: new session, Sonnet, `/step 1.1b`.
 
 ## Open items
 

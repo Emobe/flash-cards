@@ -11,6 +11,10 @@ pub enum ErrorKind {
     Cancelled,
     UnknownMethod,
     Internal,
+    /// The data was made by a newer version of the app. The user must update it.
+    UpdateRequired,
+    /// The resource is in use elsewhere, for example by another window. Closing it there fixes it.
+    Unavailable,
 }
 
 /// Error returned by every API method.
