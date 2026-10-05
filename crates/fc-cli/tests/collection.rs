@@ -51,7 +51,7 @@ fn creates_then_opens_and_closes_a_collection() {
     let info = fc(&["info", file.path()]);
     assert!(info.status.success(), "{}", stderr(&info));
     let text = stdout(&info);
-    assert!(text.contains("Storage version: 5 (this build understands up to 5)"));
+    assert!(text.contains("Storage version: 6 (this build understands up to 6)"));
     assert!(text.contains("Device ID: "));
     assert!(text.contains("Created by core: 0.0.0"));
 }
@@ -322,4 +322,118 @@ fn deck_commands_explain_what_went_wrong() {
     let no_value = fc(&["add-note", file.path(), "Basic", "Front=a", "--deck"]);
     assert_eq!(no_value.status.code(), Some(2));
     assert!(stderr(&no_value).contains("--deck needs a deck."));
+}
+
+/// The ID in a line such as "Added note <id> with 1 card".
+fn added_note_id(output: &Output) -> String {
+    stdout(output)
+        .split_whitespace()
+        .nth(2)
+        .expect("a note ID")
+        .to_owned()
+}
+
+#[test]
+fn tags_notes_lists_the_tree_and_renames_a_parent() {
+    let file = TempFile::new("tags");
+    assert!(fc(&["new", file.path()]).status.success());
+
+    let first = fc(&[
+        "add-note",
+        file.path(),
+        "Basic",
+        "--tag",
+        "lang::polish",
+        "--tag",
+        "verbs",
+        "Front=pies",
+        "Back=dog",
+    ]);
+    assert!(first.status.success(), "{}", stderr(&first));
+    let first = added_note_id(&first);
+    let second = fc(&["add-note", file.path(), "Basic", "Front=kot", "Back=cat"]);
+    let second = added_note_id(&second);
+
+    let tagged = fc(&["tag", file.path(), &second, "lang::german", "LANG::Polish"]);
+    assert!(tagged.status.success(), "{}", stderr(&tagged));
+    assert!(
+        stdout(&tagged).contains("Added 2 tags to the note. Tags now: lang::german lang::polish"),
+        "{}",
+        stdout(&tagged)
+    );
+
+    let listed = stdout(&fc(&["tags", file.path()]));
+    assert!(
+        listed.contains("\nlang (0 notes, 2 with what is inside)"),
+        "{listed}"
+    );
+    assert!(listed.contains("\n  german (1 note)"), "{listed}");
+    assert!(listed.contains("\n  polish (2 notes)"), "{listed}");
+    assert!(listed.contains("\nverbs (1 note)"), "{listed}");
+
+    let renamed = fc(&["rename-tag", file.path(), "lang", "speech"]);
+    assert!(renamed.status.success(), "{}", stderr(&renamed));
+    assert!(
+        stdout(&renamed).contains("on 2 notes"),
+        "{}",
+        stdout(&renamed)
+    );
+    let notes = stdout(&fc(&["notes", file.path()]));
+    assert!(notes.contains("Tags: speech::polish verbs"), "{notes}");
+    assert!(
+        notes.contains("Tags: speech::german speech::polish"),
+        "{notes}"
+    );
+
+    let untagged = fc(&["untag", file.path(), &first, "verbs"]);
+    assert!(untagged.status.success(), "{}", stderr(&untagged));
+    assert!(
+        stdout(&untagged).contains("Removed 1 tag from the note. Tags now: speech::polish"),
+        "{}",
+        stdout(&untagged)
+    );
+}
+
+#[test]
+fn tag_commands_explain_what_went_wrong() {
+    let file = TempFile::new("tag-errors");
+    assert!(fc(&["new", file.path()]).status.success());
+    let added = fc(&["add-note", file.path(), "Basic", "Front=a", "Back=b"]);
+    let note = added_note_id(&added);
+
+    let spaced = fc(&["tag", file.path(), &note, "two words"]);
+    assert!(!spaced.status.success());
+    assert!(
+        stderr(&spaced).contains("has a space in it"),
+        "{}",
+        stderr(&spaced)
+    );
+
+    // A bad tag on add-note is refused before the note is made.
+    let bad = fc(&[
+        "add-note",
+        file.path(),
+        "Basic",
+        "--tag",
+        "a::",
+        "Front=never",
+    ]);
+    assert!(!bad.status.success());
+    assert!(stderr(&bad).contains("has an empty part"));
+    assert!(!stdout(&fc(&["notes", file.path()])).contains("never"));
+
+    let missing = fc(&["rename-tag", file.path(), "nope", "x"]);
+    assert!(!missing.status.success());
+    assert!(stderr(&missing).contains("No note has the tag \"nope\""));
+
+    let not_an_id = fc(&["tag", file.path(), "123", "x"]);
+    assert_eq!(not_an_id.status.code(), Some(2));
+    assert!(stderr(&not_an_id).contains("is not a note ID"));
+
+    let no_tag = fc(&["tag", file.path(), &note]);
+    assert_eq!(no_tag.status.code(), Some(2));
+    assert!(stderr(&no_tag).contains("needs a tag"));
+
+    let empty = fc(&["tags", file.path()]);
+    assert!(stdout(&empty).contains("(none)"));
 }

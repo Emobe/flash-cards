@@ -4,7 +4,7 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.6 Tags: in progress on `step/1.6-tags`. Plan approved by Anthony (tag identity is its name, option 1). Core done and tested (`fc_core::tag`, migration v6, `note_tag` text-keyed register table). Remaining: CLI (`fc tags`, `fc tag`, `fc untag`, `fc rename-tag`, `fc notes` shows tags, `fc add-note --tag`), CLI test for storage version 6, a throwaway timing at 50,000 notes, ADR 0006 build notes, phase file status, `cargo xtask check`, final report. 1.5 was merged (PR #14).
+1.6 Tags: in progress on `step/1.6-tags`. Plan approved by Anthony (tag identity is its name, option 1). Core done and tested (`fc_core::tag`, migration v6, `note_tag` text-keyed register table). CLI done (`fc tags`, `fc tag`, `fc untag`, `fc rename-tag`, `fc notes` shows tags, `fc add-note --tag`, 2 CLI tests). Remaining: a throwaway timing at 50,000 notes, ADR 0006 build notes, phase file status, `cargo xtask check`, final report. 1.5 was merged (PR #14).
 
 ## Branch
 

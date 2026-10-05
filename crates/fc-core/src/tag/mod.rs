@@ -25,6 +25,7 @@ mod tests;
 use crate::sync::DynamicTable;
 
 pub use error::TagError;
+pub use read::clean as check;
 
 /// The sync entity type and register names are part of the sync format and never change (ADR 0006,
 /// section 10). The register name is the tag as written, and the value is `1` or empty.

@@ -8,8 +8,9 @@ use super::{PRESENT, SEPARATOR, Tag, TagError};
 use crate::collection::Collection;
 use crate::id::Id;
 
-/// Trims a tag and checks its shape. A tag is not empty, has no whitespace and has no empty part.
-pub(super) fn clean(name: &str) -> Result<String, TagError> {
+/// Trims a tag and checks its shape: not empty, no whitespace, no empty part. Public as
+/// `tag::check`, for a caller that wants to check tags before it writes anything else.
+pub fn clean(name: &str) -> Result<String, TagError> {
     let name = name.trim();
     if name.is_empty() {
         return Err(TagError::Empty);
