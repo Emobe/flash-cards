@@ -3,9 +3,10 @@
 use rusqlite::Transaction;
 
 use super::requires;
+use crate::notetype;
 
 /// A table whose fields merge between devices, one register per field.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct SyncedTable {
     /// The entity type in sync data. Part of the sync format: never renamed (ADR 0006, section 10).
     pub entity: &'static str,
@@ -16,7 +17,12 @@ pub struct SyncedTable {
 }
 
 /// Every synced table, in the newest schema.
-pub const SYNCED_TABLES: &[SyncedTable] = &[requires::TABLE];
+pub const SYNCED_TABLES: &[SyncedTable] = &[
+    requires::TABLE,
+    notetype::NOTE_TYPE,
+    notetype::FIELD,
+    notetype::TEMPLATE,
+];
 
 /// Tables that exist only on this device and never sync.
 pub const LOCAL_TABLES: &[&str] = &["meta", "register_clock", "unknown_register", "write_guard"];

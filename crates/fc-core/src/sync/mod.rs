@@ -26,6 +26,7 @@ pub use hlc::Hlc;
 pub use registry::{LOCAL_TABLES, SYNCED_TABLES, SyncedTable, install_guard};
 pub use requires::SUPPORTED_FEATURES;
 pub use unknown::UnknownRegister;
+pub(crate) use write::seed_row;
 pub use write::{RegisterClock, WriteTx};
 
 #[cfg(test)]

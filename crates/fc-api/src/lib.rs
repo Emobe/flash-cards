@@ -232,11 +232,15 @@ mod tests {
         let out = dispatch(&core, "getCollectionInfo", Value::Null, &ctx).unwrap();
         let device_id = out.output["deviceId"].as_str().unwrap().to_owned();
         assert!(device_id.parse::<Id>().is_ok(), "{device_id}");
+        // The newest version changes with every migration, so ask the core for it.
+        let newest = core
+            .with_collection(|c| c.info().unwrap().supported_schema_version)
+            .unwrap();
         assert_eq!(
             out.output,
             json!({
-                "schemaVersion": 2,
-                "supportedSchemaVersion": 2,
+                "schemaVersion": newest,
+                "supportedSchemaVersion": newest,
                 "createdBy": fc_core::version(),
                 "deviceId": device_id,
                 "unsupportedFeatures": [],

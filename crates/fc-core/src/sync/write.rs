@@ -146,6 +146,43 @@ impl WriteTx<'_> {
     }
 }
 
+/// Writes a built-in row from inside a migration, with the lowest clock there is: `(0, nil device)`,
+/// already marked pushed. Every device seeds the same rows, so there is nothing to push, and any real
+/// edit on any device beats the seed. A seed written with the current time would instead beat an
+/// older edit made elsewhere, after the first sync of a fresh collection. The row's content must
+/// never change once a version has shipped it, because devices would then differ silently.
+pub(crate) fn seed_row(
+    tx: &Transaction,
+    table: &SyncedTable,
+    id: Id,
+    values: &[(&str, Value)],
+) -> rusqlite::Result<()> {
+    let columns: String = values
+        .iter()
+        .map(|(field, _)| format!(", \"{field}\""))
+        .collect();
+    let marks = ", ?".repeat(values.len());
+    let args = std::iter::once(Value::Blob(id.as_bytes().to_vec()))
+        .chain(values.iter().map(|(_, value)| value.clone()));
+    tx.execute(&format!("INSERT INTO {GUARD_TABLE} (id) VALUES (1)"), [])?;
+    tx.execute(
+        &format!(
+            "INSERT INTO \"{}\" (id{columns}) VALUES (?{marks})",
+            table.table
+        ),
+        params_from_iter(args),
+    )?;
+    tx.execute(&format!("DELETE FROM {GUARD_TABLE}"), [])?;
+    for (field, _) in values {
+        tx.execute(
+            "INSERT INTO register_clock (entity_type, entity_id, field, hlc, device, pushed)
+             VALUES (?1, ?2, ?3, 0, ?4, 1)",
+            params![table.entity, id, field, Id::from_bytes([0; 16])],
+        )?;
+    }
+    Ok(())
+}
+
 impl Collection {
     /// Runs `f` in one write transaction. This is the only way to change a synced table.
     pub fn write<T>(

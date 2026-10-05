@@ -25,7 +25,7 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- 1.2: see the plan in the session; chunks are committed in order (tables and built-ins, operations, CLI, docs).
+- 1.2 done so far: `fc_core::notetype` (tables `note_type`, `note_type_field`, `template`, migration v3, built-ins with fixed IDs seeded with the lowest clock, all operations, fractional-index positions, 49 new tests), `cargo xtask check` passes. Remaining: `fc notetypes` CLI command (code written, commit pending), verify on the real desktop collection and the web build, ADR 0006 build notes, phase file status, mark done.
 
 ## Open items
 
