@@ -4,15 +4,15 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-0.7 Data model and sync strategy (design only): Opus design session, `/adr 0.7`, not started. 0.6 was built, verified and approved by Anthony (merge pending).
+0.7 Data model and sync strategy (design only): ADR 0006 written, **Proposed**, waiting for Anthony's review. Handoff plan in `docs/plans/0.7-data-model-sync.md`.
 
 ## Branch
 
-`step/0.6-card-sandbox` (0.6, approved, to be merged). Start 0.7 on a new branch from master once it is merged.
+`step/0.7-data-model-sync` (from master after PR #7).
 
 ## Done
 
-- 0.6 Sandboxed card rendering (ADR 0005 accepted). Cards render in `<iframe sandbox="allow-scripts">` from a trusted `frame.html` with its own CSP (a `card` URI scheme on native, `/card-frame.html` on web), media as frame-local blob URLs. Every bridge command needs a session token from `handshake`. The 54-attempt malicious card: 0 SUCCEEDED on desktop, the phone and web, and a negative control on the phone (token check removed) did reach the core. Sample card (image, audio, JS) works on all three. Timings and limits are in ADR 0005 build notes. Reviewed and approved by Anthony; PR not opened or merged yet.
+- 0.6 Sandboxed card rendering (ADR 0005 accepted). Cards render in `<iframe sandbox="allow-scripts">` from a trusted `frame.html` with its own CSP (a `card` URI scheme on native, `/card-frame.html` on web), media as frame-local blob URLs. Every bridge command needs a session token from `handshake`. The 54-attempt malicious card: 0 SUCCEEDED on desktop, the phone and web, and a negative control on the phone (token check removed) did reach the core. Sample card (image, audio, JS) works on all three. Timings and limits are in ADR 0005 build notes. Reviewed and merged (PR #7).
 - Planning docs (`docs/`).
 - 0.1 Repository and workspace boilerplate. Verified on Manjaro only.
 - 0.2 Android build. Debug APK and USB live reload verified on the phone, workflow runs through Bun. Includes a 16 KB page alignment fix.
@@ -22,8 +22,13 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: merge 0.6 (open the PR first, or merge the branch). Then update the Done entry to "Reviewed and merged (PR #N)".
-- Then 0.7: new session, Opus, `/adr 0.7`.
+- Anthony: review ADR 0006 (review focus: anything that could ever need a "choose a side" prompt) and the plan. Decide:
+  - delete wins with a trash and restore (proposed), rather than edit wins;
+  - same-field edits: last writer wins, with the losing text kept locally and no prompt;
+  - same-named decks after a first-sync merge stay separate until merged by the user;
+  - moving the sync foundation into step 1.1 (or a split 1.1a/1.1b), which changes `phases/01-core.md`.
+- On acceptance: set ADR 0006 to Accepted, update `phases/01-core.md` if the 1.1 change is agreed, open the PR.
+- Then 1.1: new session, Sonnet, `/step 1.1`.
 
 ## Open items
 
@@ -37,4 +42,5 @@ Kept current by every session. A new session reads this first.
 - Step 2.1 must handle edge-to-edge drawing and safe areas (status bar, navigation bar, cutout, keyboard) once in the app shell.
 - Design experiment for 0.6 shared the repo's `target/` dir, so `fc-native` was cleaned afterwards (`cargo clean -p fc-native`, host and Android). The next desktop and Android builds recompile more than usual.
 - Standing rule from ADR 0005 (Accepted): never grant Tauri plugin permissions to the main window, and every bridge command must check the session token. On Android card frames can call anything the main window can.
+- 0.7 experiments (scratch, outside the repo): register merge, event union, FSRS replay and IDs verified natively on Linux; IDs and `getrandom` on wasm under Bun only, not in a browser. Step 1.1 checks `getrandom` in the browser.
 - App/bundle ID is still the placeholder `dev.placeholder.flashcards`. Pick it before step 2.7.
