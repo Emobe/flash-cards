@@ -111,7 +111,7 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Create, rename, move (nest) and delete decks, with a defined behaviour for cards in a deleted deck.
 - Option presets with daily new and review limits, learning steps, desired retention. Presets can be shared by several decks.
 
-**Status:** done (2026-10-05), pending Anthony's review. Built to ADR 0006 (build notes, step 1.5). `fc_core::deck`: decks nest through a `parent` register, cycles and missing parents are settled when reading, deleting a deck deletes its sub-decks, cards and notes left empty (restorable), the Default deck and preset cannot be deleted. Presets: daily limits, learning steps, desired retention, shared by several decks, deleting one sends its decks to the Default preset. `fc decks`, `fc add-deck`, `fc add-note --deck`. Left for 1.7 and 1.8: the FSRS parameters and relearning steps registers, and what the limits mean in queues. Not in any UI or the web API.
+**Status:** done (2026-10-05), merged (PR #14). Built to ADR 0006 (build notes, step 1.5). `fc_core::deck`: decks nest through a `parent` register, cycles and missing parents are settled when reading, deleting a deck deletes its sub-decks, cards and notes left empty (restorable), the Default deck and preset cannot be deleted. Presets: daily limits, learning steps, desired retention, shared by several decks, deleting one sends its decks to the Default preset. `fc decks`, `fc add-deck`, `fc add-note --deck`. Left for 1.7 and 1.8: the FSRS parameters and relearning steps registers, and what the limits mean in queues. Not in any UI or the web API.
 
 ---
 
@@ -125,7 +125,7 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Add, remove, rename tags, including renaming a parent tag.
 - Tags are usable in search (1.9).
 
-**Status:** done (2026-10-06), pending Anthony's review. Built to ADR 0006 (build notes, step 1.6). `fc_core::tag`, migration v6 (`note_tag`, a text-keyed register table): a tag's identity is its name, matched ignoring case, `::` makes a child, add, remove, set, rename (a parent renames what is inside it) and delete, `tags` (tree with counts), `notes_with_tag` for 1.9. `fc tags`, `fc tag`, `fc untag`, `fc rename-tag`, `fc add-note --tag`. Not in any UI or the web API.
+**Status:** done (2026-10-06), reviewed and merged (PR #15). Built to ADR 0006 (build notes, step 1.6). `fc_core::tag`, migration v6 (`note_tag`, a text-keyed register table): a tag's identity is its name, matched ignoring case, `::` makes a child, add, remove, set, rename (a parent renames what is inside it) and delete, `tags` (tree with counts), `notes_with_tag` for 1.9. `fc tags`, `fc tag`, `fc untag`, `fc rename-tag`, `fc add-note --tag`. Not in any UI or the web API.
 
 ---
 
@@ -144,6 +144,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - A simulated multi-day test produces expected due counts.
 
 **Review focus:** this is the heart of the app. Read the tests.
+
+**Status:** design done (2026-10-06): ADR 0007 (Proposed) and `docs/plans/1.7-study-queues.md`, waiting for Anthony's review. The plan proposes two PRs, 1.7a (answering, events, the day boundary, undo) and 1.7b (queues, limits, suspend and bury, the simulated test), both Sonnet builds.
 
 ---
 
