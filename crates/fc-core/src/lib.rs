@@ -4,8 +4,11 @@
 //! It must stay free of Tauri, UI and
 //! platform-specific dependencies (see `docs/adr/0001-workspace-layout.md`).
 
+pub mod clock;
 pub mod collection;
+pub mod id;
 pub mod scheduling;
+pub mod sync;
 
 use std::sync::Mutex;
 

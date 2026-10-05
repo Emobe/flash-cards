@@ -1,0 +1,10 @@
+# `fc-core` never reads the clock, sleeps or starts threads: time comes from the host (`Clock`),
+# so the same code runs on native, in the browser and in tests (ADR 0003, ADR 0006 section 2).
+disallowed-types = [
+    { path = "std::time::SystemTime", reason = "time comes from the host `Clock`" },
+    { path = "std::time::Instant", reason = "time comes from the host `Clock`" },
+]
+disallowed-methods = [
+    { path = "std::thread::sleep", reason = "fc-core never sleeps" },
+    { path = "std::thread::spawn", reason = "fc-core never starts threads" },
+]
