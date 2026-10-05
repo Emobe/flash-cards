@@ -38,3 +38,33 @@ body {
 .divide .error {
   color: #b3261e;
 }
+
+/* Temporary styling for the step 0.6 card sandbox spike. */
+.card-spike {
+  margin-top: 24px;
+}
+
+.card-spike .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.card-spike button {
+  min-height: 48px;
+  font-size: 1.125rem;
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+
+.card-spike-box {
+  border: 2px solid #8a6d00;
+  background: #fff;
+}
+
+.card-spike-alarm {
+  background: #b3261e;
+  color: #fff;
+  font-weight: bold;
+  padding: 12px;
+}
