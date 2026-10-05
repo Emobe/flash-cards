@@ -20,6 +20,8 @@ Spike code may be thrown away. ADRs are the real output.
 
 ## 0.1 Repository and workspace boilerplate
 
+**Model:** Sonnet build (/step)
+
 **Goal:** a monorepo with a place for the Rust core, the Tauri app, the React UI and the future sync server, plus the tooling to work on them.
 
 **Scope:**
@@ -42,6 +44,8 @@ Spike code may be thrown away. ADRs are the real output.
 
 ## 0.2 Android build
 
+**Model:** Sonnet build (/step)
+
 **Goal:** the same app builds and runs on Anthony's Android phone.
 
 **Scope:**
@@ -61,6 +65,8 @@ Spike code may be thrown away. ADRs are the real output.
 
 ## 0.3 UI-to-core bridge
 
+**Model:** Opus design session (/adr), then Sonnet build (/step)
+
 **Goal:** the React UI calls a function in the Rust core and gets typed data back, on desktop and Android.
 
 **Scope:**
@@ -77,6 +83,8 @@ Spike code may be thrown away. ADRs are the real output.
 ---
 
 ## 0.4 Web client spike
+
+**Model:** Opus design session (/adr), then Sonnet build (/step)
 
 **Goal:** prove the web client can exist with a full offline local copy, and decide how.
 
@@ -95,6 +103,8 @@ Spike code may be thrown away. ADRs are the real output.
 
 ## 0.5 Scheduling spike
 
+**Model:** Sonnet build (/step)
+
 **Goal:** choose how FSRS scheduling is implemented.
 
 **Scope:**
@@ -112,6 +122,8 @@ Spike code may be thrown away. ADRs are the real output.
 
 ## 0.6 Sandboxed card rendering spike
 
+**Model:** Opus design session (/adr), then Sonnet build (/step)
+
 **Goal:** prove untrusted card HTML, CSS and JS can render safely on all platforms.
 
 **Scope:**
@@ -128,6 +140,8 @@ Spike code may be thrown away. ADRs are the real output.
 ---
 
 ## 0.7 Data model and sync strategy (design only)
+
+**Model:** Opus design session (/adr), no build
 
 **Goal:** an accepted design for the core data model and how sync will meet the requirements, before Phase 1 builds storage.
 

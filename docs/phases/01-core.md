@@ -17,6 +17,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 ## 1.1 Collection storage and migrations
 
+**Model:** Sonnet build (/step)
+
 **Goal:** a collection can be created, opened and closed, with a migration system for future schema changes.
 
 **Acceptance criteria:**
@@ -31,6 +33,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 ## 1.2 Note types and fields
 
+**Model:** Sonnet build (/step)
+
 **Goal:** note types with fields and card templates, including the built-in types.
 
 **Acceptance criteria:**
@@ -41,6 +45,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 ---
 
 ## 1.3 Notes and card generation
+
+**Model:** Sonnet build (/step)
 
 **Goal:** adding a note generates the right cards; editing a note keeps cards in step.
 
@@ -53,6 +59,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 ## 1.4 Template rendering
 
+**Model:** Sonnet build (/step)
+
 **Goal:** turn a card into front and back HTML ready for the sandbox.
 
 **Acceptance criteria:**
@@ -64,6 +72,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 ## 1.5 Decks and deck options
 
+**Model:** Sonnet build (/step)
+
 **Goal:** nested decks and option presets.
 
 **Acceptance criteria:**
@@ -74,6 +84,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 ## 1.6 Tags
 
+**Model:** Sonnet build (/step)
+
 **Goal:** tags on notes, including hierarchical tags.
 
 **Acceptance criteria:**
@@ -83,6 +95,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 ---
 
 ## 1.7 Study queues and answering
+
+**Model:** Opus design session (/adr), then Sonnet build (/step)
 
 **Goal:** the core decides what to study next and records answers.
 
@@ -100,6 +114,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 ## 1.8 Review history and basic stats
 
+**Model:** Sonnet build (/step)
+
 **Goal:** queryable review history and the numbers the UI will need.
 
 **Acceptance criteria:**
@@ -110,6 +126,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 ---
 
 ## 1.9 Search and filtering
+
+**Model:** Sonnet build (/step)
 
 **Goal:** a search system powerful enough to make browsing on a phone painless.
 
@@ -126,6 +144,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 ## 1.10 Media
 
+**Model:** Sonnet build (/step)
+
 **Goal:** store and reference images and audio.
 
 **Acceptance criteria:**
@@ -136,6 +156,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 ---
 
 ## 1.11 Change tracking for sync
+
+**Model:** Opus design session (/adr), then Sonnet build (/step)
 
 **Goal:** everything the sync ADR says Phase 1 must record is recorded.
 
@@ -149,6 +171,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 ## 1.12 Extension points
 
+**Model:** Sonnet build (/step)
+
 **Goal:** stable events and hooks for future add-ons and the UI.
 
 **Acceptance criteria:**
@@ -158,6 +182,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 ---
 
 ## 1.13 Backup, export and restore
+
+**Model:** Sonnet build (/step)
 
 **Goal:** a full export in our own documented format, and automatic backups.
 
@@ -169,6 +195,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 ---
 
 ## 1.14 Developer CLI
+
+**Model:** Sonnet build (/step)
 
 **Goal:** a CLI that exercises the core for manual testing and debugging.
 
