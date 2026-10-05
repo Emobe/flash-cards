@@ -14,6 +14,7 @@ export function App() {
       <h1>Flash cards</h1>
       <p>Placeholder screen. Nothing to study yet.</p>
       <CoreVersion />
+      <CollectionStatus />
       <DivideForm />
       <SchedulingSpike />
       <CardSandboxSpike />
@@ -41,6 +42,35 @@ function CoreVersion() {
   }, [core]);
 
   return <p>{text}</p>;
+}
+
+/** Shows that the collection is open and its storage version. A real screen replaces it (2.1). */
+function CollectionStatus() {
+  const core = useCore();
+  const [state, setState] = useState<{ ok: boolean; text: string }>({
+    ok: true,
+    text: "Opening the collection...",
+  });
+
+  useEffect(() => {
+    let current = true;
+    core
+      .call("getCollectionInfo", null)
+      .then(
+        (info) =>
+          current &&
+          setState({
+            ok: true,
+            text: `Collection storage version ${info.schemaVersion} (this build supports up to ${info.supportedSchemaVersion}).`,
+          }),
+      )
+      .catch((error: unknown) => current && setState({ ok: false, text: message(error) }));
+    return () => {
+      current = false;
+    };
+  }, [core]);
+
+  return state.ok ? <p>{state.text}</p> : <p role="alert">{state.text}</p>;
 }
 
 /** Temporary demo of a call and an error path (step 0.3). Removed with the example methods. */

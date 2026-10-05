@@ -1,25 +1,28 @@
 //! Core library for the app. Holds domain logic shared by the desktop and
 //! mobile apps, the web client, the dev CLI and the sync server.
 //!
-//! Placeholder until Phase 1. It must stay free of Tauri, UI and
+//! It must stay free of Tauri, UI and
 //! platform-specific dependencies (see `docs/adr/0001-workspace-layout.md`).
 
+pub mod collection;
 pub mod scheduling;
-pub mod spike;
 
 use std::sync::Mutex;
 
-use spike::{SpikeError, SpikeStore};
+use collection::{Collection, CollectionError};
 
 /// Version of the core library, taken from its Cargo manifest.
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
-/// Handle to the core. Holds only the temporary spike store until Phase 1 adds a collection.
+/// Handle to the core. Holds the open collection, if any.
+///
+/// One connection behind a mutex: a call that holds the collection blocks the others. Reads during
+/// a long write need a second connection, which a later step adds if it needs it (ADR 0003).
 #[derive(Debug, Default)]
 pub struct Core {
-    spike: Mutex<Option<SpikeStore>>,
+    collection: Mutex<Option<Collection>>,
 }
 
 impl Core {
@@ -27,19 +30,27 @@ impl Core {
         Self::default()
     }
 
-    /// Opens the spike store at a path or `file:` URI (step 0.4, deleted in 1.1).
-    pub fn open_spike(&self, uri: &str) -> Result<(), SpikeError> {
-        let store = SpikeStore::open(uri)?;
-        *self.spike.lock().expect("spike lock") = Some(store);
+    /// Opens the collection at a path or `file:` URI, creating it if nothing is there yet. Replaces
+    /// (and closes) any collection that was open.
+    pub fn open_collection(&self, location: &str) -> Result<(), CollectionError> {
+        let collection = Collection::open_or_create(location)?;
+        *self.collection.lock().expect("collection lock") = Some(collection);
         Ok(())
     }
 
-    /// Runs `f` on the spike store, or returns `None` when none is open.
-    pub fn with_spike<T>(
-        &self,
-        f: impl FnOnce(&SpikeStore) -> Result<T, SpikeError>,
-    ) -> Option<Result<T, SpikeError>> {
-        self.spike.lock().expect("spike lock").as_ref().map(f)
+    /// Closes the open collection, if any.
+    pub fn close_collection(&self) -> Result<(), CollectionError> {
+        let taken = self.collection.lock().expect("collection lock").take();
+        taken.map_or(Ok(()), Collection::close)
+    }
+
+    /// Runs `f` on the open collection, or returns `None` when none is open.
+    pub fn with_collection<T>(&self, f: impl FnOnce(&Collection) -> T) -> Option<T> {
+        self.collection
+            .lock()
+            .expect("collection lock")
+            .as_ref()
+            .map(f)
     }
 }
 

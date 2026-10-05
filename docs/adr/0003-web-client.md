@@ -329,3 +329,47 @@ Linux, driven over the DevTools protocol from a throwaway script outside the rep
 - **Not verified:** Firefox, Safari, mobile browsers, Windows, the phone (the spike is web-only),
   the visual appearance of the desktop app after this change (it compiled and its window opened,
   with bundled SQLite now in `fc-native`).
+
+## Build notes (step 1.1a)
+
+Collection storage built to this ADR with no change to the decision. These are the choices step 1.1
+left open.
+
+- **Where it lives.** `fc_core::collection::Collection` creates, opens and closes a collection at a
+  path or `file:` URI. `fc-core` never touches the file system, so the same code serves native paths
+  and the web VFS URI. `create` fails if the location holds data and `open` fails if it does not,
+  so neither silently replaces the other. Hosts use `open_or_create` through `Core::open_collection`.
+- **Schema versions.** SQLite's `user_version` is the schema version and `application_id` marks
+  the file as ours. Migrations are an ordered list of functions in `collection/migrate.rs`. All
+  pending migrations run in one `IMMEDIATE` transaction with the version bump, so a failed migration
+  leaves the collection as it was (tested). The version is read before anything is written, so a
+  collection from a newer app is refused with an "update the app" message and is not modified
+  (tested: byte-identical, no journal file). A file that is not one of our collections is refused
+  the same way. There is no backup before a migration: the transaction covers failure, and backups
+  are step 1.13.
+- **Journal mode.** The default rollback journal on every target. The web VFS has no WAL, and
+  finding 7 relies on the rollback journal undoing an interrupted transaction.
+- **Locking, ADR 0002's open question.** One connection behind a mutex in `Core`, so a call that
+  holds the collection blocks the others. ADR 0002 wanted reads to continue during a long write.
+  That needs a second read connection (WAL, so native only), which can be added without changing the
+  API. It waits for the first step that needs it (import in Phase 5, or search in 1.9 if it is
+  slow). Another program holding the file is reported at once as `InUse` (busy timeout 0).
+- **Foreign keys** are left off, as ADR 0006 section 6 requires for synced tables.
+- **Errors.** `CollectionError` carries the readable message, so the CLI and the API show the same
+  text. `fc-api` adds two error kinds: `updateRequired` (a newer collection) and `unavailable` (in
+  use). On the web the worker retries opening only for errors that waiting can fix, and a final
+  error such as `updateRequired` reaches the UI as that error instead of "open in another tab".
+- **Spike removed.** `fc_core::spike`, the `spikeAddNote` and `spikeListNotes` methods and the notes
+  form in the web `SpikePanel` are gone.
+- **Verified.** Native (Linux): unit tests, the `fc` CLI end to end, and the desktop app creating
+  `collection.db` in its data directory. Web: release build in headless Brave 143 on Linux.
+  Opening a missing collection on the OPFS VFS comes back as `NotFound` (so the first load
+  creates it), and the collection reopens after a page reload and after a browser restart. Android:
+  the debug APK builds with bundled SQLite and the app runs (see the PR report for what could not
+  be confirmed).
+- **Harness lesson, again.** Brave restores the previous launch's tabs when started on the same
+  profile, and those tabs hold the OPFS handles, so a second launch showed "open in another tab".
+  Deleting the profile's session files between launches fixed it. The app was right.
+- **Not verified:** Windows, Firefox, Safari, a newer-collection error on the web in a real
+  browser (covered by the core tests and a transport test), collections of any size.
+

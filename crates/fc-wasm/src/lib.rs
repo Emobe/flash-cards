@@ -58,8 +58,9 @@ fn thrown(error: &ApiError) -> JsValue {
     JsValue::from_str(&serde_json::to_string(error).unwrap_or_default())
 }
 
-/// Installs the `opfs-sahpool` VFS (not as the default) and opens the collection in it. Throws an
-/// `ApiError` as a JSON string. Fails while another tab holds the OPFS handles.
+/// Installs the `opfs-sahpool` VFS (not as the default) and opens the collection in it, creating
+/// it on first use. Throws an `ApiError` as a JSON string, for example `updateRequired` for a
+/// collection from a newer app. Fails while another tab holds the OPFS handles.
 #[wasm_bindgen]
 pub async fn open(name: String) -> Result<(), JsValue> {
     install::<WasmOsCallback>(&OpfsSAHPoolCfg::default(), false)
@@ -68,10 +69,10 @@ pub async fn open(name: String) -> Result<(), JsValue> {
             console_error(&format!("Could not install the OPFS VFS: {e}"));
             thrown(&ApiError::internal())
         })?;
-    CORE.with(|core| core.open_spike(&format!("file:{name}?vfs=opfs-sahpool")))
+    CORE.with(|core| core.open_collection(&format!("file:{name}?vfs=opfs-sahpool")))
         .map_err(|e| {
             console_error(&format!("Could not open the collection: {e:?}"));
-            thrown(&ApiError::internal())
+            thrown(&ApiError::from(e))
         })
 }
 

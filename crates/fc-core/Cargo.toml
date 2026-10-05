@@ -9,7 +9,6 @@ publish.workspace = true
 [lints]
 workspace = true
 
-# Temporary: the spike store (step 0.4). The real schema arrives in step 0.7.
 # `bundled` compiles SQLite from C on native targets. On wasm32 rusqlite uses sqlite-wasm-rs.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rusqlite = { version = "=0.40.2", features = ["bundled"] }

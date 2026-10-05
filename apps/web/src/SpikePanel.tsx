@@ -1,12 +1,10 @@
 import { CoreError } from "core-client";
-import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useCore } from "ui";
 
-/** Temporary spike UI (step 0.4): notes stored through the core, plus the cancel and crash paths. */
+/** Temporary dev panel (step 0.4): the cancel and crash paths. */
 export function SpikePanel() {
   const core = useCore();
-  const [notes, setNotes] = useState<string[]>([]);
-  const [text, setText] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [storage, setStorage] = useState("Checking storage...");
@@ -18,13 +16,6 @@ export function SpikePanel() {
   }, []);
 
   useEffect(() => {
-    core
-      .call("spikeListNotes", null)
-      .then((out) => setNotes(out.notes))
-      .catch(fail);
-  }, [core, fail]);
-
-  useEffect(() => {
     (async () => {
       const persisted = (await navigator.storage?.persist?.()) ?? false;
       const estimate = await navigator.storage?.estimate?.();
@@ -33,18 +24,6 @@ export function SpikePanel() {
       );
     })().catch(() => setStorage("Storage information is not available."));
   }, []);
-
-  async function add(event: FormEvent) {
-    event.preventDefault();
-    setError("");
-    try {
-      const out = await core.call("spikeAddNote", { text });
-      setNotes(out.notes);
-      setText("");
-    } catch (e) {
-      fail(e);
-    }
-  }
 
   async function runSlow() {
     setError("");
@@ -91,20 +70,7 @@ export function SpikePanel() {
 
   return (
     <section className="spike">
-      <h2>Storage spike</h2>
-      <form onSubmit={add} className="divide">
-        <label>
-          Note
-          <input value={text} onChange={(e) => setText(e.target.value)} />
-        </label>
-        <button type="submit">Add note</button>
-      </form>
-      <ul aria-label="Notes">
-        {notes.map((note, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: notes are append-only and have no id
-          <li key={i}>{note}</li>
-        ))}
-      </ul>
+      <h2>Core spike</h2>
       <div className="row">
         <button type="button" onClick={runSlow} disabled={progress !== null}>
           Run slow call

@@ -77,13 +77,13 @@ test("calls run one at a time, in order", async () => {
   const { client, latest } = setup();
   latest().send({ type: "ready" });
   const first = client.call("getCoreInfo", null);
-  const second = client.call("spikeListNotes", null);
+  const second = client.call("getCoreInfo", null);
   expect(latest().received.map((m) => m.id)).toEqual([1]);
   latest().send(reply(1, { coreVersion: "a" }));
   await first;
   expect(latest().received.map((m) => m.id)).toEqual([1, 2]);
-  latest().send(reply(2, { notes: [] }));
-  expect(await second).toEqual({ notes: [] });
+  latest().send(reply(2, { coreVersion: "b" }));
+  expect(await second).toEqual({ coreVersion: "b" });
 });
 
 test("cancelling a queued call rejects it without reaching the worker", async () => {
@@ -91,7 +91,7 @@ test("cancelling a queued call rejects it without reaching the worker", async ()
   latest().send({ type: "ready" });
   const first = client.call("getCoreInfo", null);
   const controller = new AbortController();
-  const second = client.call("spikeListNotes", null, { signal: controller.signal });
+  const second = client.call("getCoreInfo", null, { signal: controller.signal });
   controller.abort();
   await expect(second).rejects.toMatchObject({ kind: "cancelled" });
   latest().send(reply(1, { coreVersion: "a" }));
@@ -188,4 +188,13 @@ test("when the collection cannot be opened every call gets the other-tab message
   };
   await expect(waiting).rejects.toMatchObject(expected);
   await expect(client.call("getCoreInfo", null)).rejects.toMatchObject(expected);
+});
+
+test("when the core says why the collection cannot be opened, calls get that error", async () => {
+  const { client, latest } = setup();
+  const waiting = client.call("getCoreInfo", null);
+  const error = { kind: "updateRequired", message: "Update the app to open it." };
+  latest().send({ type: "openFailed", error: JSON.stringify(error) });
+  await expect(waiting).rejects.toMatchObject(error);
+  await expect(client.call("getCoreInfo", null)).rejects.toMatchObject(error);
 });

@@ -3,4 +3,11 @@
 /**
  * What went wrong, for code to branch on. The user sees `ApiError::message`.
  */
-export type ErrorKind = "notFound" | "invalidInput" | "cancelled" | "unknownMethod" | "internal";
+export type ErrorKind =
+  | "notFound"
+  | "invalidInput"
+  | "cancelled"
+  | "unknownMethod"
+  | "internal"
+  | "updateRequired"
+  | "unavailable";

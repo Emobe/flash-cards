@@ -1,0 +1,17 @@
+[package]
+name = "fc-cli"
+version = "0.0.0"
+description = "Developer CLI: drives the core from a terminal for manual testing and debugging."
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "fc"
+path = "src/main.rs"
+
+[dependencies]
+fc-core = { path = "../fc-core" }
