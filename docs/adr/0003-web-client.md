@@ -1,6 +1,6 @@
 # 0003: Web client approach and storage on every target
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-05
 
 ## Context
