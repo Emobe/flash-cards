@@ -51,7 +51,7 @@ fn creates_then_opens_and_closes_a_collection() {
     let info = fc(&["info", file.path()]);
     assert!(info.status.success(), "{}", stderr(&info));
     let text = stdout(&info);
-    assert!(text.contains("Storage version: 3 (this build understands up to 3)"));
+    assert!(text.contains("Storage version: 4 (this build understands up to 4)"));
     assert!(text.contains("Device ID: "));
     assert!(text.contains("Created by core: 0.0.0"));
 }
@@ -145,4 +145,63 @@ fn lists_the_built_in_note_types() {
     assert!(text.contains("Cloze (cloze)"));
     assert!(text.contains("Fields: Text, Extra"));
     assert!(!text.contains("Deleted"));
+}
+
+#[test]
+fn adds_notes_and_lists_them_with_their_cards() {
+    let file = TempFile::new("notes");
+    assert!(fc(&["new", file.path()]).status.success());
+
+    let added = fc(&[
+        "add-note",
+        file.path(),
+        "Basic and reversed",
+        "Front=pies",
+        "Back=dog",
+    ]);
+    assert!(added.status.success(), "{}", stderr(&added));
+    assert!(stdout(&added).contains("2 cards"), "{}", stdout(&added));
+
+    let cloze = fc(&[
+        "add-note",
+        file.path(),
+        "Cloze",
+        "Text={{c1::a}} and {{c2::b}}",
+    ]);
+    assert!(cloze.status.success(), "{}", stderr(&cloze));
+    assert!(stdout(&cloze).contains("2 cards"));
+
+    let plain = fc(&["add-note", file.path(), "Basic", "Front=pies", "Back=dog"]);
+    assert!(plain.status.success(), "{}", stderr(&plain));
+    assert!(!stdout(&plain).contains("duplicate"));
+    let again = fc(&["add-note", file.path(), "basic", "Front=Pies", "Back=hound"]);
+    assert!(again.status.success(), "{}", stderr(&again));
+    assert!(stdout(&again).contains("duplicate"), "{}", stdout(&again));
+
+    let listed = fc(&["notes", file.path()]);
+    assert!(listed.status.success(), "{}", stderr(&listed));
+    let text = stdout(&listed);
+    assert!(text.contains("Front: pies"));
+    assert!(text.contains("Text: {{c1::a}} and {{c2::b}}"));
+    assert!(text.contains("Cards: Card 1, Card 2"));
+    assert!(text.contains("Cards: Cloze 1, Cloze 2"));
+}
+
+#[test]
+fn add_note_explains_what_went_wrong() {
+    let file = TempFile::new("notes-errors");
+    assert!(fc(&["new", file.path()]).status.success());
+
+    let unknown = fc(&["add-note", file.path(), "Nope", "Front=x"]);
+    assert!(!unknown.status.success());
+    assert!(stderr(&unknown).contains("No note type called \"Nope\""));
+    assert!(stderr(&unknown).contains("Basic"));
+
+    let bad_field = fc(&["add-note", file.path(), "Basic", "Question=x"]);
+    assert!(!bad_field.status.success());
+    assert!(stderr(&bad_field).contains("has no field \"Question\""));
+
+    let no_cards = fc(&["add-note", file.path(), "Basic", "Back=x"]);
+    assert!(!no_cards.status.success());
+    assert!(stderr(&no_cards).contains("would make no cards"));
 }
