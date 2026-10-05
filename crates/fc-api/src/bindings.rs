@@ -81,7 +81,12 @@ pub(crate) fn methods_entry<M: Method>(cfg: &Config) -> (String, Vec<String>) {
     .filter_map(|(path, name)| path.map(|_| name.clone()))
     .collect();
     (
-        format!("  {}: {{ input: {input}; output: {output} }};\n", M::NAME),
+        format!(
+            "  {}: {{ input: {input}; output: {output}; bytesIn: {}; bytesOut: {} }};\n",
+            M::NAME,
+            M::ATTACHMENT_IN,
+            M::ATTACHMENT_OUT,
+        ),
         imports,
     )
 }
@@ -125,11 +130,12 @@ mod tests {
         }
     }
 
-    /// Biome reformats the committed files (spacing, trailing commas, semicolons), so compare
-    /// without them.
+    /// Biome reformats the committed files (spacing, trailing commas, semicolons, a leading union bar, and it unquotes
+    /// object keys), so compare without them. Quotes are ignored everywhere, which still catches
+    /// any change to a name or a literal's text.
     fn normalise(s: &str) -> String {
         s.chars()
-            .filter(|c| !c.is_whitespace() && *c != ',' && *c != ';')
+            .filter(|c| !c.is_whitespace() && !matches!(c, ',' | ';' | '"' | '|'))
             .collect()
     }
 }
