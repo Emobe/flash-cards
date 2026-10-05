@@ -4,6 +4,10 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
+**1.1b Sync foundation: in progress** on `step/1.1b-sync-foundation` (plan approved by Anthony in chat). Done in `fc-core`: IDs, `Clock`/`Host`, HLC, schema v2 (`register_clock`, `unknown_register`, `write_guard`, `requirement`), device ID with regeneration, `WriteTx` write path with guard triggers, unknown-data store, collection `requires`, 64 tests, clippy ban on clock/sleep/threads (`crates/fc-core/clippy.toml`). Remaining: hosts (fc-api `CollectionInfo` gets `deviceId` and `unsupportedFeatures`, fc-cli, fc-native with `chrono` for the UTC offset (approved), fc-wasm and web worker with IndexedDB installation ID), regenerate TS bindings, `cargo xtask check`, browser check of `getrandom`, desktop and Android build checks, ADR 0003 build notes, phase file status, PR report. Workspace does not build between the first core commit and the hosts commit.
+
+Previous step:
+
 1.1a Collection storage and migrations: built, `cargo xtask check` passes, waiting for Anthony's review of the PR and a look at the phone (see Open items). Next: 1.1b sync foundation (new session, Sonnet, `/step 1.1b`).
 
 ## Branch
