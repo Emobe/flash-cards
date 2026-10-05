@@ -65,7 +65,7 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Create, rename and delete note types; add, rename, reorder and remove fields; add and remove templates.
 - Changes that would affect existing notes are handled predictably and tested.
 
-**Status:** done (2026-10-05), pending Anthony's review. Built to ADR 0006 (build notes, step 1.2). Two things were left for later steps: renaming a field does not rewrite `{{Field}}` references in templates (needs the 1.4 parser), and the notes-level tests run against a stand-in table until 1.3 adds notes. The CLI has `fc notetypes` to list; the commands that change note types are 1.14.
+**Status:** done (2026-10-05), merged. Built to ADR 0006 (build notes, step 1.2). Two things were left for later steps: renaming a field does not rewrite `{{Field}}` references in templates (needs the 1.4 parser), and the notes-level tests run against a stand-in table until 1.3 adds notes. The CLI has `fc notetypes` to list; the commands that change note types are 1.14.
 
 ---
 
@@ -80,7 +80,7 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Editing fields adds or removes cards correctly (for example, filling a previously empty field used by a template).
 - Duplicate detection on the first field, as a warning not a block.
 
-**Status:** done (2026-10-05), pending Anthony's review. Built to ADR 0006 (build notes, step 1.3). The reading of templates that decides which cards exist is a small stand-in (`note::scan`) for 1.4's parser. Renaming a field now rewrites `{{OldName}}` in templates. The CLI has `fc notes` and `fc add-note`.
+**Status:** done (2026-10-05), merged (PR #12). Built to ADR 0006 (build notes, step 1.3). The reading of templates that decides which cards exist was a small stand-in (`note::scan`), replaced in 1.4. Renaming a field now rewrites `{{OldName}}` in templates. The CLI has `fc notes` and `fc add-note`.
 
 ---
 
@@ -97,6 +97,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 **Carried over from 1.2 and 1.3:** the built-in templates already use `{{Field}}`, `{{FrontSide}}` and `{{cloze:Field}}`, so define the grammar to accept them (or migrate them). Step 1.3 added `crate::note::scan`, a lenient scanner that decides which cards a note has (fields, filters, `{{#F}}` and `{{^F}}` sections, cloze numbers) and rewrites `{{OldName}}` when a field is renamed. Replace it with this step's parser so there is one reading of the language, and keep the tests in `note/tests.rs` passing.
 
+
+**Status:** done (2026-10-05), pending Anthony's review. Built to ADR 0006 (build notes, step 1.4). `fc_core::template` (lexer, parser with errors, cloze, renderer) replaced `note::scan`; `Collection::render_card` returns the front and back as full HTML documents plus the media names; saving a template with a syntax error is refused, a merge-made bad template still keeps its cards and gives a clear error when rendered. `fc render <file> <note ID>`. Left for 1.10: media in CSS `url()` and scripts (needs a `frame.html` change and 1.10's names). Not wired to the card frame until Phase 2.
 ---
 
 ## 1.5 Decks and deck options

@@ -16,6 +16,8 @@ Usage:
   fc notes <file>  List the notes with their fields and cards
   fc add-note <file> <note type> <Field=value>...
                    Add a note. Fields left out are empty. Warns about duplicates
+  fc render <file> <note ID>
+                   Print the front and back HTML of each card of a note, and its media
   fc help          Show this text";
 
 fn main() -> ExitCode {
@@ -51,6 +53,12 @@ impl From<fc_core::note::NoteError> for Failure {
 
 impl From<fc_core::notetype::NoteTypeError> for Failure {
     fn from(error: fc_core::notetype::NoteTypeError) -> Self {
+        Self::Core(error.to_string())
+    }
+}
+
+impl From<fc_core::template::RenderError> for Failure {
+    fn from(error: fc_core::template::RenderError) -> Self {
         Self::Core(error.to_string())
     }
 }
@@ -221,11 +229,42 @@ fn run(args: &[String]) -> Result<String, Failure> {
             }
             Ok(text)
         }
+        [command, file, note] if command == "render" => {
+            let note_id: fc_core::id::Id = note
+                .parse()
+                .map_err(|_| Failure::Usage(format!("\"{note}\" is not a note ID.")))?;
+            let host =
+                host::host_for(file, std::path::Path::new(file).exists()).map_err(Failure::Core)?;
+            let collection = Collection::open(file, host)?;
+            let Some(found) = collection.note(note_id)?.filter(|n| !n.deleted) else {
+                return Err(Failure::Core("No note with that ID.".to_owned()));
+            };
+            let note_type = collection
+                .note_type(found.note_type)?
+                .ok_or_else(|| Failure::Core("That note's note type is gone.".to_owned()))?;
+            let mut text = String::new();
+            for card in collection.cards_of_note(note_id)? {
+                let rendered = collection.render_card(card.id)?;
+                text.push_str(&format!(
+                    "== {} ==\n-- front --\n{}\n-- back --\n{}\n-- media: {} --\n",
+                    card_name(&note_type, &card),
+                    rendered.front,
+                    rendered.back,
+                    if rendered.media.is_empty() {
+                        "none".to_owned()
+                    } else {
+                        rendered.media.join(", ")
+                    }
+                ));
+            }
+            collection.close()?;
+            Ok(text.trim_end().to_owned())
+        }
         [] => Err(Failure::Usage("No command given.".to_owned())),
         [command, ..]
             if matches!(
                 command.as_str(),
-                "new" | "info" | "notetypes" | "notes" | "add-note" | "help"
+                "new" | "info" | "notetypes" | "notes" | "add-note" | "render" | "help"
             ) =>
         {
             Err(Failure::Usage(format!(

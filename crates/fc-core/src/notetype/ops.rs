@@ -13,6 +13,7 @@ use super::{FIELD, Kind, NOTE_TYPE, NoteTypeError, TEMPLATE};
 use crate::collection::Collection;
 use crate::id::Id;
 use crate::sync::WriteTx;
+use crate::template::{self, Side, TemplateProblem};
 
 fn text(value: &str) -> Value {
     Value::Text(value.to_owned())
@@ -24,6 +25,22 @@ fn blob(id: Id) -> Value {
 
 fn flag(on: bool) -> Value {
     Value::Integer(i64::from(on))
+}
+
+/// Fails if either side of a template has a mistake in its syntax. A field name that the note type
+/// does not have is not a mistake: it reads as empty (`template::unknown_fields` can warn).
+fn check_template_text(name: &str, front: &str, back: &str) -> Result<(), NoteTypeError> {
+    for (side, text) in [(Side::Front, front), (Side::Back, back)] {
+        let errors = template::check(text, side);
+        if !errors.is_empty() {
+            return Err(NoteTypeError::Template(TemplateProblem {
+                template: name.to_owned(),
+                side,
+                errors,
+            }));
+        }
+    }
+    Ok(())
 }
 
 fn clean_name(name: &str) -> Result<String, NoteTypeError> {
@@ -272,6 +289,7 @@ impl Collection {
         if self.live_type(note_type)? == Kind::Cloze {
             return Err(NoteTypeError::ClozeTemplate);
         }
+        check_template_text(name.trim(), front, back)?;
         self.add_part(
             Part::Template,
             note_type,
@@ -289,7 +307,8 @@ impl Collection {
         self.rename_part(Part::Template, note_type, template, name)
     }
 
-    /// Changes the text of a template. The text is stored as it is: step 1.4 checks it.
+    /// Changes the text of a template. The text is stored as written, but refused if either side
+    /// has a mistake in its syntax (see `template::check`).
     pub fn set_template_text(
         &self,
         note_type: Id,
@@ -299,7 +318,9 @@ impl Collection {
     ) -> Result<(), NoteTypeError> {
         self.live_type(note_type)?;
         match item_info(&self.conn, Part::Template, template)? {
-            Some(info) if info.note_type == note_type && !info.deleted => {}
+            Some(info) if info.note_type == note_type && !info.deleted => {
+                check_template_text(&info.name, front, back)?;
+            }
             _ => return Err(NoteTypeError::NotFound),
         }
         Ok(self.write(|w| {
@@ -509,7 +530,7 @@ impl Collection {
             .collect::<Result<Vec<_>, _>>()?;
         for (id, front, back) in rows {
             for (register, old_text) in [("front", front), ("back", back)] {
-                let new_text = crate::note::scan::rename_field(&old_text, old, new);
+                let new_text = crate::template::rename_field(&old_text, old, new);
                 if new_text != old_text {
                     w.set(TEMPLATE.entity, id, register, Value::Text(new_text))?;
                 }

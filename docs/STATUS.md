@@ -4,13 +4,15 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.3 Notes and card generation: built, `cargo xtask check` passes, waiting for Anthony's review of the PR. Next: 1.4 Template rendering (new session, Sonnet, `/step 1.4`). It must replace `note::scan` with the real parser (see the 1.4 brief) and keep `note/tests.rs` passing.
+1.4 Template rendering: built, `cargo xtask check` passes, waiting for Anthony's review of the PR on `step/1.4-template-rendering`. Next: 1.5 Decks and deck options (new session, Sonnet, `/step 1.5`; check its Model line first).
 
 ## Branch
 
-`step/1.3-notes-cards` (from master after PR #11).
+`step/1.4-template-rendering` (from master after PR #12).
 
 ## Done
+
+- 1.4 Template rendering (ADR 0006 build notes, step 1.4). `fc_core::template`: a lexer that never fails, a parser that reports every mistake with line and column and still returns a usable tree, cloze markers (nesting, hints), and a renderer. `Collection::render_card` gives `RenderedCard { front, back, media }` (complete HTML documents for the card frame). Card generation and field rename use the same parser (`note/scan.rs` deleted). Saving a template with a syntax error is refused; a field the note type lacks only reads as empty. `fc render`. 47 more core tests (204 in `fc-core`), 1 CLI test. Also fixed a flaky 1.2 test (failed about 60% of runs on master). Verified on Linux (tests, CLI on a copy of the real desktop collection, release wasm compiles). Not run in the card frame, the phone or a browser.
 
 - 1.3 Notes and card generation (ADR 0006 build notes, step 1.3). `fc_core::note`: tables `note`, `note_field_value` (a dynamic table: values are registers named by field ID) and `card` (migration v4), deterministic card IDs, card generation for standard and cloze types, `reconcile` on every note or note type change, add, edit (only changed fields are written), delete and restore notes, duplicate warning on the first field, note type delete tombstones its notes and cards, the "still referenced, so still alive" rule for note types, renaming a field rewrites templates. The 1.2 stand-in tests were redone with real notes. `fc notes` and `fc add-note`. 44 new core tests (157 in `fc-core`), 2 CLI tests. Verified on Linux (tests, CLI on a copy of the real desktop collection, v3 to v4), in headless Brave (new collection at version 4, reopened after a restart) and the APK builds. Not installed on the phone.
 
@@ -29,10 +31,14 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review and merge the 1.3 PR. Optional phone check: `bun run android:install`, the phone should show "Collection storage version 4" (I only built the APK). The desktop app will migrate your real collection to v4 the next time it runs.
-- Then 1.4: new session, Sonnet, `/step 1.4`.
+- Anthony: review and merge the 1.4 PR. No device check needed (no UI or bridge change). The desktop app's collection is already at storage version 4 (no migration in 1.4).
+- Then 1.5: new session, Sonnet, `/step 1.5`.
 
 ## Open items
+
+- 1.4 not verified: a rendered card inside the real card frame (nothing wires `render_card` to `CardFrame` until Phase 2), Windows, Firefox, Safari, the phone, the time to reconcile 50,000 notes with the new parser (not re-measured, 1.3 measured 3.5 s).
+- 1.4 leaves for later steps: media in CSS `url()` and scripts (1.10, needs a `frame.html` change, ADR 0005); `Tags`, `Deck`, `Card` fields in templates (1.5, 1.6); a screen that warns about `template::unknown_fields` (Phase 3 template editor). A field name containing a colon after a word (`a:b`) cannot be used in a template as written: forbidding `:`, `{{` and `}}` in field names would be a note type rule for Anthony to decide.
+- No new dependencies in 1.4.
 
 - 1.3 not verified: Windows, Firefox, Safari, the phone at runtime, notes read back in a browser (the web API has no note methods yet), timings on the phone and the web, merging notes from two collections (1.11). Timings (Linux, release): duplicate scan over 50,000 notes 60 ms; adding a template to a type with 50,001 notes 3.5 s.
 - 1.3 leaves for later steps: replace `note::scan` with 1.4's parser; cards have no deck until 1.5 (a card with none reads as the Default deck); suspension, flags and scheduling columns come with 1.7; the merge write method for remote note registers and a per-note reconcile after a merge (1.11); the rule "alive while referenced" for decks (1.5); the CLI commands that change notes after the first two (1.14).

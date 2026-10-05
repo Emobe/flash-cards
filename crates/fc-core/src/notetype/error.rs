@@ -3,6 +3,7 @@
 use std::fmt;
 
 use crate::collection::CollectionError;
+use crate::template::TemplateProblem;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum NoteTypeError {
@@ -18,6 +19,8 @@ pub enum NoteTypeError {
     LastTemplate,
     /// A cloze note type has exactly one template.
     ClozeTemplate,
+    /// A side of a card template has a mistake. Nothing is saved.
+    Template(TemplateProblem),
     Collection(CollectionError),
 }
 
@@ -42,6 +45,10 @@ impl fmt::Display for NoteTypeError {
                 "A cloze note type has exactly one card template. To use several, make a standard \
                  note type.",
             ),
+            Self::Template(problem) => {
+                problem.fmt(f)?;
+                f.write_str(" Nothing was saved.")
+            }
             Self::Collection(error) => error.fmt(f),
         }
     }

@@ -4,10 +4,10 @@
 
 use rusqlite::types::Value;
 
-use super::generate::{NoteState, reconcile};
-use super::scan::comparison_key;
+use super::generate::{NoteState, Plan, reconcile, wanted};
 use super::{CARD, NOTE, NOTE_VALUE, NoteError};
 use crate::collection::{Collection, CollectionError};
+use crate::html::comparison_key;
 use crate::id::Id;
 use crate::notetype::NoteType;
 use crate::sync::WriteTx;
@@ -73,7 +73,8 @@ impl Collection {
         for (field, value) in values {
             state.values.insert(*field, (*value).to_owned());
         }
-        if super::generate::wanted(&found, &state.values).is_empty() {
+        let plan = Plan::new(&found);
+        if wanted(&plan, &state.values).is_empty() {
             return Err(NoteError::NoCards {
                 cloze: found.kind == crate::notetype::Kind::Cloze,
             });
@@ -96,7 +97,7 @@ impl Collection {
                 }
             }
             state.id = id;
-            let done = reconcile(w, &found, &state)?;
+            let done = reconcile(w, &plan, &state)?;
             Ok((id, done))
         })?;
         Ok(AddedNote {
@@ -156,11 +157,12 @@ impl Collection {
             }
             _ => Vec::new(),
         };
+        let plan = Plan::new(&found);
         let done = self.write(|w| {
             for (field, value) in &changed {
                 w.set_value(NOTE_VALUE.entity, note, *field, value)?;
             }
-            reconcile(w, &found, &state)
+            reconcile(w, &plan, &state)
         })?;
         Ok(NoteChange {
             added_cards: done.added,
@@ -195,9 +197,10 @@ impl Collection {
                     |row| row.get(0),
                 )?;
                 let found = self.note_type(note_type)?.ok_or(NoteError::NotFound)?;
+                let plan = Plan::new(&found);
                 let done = self.write(|w| {
                     w.set(NOTE.entity, note, "deleted", flag(false))?;
-                    reconcile(w, &found, &self.note_state(note)?)
+                    reconcile(w, &plan, &self.note_state(note)?)
                 })?;
                 Ok(NoteChange {
                     added_cards: done.added,

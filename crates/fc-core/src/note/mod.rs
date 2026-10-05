@@ -18,7 +18,7 @@ mod error;
 mod generate;
 mod ops;
 mod read;
-pub(crate) mod scan;
+mod render;
 #[cfg(test)]
 mod tests;
 
