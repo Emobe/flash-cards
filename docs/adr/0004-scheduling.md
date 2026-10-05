@@ -1,6 +1,6 @@
 # 0004: Scheduling implementation (FSRS)
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-05
 
 ## Context
