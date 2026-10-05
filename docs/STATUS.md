@@ -4,7 +4,7 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-0.6 Sandboxed card rendering spike: ADR 0005 (Proposed) and build plan `docs/plans/0.6-card-sandbox.md` written. Awaiting Anthony's review. 0.5 was reviewed and merged (PR #6).
+0.6 Sandboxed card rendering spike: ADR 0005 is Accepted. Build (Sonnet, `/step 0.6`) in progress from `docs/plans/0.6-card-sandbox.md`. 0.5 was reviewed and merged (PR #6).
 
 ## Branch
 
@@ -21,8 +21,15 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review ADR 0005, especially finding 2 (on Android, Tauri's IPC is reachable from inside a sandboxed card iframe) and the session token that answers it.
-- Then the build (Sonnet, /step 0.6).
+Build commits, in order (tick as done):
+
+- [x] 1. STATUS: ADR 0005 Accepted.
+- [ ] 2. Token gate, `handshake`, token on `call`/`subscribe`/`cancel`, Rust tests.
+- [ ] 3. Tauri transport token handling, top-frame guard.
+- [ ] 4. `frame.html`, `card` scheme, CSP, capabilities.
+- [ ] 5. `CardFrame`, platform wiring, spike media.
+- [ ] 6. Spike panel and malicious cards.
+- [ ] 7. Verification (desktop, phone, web), ADR build notes, ADR 0002 amendment, mark step done.
 
 ## Open items
 
@@ -33,5 +40,5 @@ Kept current by every session. A new session reads this first.
 - Windows: desktop launch and `cargo xtask check` from step 0.1 are unverified and deferred to a manual check by Anthony.
 - Step 2.1 must handle edge-to-edge drawing and safe areas (status bar, navigation bar, cutout, keyboard) once in the app shell.
 - Design experiment for 0.6 shared the repo's `target/` dir, so `fc-native` was cleaned afterwards (`cargo clean -p fc-native`, host and Android). The next desktop and Android builds recompile more than usual.
-- Standing rule from ADR 0005 (once accepted): never grant Tauri plugin permissions to the main window, and every bridge command must check the session token. On Android card frames can call anything the main window can.
+- Standing rule from ADR 0005 (Accepted): never grant Tauri plugin permissions to the main window, and every bridge command must check the session token. On Android card frames can call anything the main window can.
 - App/bundle ID is still the placeholder `dev.placeholder.flashcards`. Pick it before step 2.7.
