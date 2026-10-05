@@ -16,6 +16,7 @@ workspace = true
 
 [dependencies]
 fc-api = { path = "../../../crates/fc-api" }
+base64 = "0.22"
 serde_json = "1"
 tauri = { version = "2", features = [] }
 

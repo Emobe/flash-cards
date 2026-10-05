@@ -305,3 +305,40 @@ yield between chunks. The core side (`checkpoint()`) is the same either way.
 - `AppManifest::commands(&["call"])` gating verified on desktop: with `allow-call` removed from the
   capability, calls from the main window are rejected.
 - On Android, a call (`getCoreInfo`) works in the standalone debug APK with the new CSP.
+
+## Build notes (step 0.3b)
+
+The rest of the interface is built: `subscribe`, `cancel`, progress, events and attachments, with
+the fake transport supporting all of it. Checked in a built debug app on desktop (Linux) and in the
+standalone debug APK on the phone (Samsung S24 Ultra), using a temporary harness that ran on launch
+and was removed before the PR.
+
+- **Measured, round trip of an attachment** (base64 in, raw frame out, echoed byte for byte):
+
+  | Attachment | Desktop (Linux) | Phone (Android) |
+  | --- | --- | --- |
+  | 1 MB | 40 ms | 75 ms |
+  | 5 MB | 181 ms | 250 ms |
+
+  Android is slower but well within what pasted images and recordings need, so the "Revisit if"
+  condition on attachment speed does not apply. This also covers finding 7 on Android, which was
+  previously unmeasured.
+- **Progress and cancel work on both.** A 20-step operation delivered 5 throttled updates in order,
+  ending with the final one. A cancel sent 300 ms into a 5 s operation stopped it at the next
+  checkpoint (352 ms on desktop, 303 ms on the phone). A call with an already-aborted signal never
+  reaches the core. Events arrive on both.
+- **Gating of the new commands verified on desktop:** with `allow-subscribe` and `allow-cancel`
+  removed from the capability, no notices arrived and cancel had no effect.
+- **Empty attachment equals no attachment** on the wire (a zero-length tail of the frame). The
+  generator also emits a runtime `bytesOutMethods` set, so the client still resolves methods that
+  return attachments to `{ output, bytes }` with empty bytes.
+- **Operation IDs restart at 1 on page reload.** A cancel for an operation that never starts is
+  forgotten after 60 seconds, so a stale one cannot hit a later operation with the same ID for long.
+  If IDs ever need to be unique across reloads, the client can seed them from the time.
+- **Notices sent while nothing is subscribed are dropped.** The UI treats events as "something
+  changed, refetch", as decided above, so a reload loses nothing it cannot refetch.
+- **Debug methods** (`debugSlow`, `debugEchoBytes`, `debugEmitEvent`) exist only when
+  `debug_assertions` is on, but their TypeScript types are always generated. A release build
+  answers them with `unknownMethod`. They are deleted when real long methods arrive (1.12).
+- **Not verified:** Windows, a web transport (step 0.4), and the mid-run cancel path through the
+  `subscribe` channel after a webview reload on the phone.

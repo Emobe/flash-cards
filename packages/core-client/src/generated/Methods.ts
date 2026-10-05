@@ -2,8 +2,17 @@
 import type { CoreInfo } from "./CoreInfo";
 import type { DivideInput } from "./DivideInput";
 import type { DivideOutput } from "./DivideOutput";
+import type { EchoOutput } from "./EchoOutput";
+import type { EmitInput } from "./EmitInput";
+import type { SlowInput } from "./SlowInput";
+import type { SlowOutput } from "./SlowOutput";
 
 export type Methods = {
-  getCoreInfo: { input: null; output: CoreInfo };
-  exampleDivide: { input: DivideInput; output: DivideOutput };
+  getCoreInfo: { input: null; output: CoreInfo; bytesIn: false; bytesOut: false };
+  exampleDivide: { input: DivideInput; output: DivideOutput; bytesIn: false; bytesOut: false };
+  debugSlow: { input: SlowInput; output: SlowOutput; bytesIn: false; bytesOut: false };
+  debugEchoBytes: { input: null; output: EchoOutput; bytesIn: true; bytesOut: true };
+  debugEmitEvent: { input: EmitInput; output: null; bytesIn: false; bytesOut: false };
 };
+
+export const bytesOutMethods: ReadonlySet<string> = new Set(["debugEchoBytes"]);
