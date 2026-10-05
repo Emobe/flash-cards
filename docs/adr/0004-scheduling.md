@@ -80,6 +80,37 @@ Needs Anthony's approval:
 - Optimisation cannot run on the web or Android within acceptable time (1.8).
 - The project licence is chosen and conflicts with MPL-2.0 for `priority-queue`.
 
-## Not yet verified (filled in at build)
+## Build notes (step 0.5)
 
-- Scheduler in the browser spike and on the phone. Optimiser on all targets.
+Built to this ADR with no change to the decision. `fc_core::scheduling` wraps `fsrs` with our own
+`Rating`, `Memory`, `Scheduler` and `optimise` (no `fsrs` type reaches `fc-api` or the UI).
+The spike methods `spikeSchedule` and `spikeOptimise` and the `SchedulingSpike` section in
+`packages/ui` are temporary. The optimiser runs on made-up histories from `synthetic_histories`.
+
+- **Test.** Five Good reviews at 0.9 retention give 2, 11, 46, 163 and 497 days. A second test
+  recomputes the first two reviews from the published FSRS-6 formulas without the crate (S0, D0,
+  forgetting curve, recall stability) and matches within 0.01. Other tests: a lapse shortens the
+  interval, Again, Hard, Good and Easy are ordered, higher retention gives shorter intervals,
+  invalid retention is rejected, and optimisation returns 21 finite parameters the scheduler accepts.
+  A lapse after two Good reviews gives 2 days, not 1 (my first guess was wrong, FSRS keeps some
+  stability after a lapse).
+- **Browser (finding 5 answered).** Release wasm in headless Brave (Chromium) on Linux, driven over
+  the DevTools protocol: intervals 2, 11, 46, 163, 497, identical to native. `compute_parameters`
+  **runs on wasm**: 200 cards (1,200 training items) in 11 ms, 2,000 cards in 66 ms. The parameters
+  match native to every digit shown (w0 to w2: 0.242, 0.811, 1.883 and 1.419, 1.702, 3.265).
+  `rayon` is only used in `evaluate_with_time_series_splits`, `simulate` and the optional
+  `cost_adr` code, none of which the spike calls. They are **not** verified on wasm, and are likely
+  to need a single-threaded path or a feature gate. Step 1.8 must test them if it uses them.
+- **Desktop.** Tauri window (debug build, Linux): same intervals, optimiser on 200 cards in 32 ms.
+  Native timings in `cargo test` (debug): 200 cards 29 ms, 2,000 cards 100 ms.
+- **Android.** The debug APK built with `fsrs` for `aarch64-linux-android` and installed. The phone
+  was locked, and the project rules forbid unlocking it or tapping, so the two checks were **not**
+  run on the phone. The same fc-core code is what ran on desktop.
+- **Size.** The release wasm grew from 1,836 KB to 2,043 KB (788 KB gzipped) with `fsrs`.
+- **Dependencies added.** `fsrs` 6.6.2 and its tree (itertools, log, ndarray, priority-queue,
+  rand, rayon, serde, snafu, strum and their dependencies) in `fc-core`. `getrandom` 0.4.3 with
+  `wasm_js` (wasm only, pinned to the version `rand` 0.10 already resolves to).
+  `cargo deny` passes with one new exception, `priority-queue` under MPL-2.0.
+- **Not verified:** phone, Windows, Firefox and Safari, `simulate` and the time-series evaluation
+  on wasm, optimiser quality on real review history (the data here is invented), and cancelling a
+  long optimisation (`compute_parameters` has no cancel hook, only a progress state).
