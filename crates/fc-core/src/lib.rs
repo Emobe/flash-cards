@@ -4,18 +4,41 @@
 //! Placeholder until Phase 1. It must stay free of Tauri, UI and
 //! platform-specific dependencies (see `docs/adr/0001-workspace-layout.md`).
 
+pub mod spike;
+
+use std::sync::Mutex;
+
+use spike::{SpikeError, SpikeStore};
+
 /// Version of the core library, taken from its Cargo manifest.
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
-/// Handle to the core. Empty until Phase 1 gives it a collection to hold.
+/// Handle to the core. Holds only the temporary spike store until Phase 1 adds a collection.
 #[derive(Debug, Default)]
-pub struct Core;
+pub struct Core {
+    spike: Mutex<Option<SpikeStore>>,
+}
 
 impl Core {
     pub fn new() -> Self {
-        Self
+        Self::default()
+    }
+
+    /// Opens the spike store at a path or `file:` URI (step 0.4, deleted in 1.1).
+    pub fn open_spike(&self, uri: &str) -> Result<(), SpikeError> {
+        let store = SpikeStore::open(uri)?;
+        *self.spike.lock().expect("spike lock") = Some(store);
+        Ok(())
+    }
+
+    /// Runs `f` on the spike store, or returns `None` when none is open.
+    pub fn with_spike<T>(
+        &self,
+        f: impl FnOnce(&SpikeStore) -> Result<T, SpikeError>,
+    ) -> Option<Result<T, SpikeError>> {
+        self.spike.lock().expect("spike lock").as_ref().map(f)
     }
 }
 

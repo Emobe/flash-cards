@@ -1,8 +1,6 @@
 //! Debug-only methods that exercise progress, cancellation, attachments and events (step 0.3b).
 //! Registered only when `debug_assertions` is on. Deleted when real long methods arrive.
 
-use std::time::Duration;
-
 use fc_core::Core;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -35,7 +33,7 @@ impl Method for DebugSlow {
     fn call(_: &Core, input: SlowInput, ctx: &OpContext) -> Result<SlowOutput, ApiError> {
         for step in 1..=input.steps {
             ctx.checkpoint()?;
-            std::thread::sleep(Duration::from_millis(u64::from(input.step_ms)));
+            pause(input.step_ms);
             ctx.progress(Progress {
                 done: step,
                 total: Some(input.steps),
@@ -45,6 +43,31 @@ impl Method for DebugSlow {
         Ok(SlowOutput {
             completed: input.steps,
         })
+    }
+}
+
+/// Waits `ms` milliseconds. `thread::sleep` traps on `wasm32-unknown-unknown` (ADR 0003, finding
+/// 9), so the web busy-waits on the JS clock instead.
+fn pause(ms: u32) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let end = js_sys::Date::now() + f64::from(ms);
+        while js_sys::Date::now() < end {}
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    std::thread::sleep(std::time::Duration::from_millis(u64::from(ms)));
+}
+
+/// Panics, to check how each host reports a crashed call.
+pub struct DebugPanic;
+
+impl Method for DebugPanic {
+    const NAME: &'static str = "debugPanic";
+    type Input = ();
+    type Output = ();
+
+    fn call(_: &Core, (): (), _: &OpContext) -> Result<(), ApiError> {
+        panic!("debugPanic was called on purpose");
     }
 }
 
