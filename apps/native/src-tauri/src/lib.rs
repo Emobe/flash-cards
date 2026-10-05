@@ -37,6 +37,8 @@ fn handshake(gate: State<'_, Arc<Gate>>) -> Result<String, ApiError> {
 /// then the reply attachment (empty when there is none). Errors reject the JS promise with
 /// `{ kind, message }`. `attachment` is base64 (ADR 0002, finding 7). `op` is the client's
 /// operation ID, which `cancel` and progress notices refer to.
+// Tauri injects each `State` as its own argument, so the count is not ours to reduce.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 async fn call(
     gate: State<'_, Arc<Gate>>,
