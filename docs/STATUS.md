@@ -4,23 +4,24 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-0.4 Web client spike: built and verified, awaiting Anthony's review (PR not opened yet). `cargo xtask check` passes. Next step after merge: 0.5 Scheduling spike.
+0.5 Scheduling spike: evaluation done, ADR 0004 written (Proposed, recommends `fsrs` 6.6.2). Waiting for Anthony to accept it, including the MPL-2.0 exception for `priority-queue`. Nothing built yet. 0.4 was reviewed and merged (PR #5).
 
 ## Branch
 
-`step/0.4-web-spike` (from `master`). Not pushed yet.
+`step/0.5-scheduling-spike`.
 
 ## Done
 
 - Planning docs (`docs/`).
 - 0.1 Repository and workspace boilerplate. Verified on Manjaro only.
 - 0.2 Android build. Debug APK and USB live reload verified on the phone, workflow runs through Bun. Includes a 16 KB page alignment fix.
-- 0.4 Web client spike: core runs in wasm in a worker, SQLite persists in OPFS across reload and restart, cancel by worker restart (about 2 s), panic recovery. Awaiting review.
+- 0.4 Web client spike: core runs in wasm in a worker, SQLite persists in OPFS across reload and restart, cancel by worker restart (about 2 s), panic recovery. Reviewed and merged (PR #5).
 - 0.3 UI-to-core bridge. 0.3a (call path, PR #3) and 0.3b (notices, progress, cancellation, events and attachments, PR #4) reviewed by Anthony and merged. Verified on desktop and the phone. Attachment round trip 1 MB: 40 ms desktop, 75 ms phone. 5 MB: 181 ms desktop, 250 ms phone.
 
 ## Remaining in this step
 
-- Anthony: review the branch, optionally try add, reload and restart in his own desktop browser (`bun run web:build`, `bun run web:preview`), then merge.
+- Anthony: read `docs/adr/0004-scheduling.md`, accept or change it (licence exception for `priority-queue`, new `fsrs` dependency).
+- Then: `fc-core` scheduling module and unit test, debug method for the spike panel, verify on desktop, browser and phone (optimiser on wasm is the open risk), update the ADR build notes.
 
 ## Open items
 
