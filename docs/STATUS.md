@@ -4,11 +4,11 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.2 Note types and fields: built, `cargo xtask check` passes, waiting for Anthony's review of the PR. Next: 1.3 Notes and card generation (new session, Sonnet, `/step 1.3`). It must tombstone the notes and cards of a deleted note type, add the "still referenced, so still alive" rule, and repeat the 1.2 stand-in-table tests with real notes (see ADR 0006 build notes, step 1.2).
+1.3 Notes and card generation: in progress on `step/1.3-notes-cards` (plan approved by Anthony). Done: migration v4 (`note`, `note_field_value`, `card`), card generation and reconcile, add and edit notes, duplicate warning, delete and restore, note type tombstones and the "still referenced, so still alive" rule, field rename rewriting templates, the 1.2 stand-in tests redone with real notes, `fc notes` and `fc add-note`. `cargo xtask check` passes. Remaining: ADR 0006 build notes (step 1.3), phase file status, a 50,000-note duplicate scan timing, CLI run on a copy of the real collection, headless Brave check (version 4), APK build, final report.
 
 ## Branch
 
-`step/1.2-note-types` (from master after PR #10).
+`step/1.3-notes-cards` (from master after PR #11).
 
 ## Done
 
