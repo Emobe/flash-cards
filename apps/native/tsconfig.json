@@ -2,8 +2,16 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "../../node_modules/.tsbuild/desktop",
-    "types": ["vite/client", "bun"]
+    "types": ["vite/client", "bun"],
+    "tsBuildInfoFile": "../../node_modules/.tsbuild/native.tsbuildinfo"
   },
   "include": ["src", "vite.config.ts"],
-  "references": [{ "path": "../../packages/ui" }]
+  "references": [
+    {
+      "path": "../../packages/ui"
+    },
+    {
+      "path": "../../packages/core-client"
+    }
+  ]
 }

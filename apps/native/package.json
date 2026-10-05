@@ -9,6 +9,8 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@tauri-apps/api": "2.12.1",
+    "core-client": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "ui": "workspace:*"

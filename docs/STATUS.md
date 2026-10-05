@@ -15,11 +15,11 @@ Kept current by every session. A new session reads this first.
 - Planning docs (`docs/`).
 - 0.1 Repository and workspace boilerplate. Verified on Manjaro only.
 - 0.2 Android build. Debug APK and USB live reload verified on the phone, workflow runs through Bun. Includes a 16 KB page alignment fix.
-- 0.3a plan items 1 to 3 and 5 (committed): `crates/fc-api` (dispatcher, errors, example methods, bindings stale test), `cargo xtask bindings`, `packages/core-client` (`Transport`, `CoreClient`, fake transport, tests). `cargo xtask check` passes.
+- 0.3a plan items 1 to 10 (code): `crates/fc-api`, `cargo xtask bindings`, `packages/core-client`, `fc-native` `call` command with `AppManifest` gating and `allow-call`, CSP, Tauri transport, UI (`CoreProvider`, divide form). `cargo xtask check` passes. Not yet run in the real app.
 
 ## Remaining in this step
 
-- 0.3a plan items 6 to 11: `fc-native` `call` command, command access (`AppManifest`), CSP, Tauri transport, UI (`CoreProvider`, divide form), ADR 0001 update. Then manual checks on desktop and phone, and the PR report.
+- 0.3a: manual checks on desktop (value, error, no IPC warning, ungranted command rejected) and phone, type-sync check, ADR 0001 update, PR report.
 
 ## Open items
 

@@ -3,7 +3,8 @@
   "compilerOptions": {
     "outDir": "../../node_modules/.tsbuild/core-client",
     "rootDir": "src",
-    "types": []
+    "types": [],
+    "tsBuildInfoFile": "../../node_modules/.tsbuild/core-client.tsbuildinfo"
   },
   "include": ["src"]
 }

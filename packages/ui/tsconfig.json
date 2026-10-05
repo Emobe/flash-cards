@@ -3,7 +3,13 @@
   "compilerOptions": {
     "outDir": "../../node_modules/.tsbuild/ui",
     "rootDir": "src",
-    "types": []
+    "types": [],
+    "tsBuildInfoFile": "../../node_modules/.tsbuild/ui.tsbuildinfo"
   },
-  "include": ["src"]
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../core-client"
+    }
+  ]
 }

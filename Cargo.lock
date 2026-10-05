@@ -755,6 +755,8 @@ version = "0.0.0"
 name = "fc-native"
 version = "0.0.0"
 dependencies = [
+ "fc-api",
+ "serde_json",
  "tauri",
  "tauri-build",
 ]

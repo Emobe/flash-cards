@@ -1,0 +1,40 @@
+/* Placeholder styling for the step 0.3 demo: large tap targets, readable on a phone. */
+body {
+  font-family: system-ui, sans-serif;
+  margin: 0;
+}
+
+.app {
+  padding: 16px;
+  max-width: 32rem;
+  margin: 0 auto;
+}
+
+.divide {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.divide label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 1rem;
+}
+
+.divide input,
+.divide button {
+  min-height: 48px;
+  font-size: 1.125rem;
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+
+.divide .ok {
+  color: #146c2e;
+}
+
+.divide .error {
+  color: #b3261e;
+}
