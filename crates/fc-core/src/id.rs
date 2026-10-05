@@ -21,6 +21,18 @@ impl fmt::Display for InvalidId {
 
 impl std::error::Error for InvalidId {}
 
+/// The system could not supply random numbers.
+#[derive(Debug, PartialEq, Eq)]
+pub struct NoRandomness(String);
+
+impl fmt::Display for NoRandomness {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "No random numbers are available: {}", self.0)
+    }
+}
+
+impl std::error::Error for NoRandomness {}
+
 impl Id {
     pub const fn from_bytes(bytes: [u8; 16]) -> Self {
         Self(bytes)
@@ -43,6 +55,14 @@ impl Id {
                 .into_uuid()
                 .as_bytes(),
         )
+    }
+
+    /// A new random version 7 ID at `unix_ms`, with the system's random numbers (`getrandom`, which
+    /// uses the browser's `crypto` on the web).
+    pub fn generate(unix_ms: i64) -> Result<Self, NoRandomness> {
+        let mut random = [0u8; 10];
+        getrandom::fill(&mut random).map_err(|e| NoRandomness(e.to_string()))?;
+        Ok(Self::new_v7(unix_ms, &random))
     }
 
     /// A version 5 UUID: the same `namespace` and `name` always give the same ID.
@@ -101,6 +121,14 @@ mod tests {
         assert_eq!(id.as_bytes()[8] >> 6, 0b10, "variant");
         assert_eq!(id.to_string().len(), 36);
         assert_eq!(&id.to_string()[..13], "01234567-89ab");
+    }
+
+    #[test]
+    fn generated_ids_are_v7_and_different() {
+        let a = Id::generate(1_700_000_000_000).unwrap();
+        let b = Id::generate(1_700_000_000_000).unwrap();
+        assert_ne!(a, b);
+        assert_eq!(a.as_bytes()[6] >> 4, 7);
     }
 
     #[test]

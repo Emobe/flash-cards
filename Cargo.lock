@@ -848,6 +848,7 @@ dependencies = [
 name = "fc-cli"
 version = "0.0.0"
 dependencies = [
+ "chrono",
  "fc-core",
 ]
 
@@ -866,6 +867,7 @@ name = "fc-native"
 version = "0.0.0"
 dependencies = [
  "base64 0.22.1",
+ "chrono",
  "fc-api",
  "getrandom 0.3.4",
  "serde_json",

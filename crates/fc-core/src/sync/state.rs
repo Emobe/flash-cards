@@ -44,10 +44,7 @@ pub(crate) fn device_id(conn: &Connection) -> Result<Id, CollectionError> {
 
 /// A new UUIDv7 from the host's time and the system's random numbers.
 pub(crate) fn new_id(host: &Host) -> Result<Id, CollectionError> {
-    let mut random = [0u8; 10];
-    getrandom::fill(&mut random)
-        .map_err(|e| CollectionError::Storage(format!("no random numbers: {e}")))?;
-    Ok(Id::new_v7(host.clock.now().unix_ms, &random))
+    Id::generate(host.clock.now().unix_ms).map_err(|e| CollectionError::Storage(e.to_string()))
 }
 
 /// Gives the collection a new device ID and records which installation holds it.

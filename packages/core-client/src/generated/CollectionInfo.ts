@@ -4,4 +4,13 @@ export type CollectionInfo = {
   schemaVersion: number;
   supportedSchemaVersion: number;
   createdBy: string;
+  /**
+   * This copy's device ID, a UUID string.
+   */
+  deviceId: string;
+  /**
+   * Features the collection needs that this build does not know. Sync stays paused while there
+   * are any.
+   */
+  unsupportedFeatures: Array<string>;
 };

@@ -7,6 +7,7 @@
 
 mod card;
 mod gate;
+mod host;
 mod hub;
 mod ops;
 
@@ -134,8 +135,9 @@ fn open_collection(app: &tauri::App) {
             std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
             let file = dir.join("collection.db");
             let location = file.to_str().ok_or("the data directory is not UTF-8")?;
+            let config_dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
             app.state::<Arc<Core>>()
-                .open_collection(location)
+                .open_collection(location, host::host(&config_dir)?)
                 .map_err(|e| e.to_string())
         });
     if let Err(error) = result {
