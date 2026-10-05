@@ -4,15 +4,15 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-0.6 Sandboxed card rendering spike: built and verified, waiting for Anthony's review (PR not opened yet). Next: 0.7 Data model and sync strategy (Opus design session, `/adr 0.7`).
+0.7 Data model and sync strategy (design only): Opus design session, `/adr 0.7`, not started. 0.6 was built, verified and approved by Anthony (merge pending).
 
 ## Branch
 
-`step/0.6-card-sandbox`.
+`step/0.6-card-sandbox` (0.6, approved, to be merged). Start 0.7 on a new branch from master once it is merged.
 
 ## Done
 
-- 0.6 Sandboxed card rendering (ADR 0005 accepted). Cards render in `<iframe sandbox="allow-scripts">` from a trusted `frame.html` with its own CSP (a `card` URI scheme on native, `/card-frame.html` on web), media as frame-local blob URLs. Every bridge command needs a session token from `handshake`. The 54-attempt malicious card: 0 SUCCEEDED on desktop, the phone and web, and a negative control on the phone (token check removed) did reach the core. Sample card (image, audio, JS) works on all three. Timings and limits are in ADR 0005 build notes.
+- 0.6 Sandboxed card rendering (ADR 0005 accepted). Cards render in `<iframe sandbox="allow-scripts">` from a trusted `frame.html` with its own CSP (a `card` URI scheme on native, `/card-frame.html` on web), media as frame-local blob URLs. Every bridge command needs a session token from `handshake`. The 54-attempt malicious card: 0 SUCCEEDED on desktop, the phone and web, and a negative control on the phone (token check removed) did reach the core. Sample card (image, audio, JS) works on all three. Timings and limits are in ADR 0005 build notes. Reviewed and approved by Anthony; PR not opened or merged yet.
 - Planning docs (`docs/`).
 - 0.1 Repository and workspace boilerplate. Verified on Manjaro only.
 - 0.2 Android build. Debug APK and USB live reload verified on the phone, workflow runs through Bun. Includes a 16 KB page alignment fix.
@@ -22,8 +22,8 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review the branch `step/0.6-card-sandbox`, especially the token gate (`apps/native/src-tauri/src/gate.rs`), `frame.html` and the malicious card. Try to break it with your own card. Open the spike panel on the phone and in a desktop browser if you want.
-- Then open the PR (not done: ask or run `gh pr create`).
+- Anthony: merge 0.6 (open the PR first, or merge the branch). Then update the Done entry to "Reviewed and merged (PR #N)".
+- Then 0.7: new session, Opus, `/adr 0.7`.
 
 ## Open items
 
