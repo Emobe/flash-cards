@@ -248,7 +248,7 @@ impl Collection {
         if current.preset.name == name {
             return Ok(());
         }
-        Ok(self.write(|w| Ok(w.set(PRESET.entity, id, "name", text(&name))?))?)
+        Ok(self.write(|w| w.set(PRESET.entity, id, "name", text(&name)))?)
     }
 
     /// Changes options of a preset. Everything is checked first, so a bad value changes nothing.
@@ -357,7 +357,7 @@ impl Collection {
             return Ok(());
         }
         self.check_preset_name_free(&stored.preset.name, Some(id), &presets)?;
-        Ok(self.write(|w| Ok(w.set(PRESET.entity, id, "deleted", flag(false))?))?)
+        Ok(self.write(|w| w.set(PRESET.entity, id, "deleted", flag(false)))?)
     }
 
     /// Makes a live deck use a live preset. Several decks can use one preset.
@@ -368,6 +368,6 @@ impl Collection {
         if row.preset == preset {
             return Ok(());
         }
-        Ok(self.write(|w| Ok(w.set(DECK.entity, deck, "options_preset", blob(preset))?))?)
+        Ok(self.write(|w| w.set(DECK.entity, deck, "options_preset", blob(preset)))?)
     }
 }

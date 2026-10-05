@@ -98,7 +98,7 @@ impl Collection {
         if row.name == name {
             return Ok(());
         }
-        Ok(self.write(|w| Ok(w.set(DECK.entity, id, "name", text(&name))?))?)
+        Ok(self.write(|w| w.set(DECK.entity, id, "name", text(&name)))?)
     }
 
     /// Moves a deck, with everything inside it, to the top level (`None`) or inside another live
@@ -116,7 +116,7 @@ impl Collection {
             return Ok(());
         }
         check_name_free(&tree, &row.name, parent, Some(id))?;
-        Ok(self.write(|w| Ok(w.set(DECK.entity, id, "parent", parent_blob(parent))?))?)
+        Ok(self.write(|w| w.set(DECK.entity, id, "parent", parent_blob(parent)))?)
     }
 
     /// Deletes a deck, the decks inside it and their cards, which move to the trash with their

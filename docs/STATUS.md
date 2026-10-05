@@ -33,7 +33,9 @@ Kept current by every session. A new session reads this first.
 
 Done so far (committed): migration v5 (`deck`, `options_preset`, `card.deck`, seeded Default deck and preset), `fc_core::deck` (read tree with cycle, missing-parent, same-name and "still referenced" rules; create, rename, move, delete, restore decks; `move_cards`; presets: create, rename, set options, delete, restore, `set_deck_preset`), cards get a deck, `add_note_to_deck`, reconcile does not bring back a card in a deleted deck. The 204 existing tests pass.
 
-To do: (1) tests for decks and presets in `deck/tests.rs`; (2) CLI `fc decks`, `fc add-deck`, `fc add-note --deck` and a CLI test; (3) run the CLI on a copy of the real desktop collection (v4 to v5); (4) ADR 0006 build notes for 1.5, mark 1.4 merged and 1.5 done in `phases/01-core.md`; (5) `cargo xtask check`; (6) PR summary report.
+Tests for decks and presets are in `deck/tests.rs` (48 tests; 252 in `fc-core` now, clippy clean).
+
+To do: (2) CLI `fc decks`, `fc add-deck`, `fc add-note --deck` and a CLI test; (3) run the CLI on a copy of the real desktop collection (v4 to v5); (4) ADR 0006 build notes for 1.5, mark 1.4 merged and 1.5 done in `phases/01-core.md`; (5) `cargo xtask check`; (6) PR summary report.
 
 ## Open items
 
