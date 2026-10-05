@@ -103,14 +103,15 @@ The spike methods `spikeSchedule` and `spikeOptimise` and the `SchedulingSpike` 
   to need a single-threaded path or a feature gate. Step 1.8 must test them if it uses them.
 - **Desktop.** Tauri window (debug build, Linux): same intervals, optimiser on 200 cards in 32 ms.
   Native timings in `cargo test` (debug): 200 cards 29 ms, 2,000 cards 100 ms.
-- **Android.** The debug APK built with `fsrs` for `aarch64-linux-android` and installed. The phone
-  was locked, and the project rules forbid unlocking it or tapping, so the two checks were **not**
-  run on the phone. The same fc-core code is what ran on desktop.
+- **Android.** The debug APK built with `fsrs` for `aarch64-linux-android`. On Anthony's phone
+  (Samsung S24 Ultra, Android 16) the intervals were 2, 11, 46, 163, 497 and the optimiser on 200
+  cards returned 21 parameters in 77 ms with the same w0 to w2 as desktop and web (screenshot
+  checked). Anthony tapped the buttons, as the rules forbid tapping.
 - **Size.** The release wasm grew from 1,836 KB to 2,043 KB (788 KB gzipped) with `fsrs`.
 - **Dependencies added.** `fsrs` 6.6.2 and its tree (itertools, log, ndarray, priority-queue,
   rand, rayon, serde, snafu, strum and their dependencies) in `fc-core`. `getrandom` 0.4.3 with
   `wasm_js` (wasm only, pinned to the version `rand` 0.10 already resolves to).
   `cargo deny` passes with one new exception, `priority-queue` under MPL-2.0.
-- **Not verified:** phone, Windows, Firefox and Safari, `simulate` and the time-series evaluation
+- **Not verified:** Windows, Firefox and Safari, `simulate` and the time-series evaluation
   on wasm, optimiser quality on real review history (the data here is invented), and cancelling a
   long optimisation (`compute_parameters` has no cancel hook, only a progress state).
