@@ -43,6 +43,7 @@ pub const NOTE_VALUE: DynamicTable = DynamicTable {
     owner: "note",
     key: "field",
     value: "value",
+    text_key: false,
 };
 
 pub const CARD: SyncedTable = SyncedTable {

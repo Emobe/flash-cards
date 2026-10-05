@@ -13,6 +13,7 @@ pub mod note;
 pub mod notetype;
 pub mod scheduling;
 pub mod sync;
+pub mod tag;
 pub mod template;
 
 use std::sync::Mutex;

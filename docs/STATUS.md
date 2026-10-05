@@ -4,11 +4,11 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.5 Decks and deck options: built, `cargo xtask check` passes, waiting for Anthony's review of the PR on `step/1.5-decks-options`. Next: 1.6 Tags (new session, Sonnet, `/step 1.6`; check its Model line first).
+1.6 Tags: in progress on `step/1.6-tags`. Plan approved by Anthony (tag identity is its name, option 1). Core done and tested (`fc_core::tag`, migration v6, `note_tag` text-keyed register table). Remaining: CLI (`fc tags`, `fc tag`, `fc untag`, `fc rename-tag`, `fc notes` shows tags, `fc add-note --tag`), CLI test for storage version 6, a throwaway timing at 50,000 notes, ADR 0006 build notes, phase file status, `cargo xtask check`, final report. 1.5 was merged (PR #14).
 
 ## Branch
 
-`step/1.5-decks-options` (from master after PR #13).
+`step/1.6-tags` (from master after PR #14).
 
 ## Done
 

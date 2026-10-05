@@ -28,10 +28,22 @@ impl Collection {
             .tables
             .iter()
             .any(|t| t.entity == entity_type && t.registers.contains(&field))
-            || (super::DYNAMIC_TABLES
-                .iter()
-                .any(|t| t.entity == entity_type && field.parse::<Id>().is_ok())
-                && self.schema.tables.iter().any(|t| t.entity == entity_type))
+            || (super::DYNAMIC_TABLES.iter().any(|t| {
+                t.entity == entity_type
+                    && if t.text_key {
+                        // Known when this database has the table (a smaller test schema may not).
+                        self.conn
+                            .query_row(
+                                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1",
+                                [t.table],
+                                |_| Ok(()),
+                            )
+                            .is_ok()
+                    } else {
+                        field.parse::<Id>().is_ok()
+                            && self.schema.tables.iter().any(|s| s.entity == entity_type)
+                    }
+            }))
     }
 
     /// Keeps a register this build does not know. The higher `(hlc, device)` wins, so applying
