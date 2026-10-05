@@ -111,6 +111,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Create, rename, move (nest) and delete decks, with a defined behaviour for cards in a deleted deck.
 - Option presets with daily new and review limits, learning steps, desired retention. Presets can be shared by several decks.
 
+**Status:** done (2026-10-05), pending Anthony's review. Built to ADR 0006 (build notes, step 1.5). `fc_core::deck`: decks nest through a `parent` register, cycles and missing parents are settled when reading, deleting a deck deletes its sub-decks, cards and notes left empty (restorable), the Default deck and preset cannot be deleted. Presets: daily limits, learning steps, desired retention, shared by several decks, deleting one sends its decks to the Default preset. `fc decks`, `fc add-deck`, `fc add-note --deck`. Left for 1.7 and 1.8: the FSRS parameters and relearning steps registers, and what the limits mean in queues. Not in any UI or the web API.
+
 ---
 
 ## 1.6 Tags

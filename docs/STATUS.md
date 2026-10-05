@@ -4,13 +4,15 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.5 Decks and deck options: in progress on `step/1.5-decks-options` (from master after PR #13). Plan approved by Anthony. Not finished, so a new session continues from "Remaining in this step".
+1.5 Decks and deck options: built, `cargo xtask check` passes, waiting for Anthony's review of the PR on `step/1.5-decks-options`. Next: 1.6 Tags (new session, Sonnet, `/step 1.6`; check its Model line first).
 
 ## Branch
 
-`step/1.5-decks-options`.
+`step/1.5-decks-options` (from master after PR #13).
 
 ## Done
+
+- 1.5 Decks and deck options (ADR 0006 build notes, step 1.5). `fc_core::deck`, migration v5 (`deck`, `options_preset`, a `deck` register on `card`, a Default deck and preset with fixed IDs). Decks nest through `parent`; cycles, missing parents, same names and "deleted but still referenced" are settled when reading; deleting a deck deletes its sub-decks, cards and notes left with no card, and restoring brings them back; editing a note does not bring back a card from a deleted deck. Presets with daily limits, learning steps and desired retention, shared by decks, deleting one sends its decks to the Default preset. `add_note_to_deck`, `move_cards`. `fc decks`, `fc add-deck`, `fc add-note --deck`. 48 more core tests (252 in `fc-core`), 2 more CLI tests. Verified on Linux (tests, CLI on a copy of the real desktop collection, v4 to v5). Not run in a UI, a browser or the phone (nothing there changed).
 
 - 1.4 Template rendering (ADR 0006 build notes, step 1.4). `fc_core::template`: a lexer that never fails, a parser that reports every mistake with line and column and still returns a usable tree, cloze markers (nesting, hints), and a renderer. `Collection::render_card` gives `RenderedCard { front, back, media }` (complete HTML documents for the card frame). Card generation and field rename use the same parser (`note/scan.rs` deleted). Saving a template with a syntax error is refused; a field the note type lacks only reads as empty. `fc render`. 47 more core tests (204 in `fc-core`), 1 CLI test. Also fixed a flaky 1.2 test (failed about 60% of runs on master). Verified on Linux (tests, CLI on a copy of the real desktop collection, release wasm compiles). Not run in the card frame, the phone or a browser.
 
@@ -31,14 +33,15 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-Done so far (committed): migration v5 (`deck`, `options_preset`, `card.deck`, seeded Default deck and preset), `fc_core::deck` (read tree with cycle, missing-parent, same-name and "still referenced" rules; create, rename, move, delete, restore decks; `move_cards`; presets: create, rename, set options, delete, restore, `set_deck_preset`), cards get a deck, `add_note_to_deck`, reconcile does not bring back a card in a deleted deck. The 204 existing tests pass.
-
-Tests for decks and presets are in `deck/tests.rs` (48 tests; 252 in `fc-core` now, clippy clean).
-
-To do: (2) CLI `fc decks`, `fc add-deck`, `fc add-note --deck` and a CLI test; (3) run the CLI on a copy of the real desktop collection (v4 to v5); (4) ADR 0006 build notes for 1.5, mark 1.4 merged and 1.5 done in `phases/01-core.md`; (5) `cargo xtask check`; (6) PR summary report.
+- Anthony: review and merge the 1.5 PR. The desktop app's collection will migrate from storage version 4 to 5 the next time it opens, and the phone's the next time the APK runs (no APK built or installed for 1.5). Please also confirm the placeholders: starting limits 20 new and 200 reviews a day, steps `1 10`, retention 0.90, and the rules below.
+- Then 1.6: new session, Sonnet, `/step 1.6`.
 
 ## Open items
 
+- 1.5 rules for Anthony to confirm: a deck name cannot contain `::`; the Default deck and Default preset cannot be deleted; deleting a deck also deletes a note left with no card; a deleted preset sends its decks to the Default preset.
+- 1.5 not verified: Windows, Firefox, Safari, the phone, a browser (no web API or UI change), merging decks from two collections (1.11), the time to read the deck tree with many decks and 50,000 cards.
+- 1.5 leaves for later steps: FSRS parameters and relearning steps registers on presets (1.7, 1.8); what the limits mean for nested decks in queues (1.7); `deck:` in search (1.9, paths use `::`); the `Deck` field in templates (1.4 left it for decks); a "merge decks" action and the decks screen (Phase 2, 3); the CLI commands that change decks and presets beyond `add-deck` (1.14).
+- No new dependencies in 1.5.
 - 1.4 not verified: a rendered card inside the real card frame (nothing wires `render_card` to `CardFrame` until Phase 2), Windows, Firefox, Safari, the phone, the time to reconcile 50,000 notes with the new parser (not re-measured, 1.3 measured 3.5 s).
 - 1.4 leaves for later steps: media in CSS `url()` and scripts (1.10, needs a `frame.html` change, ADR 0005); `Tags`, `Deck`, `Card` fields in templates (1.5, 1.6); a screen that warns about `template::unknown_fields` (Phase 3 template editor). A field name containing a colon after a word (`a:b`) cannot be used in a template as written: forbidding `:`, `{{` and `}}` in field names would be a note type rule for Anthony to decide.
 - No new dependencies in 1.4.
