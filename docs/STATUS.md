@@ -4,11 +4,11 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.4 Template rendering: built, `cargo xtask check` passes, waiting for Anthony's review of the PR on `step/1.4-template-rendering`. Next: 1.5 Decks and deck options (new session, Sonnet, `/step 1.5`; check its Model line first).
+1.5 Decks and deck options: in progress on `step/1.5-decks-options` (from master after PR #13). Plan approved by Anthony. Not finished, so a new session continues from "Remaining in this step".
 
 ## Branch
 
-`step/1.4-template-rendering` (from master after PR #12).
+`step/1.5-decks-options`.
 
 ## Done
 
@@ -31,8 +31,9 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review and merge the 1.4 PR. No device check needed (no UI or bridge change). The desktop app's collection is already at storage version 4 (no migration in 1.4).
-- Then 1.5: new session, Sonnet, `/step 1.5`.
+Done so far (committed): migration v5 (`deck`, `options_preset`, `card.deck`, seeded Default deck and preset), `fc_core::deck` (read tree with cycle, missing-parent, same-name and "still referenced" rules; create, rename, move, delete, restore decks; `move_cards`; presets: create, rename, set options, delete, restore, `set_deck_preset`), cards get a deck, `add_note_to_deck`, reconcile does not bring back a card in a deleted deck. The 204 existing tests pass.
+
+To do: (1) tests for decks and presets in `deck/tests.rs`; (2) CLI `fc decks`, `fc add-deck`, `fc add-note --deck` and a CLI test; (3) run the CLI on a copy of the real desktop collection (v4 to v5); (4) ADR 0006 build notes for 1.5, mark 1.4 merged and 1.5 done in `phases/01-core.md`; (5) `cargo xtask check`; (6) PR summary report.
 
 ## Open items
 

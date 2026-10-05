@@ -3,6 +3,7 @@
 use rusqlite::Transaction;
 
 use super::requires;
+use crate::deck;
 use crate::note;
 use crate::notetype;
 
@@ -25,6 +26,8 @@ pub const SYNCED_TABLES: &[SyncedTable] = &[
     notetype::TEMPLATE,
     note::NOTE,
     note::CARD,
+    deck::DECK,
+    deck::PRESET,
 ];
 
 /// A table of registers whose names are not fixed: one row per `(owner, key)`, where the key is an

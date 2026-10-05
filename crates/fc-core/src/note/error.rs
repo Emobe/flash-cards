@@ -60,3 +60,12 @@ impl From<crate::notetype::NoteTypeError> for NoteError {
         }
     }
 }
+
+impl From<crate::deck::DeckError> for NoteError {
+    fn from(error: crate::deck::DeckError) -> Self {
+        match error {
+            crate::deck::DeckError::Collection(error) => Self::Collection(error),
+            _ => Self::NotFound,
+        }
+    }
+}

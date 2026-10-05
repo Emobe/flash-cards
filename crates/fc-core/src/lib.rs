@@ -6,6 +6,7 @@
 
 pub mod clock;
 pub mod collection;
+pub mod deck;
 mod html;
 pub mod id;
 pub mod note;

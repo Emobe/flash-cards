@@ -82,7 +82,7 @@ impl Collection {
 
     fn cards_with(&self, note: Id, deleted: bool) -> Result<Vec<Card>, NoteError> {
         let mut statement = self.conn.prepare(
-            "SELECT c.id, c.template, c.ordinal, n.note_type FROM card c
+            "SELECT c.id, c.template, c.ordinal, n.note_type, c.deck FROM card c
              JOIN note n ON n.id = c.note
              WHERE c.note = ?1 AND c.deleted = ?2 AND (n.deleted = 0 OR ?2 = 1)",
         )?;
@@ -94,6 +94,7 @@ impl Collection {
                         note,
                         template: row.get(1)?,
                         ordinal: row.get(2)?,
+                        deck: crate::deck::card_deck(&row.get::<_, Vec<u8>>(4)?),
                         deleted,
                     },
                     row.get(3)?,
