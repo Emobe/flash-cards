@@ -3,6 +3,7 @@ import { CoreClient, createFakeTransport } from "core-client";
 import { afterEach, expect, test } from "vitest";
 import { App } from "./App";
 import { CoreProvider } from "./core";
+import { PlatformProvider } from "./platform";
 
 afterEach(cleanup);
 
@@ -26,7 +27,9 @@ function renderApp() {
   );
   render(
     <CoreProvider client={client}>
-      <App />
+      <PlatformProvider platform={{ cardFrameUrl: "about:blank" }}>
+        <App />
+      </PlatformProvider>
     </CoreProvider>,
   );
 }

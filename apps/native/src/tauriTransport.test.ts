@@ -1,9 +1,16 @@
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { CoreClient, type Notice } from "core-client";
-import { afterEach, expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { createTauriTransport, decodeFrame, encodeBase64 } from "./tauriTransport";
 
 afterEach(clearMocks);
+
+const TOKEN = "test-token";
+
+/** `mockIPC` that also answers `handshake`, like the Rust side does once per page load. */
+function mockTauri(handler: (cmd: string, payload: unknown) => unknown) {
+  mockIPC((cmd, payload) => (cmd === "handshake" ? TOKEN : handler(cmd, payload)));
+}
 
 function frameOf(json: string, attachment: number[] = []): number[] {
   const body = new TextEncoder().encode(json);
@@ -26,7 +33,7 @@ test("decodes a frame from a number array", () => {
 
 test("call sends the method and input to the call command and returns the output", async () => {
   let seen: unknown;
-  mockIPC((cmd, payload) => {
+  mockTauri((cmd, payload) => {
     seen = { cmd, payload };
     return frameOf('{"quotient":3.5}');
   });
@@ -35,12 +42,12 @@ test("call sends the method and input to the call command and returns the output
   expect(out).toEqual({ quotient: 3.5 });
   expect(seen).toEqual({
     cmd: "call",
-    payload: { method: "exampleDivide", input: { dividend: 7, divisor: 2 }, op: 1 },
+    payload: { token: TOKEN, method: "exampleDivide", input: { dividend: 7, divisor: 2 }, op: 1 },
   });
 });
 
 test("a core error rejects as a CoreError with its message", async () => {
-  mockIPC(() => {
+  mockTauri(() => {
     throw { kind: "invalidInput", message: "Can't divide by zero. Enter a divisor other than 0." };
   });
   const client = new CoreClient(createTauriTransport());
@@ -51,7 +58,7 @@ test("a core error rejects as a CoreError with its message", async () => {
 });
 
 test("a non-core failure becomes an internal error without leaking its text", async () => {
-  mockIPC(() => {
+  mockTauri(() => {
     throw "command call not allowed by ACL";
   });
   const client = new CoreClient(createTauriTransport());
@@ -76,7 +83,7 @@ function mockCore(onCall: (payload: Record<string, unknown>) => number[] = () =>
       internals().runCallback(state.channelId, { index: state.nextIndex++, message: notice });
     },
   };
-  mockIPC((cmd, payload) => {
+  mockTauri((cmd, payload) => {
     state.commands.push(cmd);
     const args = payload as Record<string, unknown>;
     if (cmd === "subscribe") state.channelId = (args.onNotice as { id: number }).id;
@@ -146,7 +153,7 @@ test("subscribing registers a channel before the next call, and notices reach on
 
 test("aborting sends cancel with the operation id", async () => {
   const cancels: unknown[] = [];
-  mockIPC((cmd, payload) => {
+  mockTauri((cmd, payload) => {
     if (cmd === "cancel") cancels.push(payload);
     if (cmd === "call") throw { kind: "cancelled", message: "The operation was cancelled." };
     return undefined;
@@ -156,6 +163,51 @@ test("aborting sends cancel with the operation id", async () => {
   const pending = client.call("debugSlow", { steps: 1, stepMs: 0 }, { signal: controller.signal });
   controller.abort();
   await expect(pending).rejects.toMatchObject({ kind: "cancelled" });
-  await Promise.resolve();
-  expect(cancels).toEqual([{ op: 1 }]);
+  await vi.waitFor(() => expect(cancels).toEqual([{ token: TOKEN, op: 1 }]));
+});
+
+test("the token from handshake goes to call, subscribe and cancel", async () => {
+  const seen: Record<string, unknown>[] = [];
+  mockTauri((cmd, payload) => {
+    seen.push({ cmd, ...(payload as object) });
+    if (cmd === "call") throw { kind: "cancelled", message: "The operation was cancelled." };
+    return undefined;
+  });
+  const client = new CoreClient(createTauriTransport());
+  client.onEvent(() => {});
+  const controller = new AbortController();
+  const pending = client.call("getCoreInfo", null, { signal: controller.signal });
+  controller.abort();
+  await pending.catch(() => {});
+  await vi.waitFor(() => expect(seen.map((s) => s.cmd)).toContain("cancel"));
+  for (const cmd of ["subscribe", "call", "cancel"]) {
+    expect(seen.find((s) => s.cmd === cmd)?.token, cmd).toBe(TOKEN);
+  }
+});
+
+test("the handshake is requested once, when the transport is created", async () => {
+  const handshakes: number[] = [];
+  mockIPC((cmd) => {
+    if (cmd === "handshake") handshakes.push(1);
+    return cmd === "handshake" ? TOKEN : frameOf("null");
+  });
+  const client = new CoreClient(createTauriTransport());
+  expect(handshakes.length).toBe(1);
+  await client.call("getCoreInfo", null);
+  await client.call("getCoreInfo", null);
+  expect(handshakes.length).toBe(1);
+});
+
+test("a failed handshake rejects calls with its message and never reaches the core", async () => {
+  const commands: string[] = [];
+  mockIPC((cmd) => {
+    commands.push(cmd);
+    throw { kind: "internal", message: "The app could not connect to its core. Restart the app." };
+  });
+  const client = new CoreClient(createTauriTransport());
+  await expect(client.call("getCoreInfo", null)).rejects.toMatchObject({
+    kind: "internal",
+    message: "The app could not connect to its core. Restart the app.",
+  });
+  expect(commands).toEqual(["handshake"]);
 });

@@ -28,8 +28,17 @@ export function encodeBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-/** Talks to the Rust core through Tauri's `call`, `subscribe` and `cancel` commands. */
+/**
+ * Talks to the Rust core through Tauri's `call`, `subscribe` and `cancel` commands. Each needs the
+ * session token that `handshake` returns once per page load, so the transport claims it first
+ * (ADR 0005). The token lives only in this closure.
+ */
 export function createTauriTransport(): Transport {
+  const handshake = invoke<string>("handshake").catch((error: unknown) => {
+    throw isApiError(error) ? error : new Error(String(error));
+  });
+  // A failed handshake is reported to whoever calls next, not as an unhandled rejection.
+  handshake.catch(() => {});
   const listeners = new Set<(notice: Notice) => void>();
   // The Rust side keeps one channel per webview, so register one for the whole transport. `call`
   // waits for it, so a progress notice cannot be sent before the channel is registered.
@@ -37,10 +46,11 @@ export function createTauriTransport(): Transport {
 
   function ensureRegistered(): Promise<void> {
     registration ??= (async () => {
+      const token = await handshake;
       const channel = new Channel<Notice>((notice) => {
         for (const listener of listeners) listener(notice);
       });
-      await invoke("subscribe", { onNotice: channel });
+      await invoke("subscribe", { token, onNotice: channel });
     })().catch((error: unknown) => {
       registration = undefined;
       console.error("Could not subscribe to core notices", error);
@@ -50,11 +60,18 @@ export function createTauriTransport(): Transport {
 
   return {
     async call({ method, input, bytes, op }) {
+      const token = await handshake;
       if (listeners.size > 0) await ensureRegistered();
       const attachment = bytes && bytes.length > 0 ? encodeBase64(bytes) : undefined;
       let reply: unknown;
       try {
-        reply = await invoke<ArrayBuffer | number[]>("call", { method, input, attachment, op });
+        reply = await invoke<ArrayBuffer | number[]>("call", {
+          token,
+          method,
+          input,
+          attachment,
+          op,
+        });
       } catch (error) {
         // Core errors arrive as `{ kind, message }` and pass through. Anything else (for example a
         // command the webview may not call) is turned into a generic error by `CoreClient`.
@@ -64,7 +81,7 @@ export function createTauriTransport(): Transport {
       return { output: frame.output, bytes: frame.bytes.length > 0 ? frame.bytes : undefined };
     },
     cancel(op) {
-      invoke("cancel", { op }).catch(() => {});
+      handshake.then((token) => invoke("cancel", { token, op })).catch(() => {});
     },
     subscribe(onNotice) {
       listeners.add(onNotice);

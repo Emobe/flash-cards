@@ -1,5 +1,6 @@
 import { CoreError } from "core-client";
 import { type FormEvent, useEffect, useState } from "react";
+import { CardSandboxSpike } from "./CardSandboxSpike";
 import { useCore } from "./core";
 import { SchedulingSpike } from "./SchedulingSpike";
 
@@ -15,6 +16,7 @@ export function App() {
       <CoreVersion />
       <DivideForm />
       <SchedulingSpike />
+      <CardSandboxSpike />
     </main>
   );
 }
