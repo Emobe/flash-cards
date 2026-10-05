@@ -11,6 +11,11 @@ function renderApp() {
   const client = new CoreClient(
     createFakeTransport({
       getCoreInfo: () => ({ coreVersion: "9.9.9" }),
+      getCollectionInfo: () => ({
+        schemaVersion: 1,
+        supportedSchemaVersion: 1,
+        createdBy: "9.9.9",
+      }),
       spikeSchedule: ({ ratings }) => ({
         reviews: ratings.map((_, i) => ({ intervalDays: 2 + i, stability: 1, difficulty: 1 })),
       }),
@@ -61,4 +66,11 @@ test("shows the intervals the core scheduled", async () => {
   expect((await screen.findByTestId("intervals")).textContent).toBe(
     "Intervals in days: 2, 3, 4, 5, 6",
   );
+});
+
+test("shows the collection's storage version", async () => {
+  renderApp();
+  expect(
+    await screen.findByText("Collection storage version 1 (this build supports up to 1)."),
+  ).toBeDefined();
 });

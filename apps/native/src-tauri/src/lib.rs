@@ -122,6 +122,27 @@ fn cancel(
     Ok(())
 }
 
+/// Opens (or creates) the collection in the app data directory. A failure is logged and the app
+/// still starts: methods that need a collection answer "No collection is open." The real startup
+/// screen for this (a newer collection, a file in use) comes with the app shell in step 2.1.
+fn open_collection(app: &tauri::App) {
+    let result = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())
+        .and_then(|dir| {
+            std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+            let file = dir.join("collection.db");
+            let location = file.to_str().ok_or("the data directory is not UTF-8")?;
+            app.state::<Arc<Core>>()
+                .open_collection(location)
+                .map_err(|e| e.to_string())
+        });
+    if let Err(error) = result {
+        eprintln!("Could not open the collection: {error}");
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -129,6 +150,10 @@ pub fn run() {
         .manage(Arc::new(Hub::default()))
         .manage(Arc::new(Operations::default()))
         .manage(Arc::new(Gate::default()))
+        .setup(|app| {
+            open_collection(app);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![handshake, call, subscribe, cancel])
         .register_uri_scheme_protocol("card", |_ctx, request| card::respond(request.uri().path()))
         // A new main-frame load starts a new session: the token is claimed again by the new page.

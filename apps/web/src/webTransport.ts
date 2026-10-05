@@ -137,7 +137,7 @@ export function createWebTransport(createWorker: () => WorkerLike): Transport {
     call({ method, input, bytes, op }) {
       return new Promise((resolve, reject) => {
         if (state === "failed") {
-          reject(OPEN_ELSEWHERE);
+          reject(openError);
           return;
         }
         queue.push({

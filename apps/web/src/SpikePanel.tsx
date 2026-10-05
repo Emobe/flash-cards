@@ -2,10 +2,9 @@ import { CoreError } from "core-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCore } from "ui";
 
-/** Temporary dev panel (step 0.4): collection info, plus the cancel and crash paths. */
+/** Temporary dev panel (step 0.4): the cancel and crash paths. */
 export function SpikePanel() {
   const core = useCore();
-  const [collection, setCollection] = useState("Opening the collection...");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [storage, setStorage] = useState("Checking storage...");
@@ -15,20 +14,6 @@ export function SpikePanel() {
   const fail = useCallback((e: unknown) => {
     setError(e instanceof CoreError ? `${e.kind}: ${e.message}` : String(e));
   }, []);
-
-  useEffect(() => {
-    core
-      .call("getCollectionInfo", null)
-      .then((info) =>
-        setCollection(
-          `Collection storage version ${info.schemaVersion} (this build supports up to ${info.supportedSchemaVersion}), created by core ${info.createdBy}.`,
-        ),
-      )
-      .catch((e: unknown) => {
-        setCollection("The collection is not available.");
-        fail(e);
-      });
-  }, [core, fail]);
 
   useEffect(() => {
     (async () => {
@@ -86,7 +71,6 @@ export function SpikePanel() {
   return (
     <section className="spike">
       <h2>Core spike</h2>
-      <p>{collection}</p>
       <div className="row">
         <button type="button" onClick={runSlow} disabled={progress !== null}>
           Run slow call
