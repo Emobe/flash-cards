@@ -29,13 +29,16 @@ allow = [
 ]
 confidence-threshold = 0.9
 # MPL-2.0 is weak (file-level) copyleft. Allowed only for these crates, all
-# transitive via Tauri, so any new MPL dependency fails and gets reviewed.
+# transitive via Tauri (and priority-queue via fsrs), so any new MPL dependency fails and gets reviewed.
 exceptions = [
   { crate = "cssparser", allow = ["MPL-2.0"] },
   { crate = "cssparser-macros", allow = ["MPL-2.0"] },
   { crate = "dtoa-short", allow = ["MPL-2.0"] },
   { crate = "selectors", allow = ["MPL-2.0"] },
   { crate = "option-ext", allow = ["MPL-2.0"] },
+  # Dual licensed "LGPL-3.0-or-later OR MPL-2.0"; we take it under MPL-2.0. Pinned by fsrs
+  # (ADR 0004, accepted 2026-10-05). Revisit when the project licence is chosen.
+  { crate = "priority-queue", allow = ["MPL-2.0"] },
 ]
 
 [licenses.private]
