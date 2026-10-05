@@ -9,6 +9,29 @@ pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
+/// Handle to the core. Empty until Phase 1 gives it a collection to hold.
+#[derive(Debug, Default)]
+pub struct Core;
+
+impl Core {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+/// Dividing by zero was requested.
+#[derive(Debug, PartialEq, Eq)]
+pub struct DivideByZero;
+
+/// Example calculation for the bridge (step 0.3). Deleted when real functions arrive.
+pub fn example_divide(dividend: f64, divisor: f64) -> Result<f64, DivideByZero> {
+    if divisor == 0.0 {
+        Err(DivideByZero)
+    } else {
+        Ok(dividend / divisor)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -16,5 +39,15 @@ mod tests {
     #[test]
     fn version_matches_manifest() {
         assert_eq!(version(), "0.0.0");
+    }
+
+    #[test]
+    fn divides() {
+        assert_eq!(example_divide(7.0, 2.0), Ok(3.5));
+    }
+
+    #[test]
+    fn division_by_zero_is_an_error() {
+        assert_eq!(example_divide(1.0, 0.0), Err(DivideByZero));
     }
 }

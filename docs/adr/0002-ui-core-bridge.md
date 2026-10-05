@@ -296,3 +296,12 @@ yield between chunks. The core side (`checkpoint()`) is the same either way.
 - Streaming large outputs (chunked export, sync downloads) is needed. That would add a chunk notice
   type, not a new transport.
 - Add-ons (Phase 10) need to call the core. They need a separate, capability-limited surface.
+
+## Build notes (step 0.3a)
+
+- `tauri dev` serves the UI from the Vite dev server and does not apply the CSP, so the CSP fix
+  (finding 8) can only be checked in a built app (`tauri build --debug --no-bundle`, or the APK).
+  In both, with the new `connect-src`, no "IPC custom protocol failed" warning appeared.
+- `AppManifest::commands(&["call"])` gating verified on desktop: with `allow-call` removed from the
+  capability, calls from the main window are rejected.
+- On Android, a call (`getCoreInfo`) works in the standalone debug APK with the new CSP.

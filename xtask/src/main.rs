@@ -15,6 +15,8 @@ Usage: cargo xtask <task>
 Tasks:
   check   Run every check: lockfile guard, Rust fmt/clippy/test/deny, Bun install/lint/typecheck/test
   fmt     Format all Rust and JS/TS code in place
+  bindings
+          Regenerate the TypeScript bindings in packages/core-client/src/generated from Rust
   doctor-android
           Check the Android toolchain setup (SDK, NDK, JDK, Rust target, device)";
 
@@ -36,6 +38,7 @@ fn main() -> ExitCode {
     let result = match task.as_deref() {
         Some("check") => check(),
         Some("fmt") => fmt(),
+        Some("bindings") => bindings(),
         Some("doctor-android") => doctor_android::run(),
         _ => {
             eprintln!("{USAGE}");
@@ -79,6 +82,37 @@ fn check() -> Result<(), String> {
 fn fmt() -> Result<(), String> {
     run("cargo", &["fmt", "--all"])?;
     run("bun", &["run", "format"])
+}
+
+/// Rewrites the generated TypeScript bindings. The `fc-api` test does the generating (it is also
+/// what fails `check` when the committed files are stale), then Biome formats the output.
+fn bindings() -> Result<(), String> {
+    println!("\n==> cargo test -p fc-api (FC_UPDATE_BINDINGS=1)");
+    let status = Command::new("cargo")
+        .args([
+            "test",
+            "-p",
+            "fc-api",
+            "--locked",
+            "committed_bindings_are_current",
+        ])
+        .env("FC_UPDATE_BINDINGS", "1")
+        .current_dir(repo_root())
+        .status()
+        .map_err(|e| format!("could not start `cargo`: {e}"))?;
+    if !status.success() {
+        return Err(format!("generating bindings failed ({status})"));
+    }
+    run(
+        "bun",
+        &[
+            "x",
+            "biome",
+            "check",
+            "--write",
+            "packages/core-client/src/generated",
+        ],
+    )
 }
 
 fn step(name: &str, f: impl FnOnce() -> Result<(), String>) -> Result<(), String> {

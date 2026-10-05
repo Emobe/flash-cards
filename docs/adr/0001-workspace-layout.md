@@ -45,8 +45,10 @@ Option 1.
 Cargo.toml              Rust workspace: crates/*, apps/*/src-tauri, xtask
 package.json            Bun workspace: packages/*, apps/*
 crates/fc-core          domain logic
+crates/fc-api           public API of the core: methods, dispatcher, TypeScript bindings (0.3)
 apps/native             Tauri v2 host for desktop and Android (src-tauri/) + thin Vite entry
 packages/ui             shared React UI
+packages/core-client    typed TypeScript client for the core API, no React or Tauri (0.3)
 xtask                   `cargo xtask check` and `cargo xtask fmt`
 scripts                 Bun scripts (dev launcher)
 ```
@@ -98,7 +100,7 @@ scripts                 Bun scripts (dev launcher)
 
 ## Assumptions (kept up to date as later ADRs land)
 
-- Where generated Rust-to-TypeScript bindings live (0.3).
+- Generated Rust-to-TypeScript bindings live in `packages/core-client/src/generated/`, committed (answered in 0.3, ADR 0002).
 - Whether the core also compiles to a wasm package under `packages/` (0.4).
 - The Bun toolchain and `cargo xtask check` behave the same on Windows as on Linux. Not yet
   verified: deferred to a manual check by Anthony (see the 0.1 acceptance criteria).
@@ -124,3 +126,4 @@ scripts                 Bun scripts (dev launcher)
   `native`, crate `fc-desktop` to `fc-native`). The same Tauri project builds desktop and Android,
   so "desktop" was misleading. Renamed before the Android project was generated, because Android
   loads the Rust library by name (`fc_native_lib`). No other change to the decision.
+- **2026-10-05, step 0.3:** added `crates/fc-api` and `packages/core-client` (ADR 0002). `packages/ui` talks to the core only through a `CoreClient` supplied by the app shell. `cargo xtask bindings` regenerates the TypeScript bindings. No other change to the decision.

@@ -8,8 +8,10 @@ Planning docs are in [`docs/`](docs/README.md); the layout is explained in
 
 ```
 crates/fc-core     Rust core library (domain logic)
+crates/fc-api      The core's public API: one dispatcher for every host, generates the TS bindings
 apps/native        Tauri v2 host for desktop and Android (src-tauri/) and its Vite entry
 packages/ui        Shared React UI
+packages/core-client  Typed TypeScript client for the core API (no React, no Tauri)
 xtask              Repository tasks (`cargo xtask ...`)
 scripts/           Bun scripts (e.g. the dev launcher)
 docs/              Product, process, roadmap, phases and ADRs
@@ -114,6 +116,7 @@ Run from the repository root.
 | `bun install` | Install JS dependencies |
 | `cargo xtask check` | Run every check (Rust fmt, clippy, tests, cargo-deny; Biome, TypeScript, Vitest). Must pass before a PR. |
 | `cargo xtask fmt` | Format all Rust and JS/TS code |
+| `cargo xtask bindings` | Regenerate the TypeScript bindings after changing an API type in `crates/fc-api` |
 | `bun run dev` | Launch the desktop app with hot reload (via `scripts/dev.ts`) |
 
 Android commands are listed under [Android](#android-manjaro).
