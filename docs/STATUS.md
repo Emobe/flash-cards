@@ -24,7 +24,7 @@ Kept current by every session. A new session reads this first.
 Build commits, in order (tick as done):
 
 - [x] 1. STATUS: ADR 0005 Accepted.
-- [ ] 2. Token gate, `handshake`, token on `call`/`subscribe`/`cancel`, Rust tests.
+- [x] 2. Token gate, `handshake`, token on `call`/`subscribe`/`cancel`, Rust tests.
 - [ ] 3. Tauri transport token handling, top-frame guard.
 - [ ] 4. `frame.html`, `card` scheme, CSP, capabilities.
 - [ ] 5. `CardFrame`, platform wiring, spike media.
