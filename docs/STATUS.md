@@ -27,7 +27,7 @@ Build commits, in order (tick as done):
 - [x] 2. Token gate, `handshake`, token on `call`/`subscribe`/`cancel`, Rust tests.
 - [x] 3. Tauri transport token handling, top-frame guard.
 - [x] 4. `frame.html`, `card` scheme, CSP, capabilities.
-- [ ] 5. `CardFrame`, platform wiring, spike media.
+- [x] 5. `CardFrame`, platform wiring, spike media.
 - [ ] 6. Spike panel and malicious cards.
 - [ ] 7. Verification (desktop, phone, web), ADR build notes, ADR 0002 amendment, mark step done.
 

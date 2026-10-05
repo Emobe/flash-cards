@@ -1,7 +1,8 @@
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { CoreClient } from "core-client";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { App, CoreProvider } from "ui";
+import { App, CoreProvider, PlatformProvider } from "ui";
 import "./styles.css";
 import { createTauriTransport } from "./tauriTransport";
 
@@ -14,11 +15,16 @@ if (!root) {
 // holding a transport (ADR 0005).
 if (window.top === window) {
   const client = new CoreClient(createTauriTransport());
+  // The `card` scheme is served by the Rust side: card://localhost/... on Linux and
+  // http://card.localhost/... on Android and Windows.
+  const platform = { cardFrameUrl: convertFileSrc("frame.html", "card") };
 
   createRoot(root).render(
     <StrictMode>
       <CoreProvider client={client}>
-        <App />
+        <PlatformProvider platform={platform}>
+          <App />
+        </PlatformProvider>
       </CoreProvider>
     </StrictMode>,
   );

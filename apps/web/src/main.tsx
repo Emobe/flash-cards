@@ -1,7 +1,7 @@
 import { CoreClient } from "core-client";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { App, CoreProvider } from "ui";
+import { App, CoreProvider, PlatformProvider } from "ui";
 import "./styles.css";
 import { SpikePanel } from "./SpikePanel";
 import { createWebTransport } from "./webTransport";
@@ -27,10 +27,12 @@ if (window.top === window) {
   createRoot(root).render(
     <StrictMode>
       <CoreProvider client={client}>
-        <App />
-        <div className="app">
-          <SpikePanel />
-        </div>
+        <PlatformProvider platform={{ cardFrameUrl: "/card-frame.html" }}>
+          <App />
+          <div className="app">
+            <SpikePanel />
+          </div>
+        </PlatformProvider>
       </CoreProvider>
     </StrictMode>,
   );
