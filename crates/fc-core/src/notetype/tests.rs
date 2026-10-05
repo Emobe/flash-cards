@@ -758,11 +758,13 @@ fn equal_positions_are_ordered_by_id_and_a_move_renumbers_when_there_is_no_room(
 
     let front = tied[0].id;
     let before: Vec<Id> = tied.iter().map(|f| f.id).collect();
-    // Moving into the tie has no room, so the list is renumbered. The order is what was asked.
-    collection.move_field(nt, a, 3).unwrap();
+    // Move the first of the two tied fields to the end. (Which of `a` and `b` that is depends on
+    // their random IDs, and moving the one that is already last would change nothing.)
+    let first = tied_ids[0];
+    collection.move_field(nt, first, 3).unwrap();
     let after = collection.note_type(nt).unwrap().unwrap().fields;
-    let mut expected: Vec<Id> = before.into_iter().filter(|id| *id != a).collect();
-    expected.insert(3, a);
+    let mut expected: Vec<Id> = before.into_iter().filter(|id| *id != first).collect();
+    expected.insert(3, first);
     assert_eq!(after.iter().map(|f| f.id).collect::<Vec<_>>(), expected);
     assert_eq!(after[0].id, front);
     let positions: Vec<String> = collection

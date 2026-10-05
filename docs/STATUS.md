@@ -4,11 +4,11 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.3 Notes and card generation: built, `cargo xtask check` passes, waiting for Anthony's review of the PR. Next: 1.4 Template rendering (new session, Sonnet, `/step 1.4`). It must replace `note::scan` with the real parser (see the 1.4 brief) and keep `note/tests.rs` passing.
+1.4 Template rendering: in progress on `step/1.4-template-rendering` (plan approved by Anthony). Done and committed: `fc_core::template` (lexer, parser with errors, cloze, renderer), `Collection::render_card`, card generation and field rename moved onto the new parser, `note/scan.rs` deleted, save-time syntax check in `add_template` and `set_template_text`, one flaky 1.2 test fixed. `cargo xtask check` passes (204 core tests). Remaining: `fc render` in the CLI, ADR 0006 build notes for 1.4 (grammar, errors, decisions), phase file status, final report. After that: 1.5 Decks and deck options (new session, Sonnet, `/step 1.5`).
 
 ## Branch
 
-`step/1.3-notes-cards` (from master after PR #11).
+`step/1.4-template-rendering` (from master after PR #12).
 
 ## Done
 

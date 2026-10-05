@@ -5,11 +5,11 @@ use std::collections::HashMap;
 use rusqlite::types::Value;
 
 use super::CARD;
-use super::scan::{cloze_numbers, front_shows_content};
 use crate::collection::{Collection, CollectionError};
 use crate::id::Id;
 use crate::notetype::{Kind, NoteType};
 use crate::sync::WriteTx;
+use crate::template::{Parsed, cloze_numbers, front_shows_content, parse_front};
 
 /// The ID of the card a note makes from a template, for a cloze number (0 when the template is not
 /// cloze). The same inputs always give the same ID, on every device.
@@ -28,26 +28,63 @@ pub(super) struct NoteState {
     pub cards: HashMap<Id, bool>,
 }
 
-/// The cards a note should have, as `(template, ordinal)`, in template order.
-pub(super) fn wanted(note_type: &NoteType, values: &HashMap<Id, String>) -> Vec<(Id, u32)> {
-    // Values by field name, for the live fields only: a removed field reads as empty. If a merge
-    // left two fields with one name, the first in order is the one a template reads.
+/// A note type with the fronts of its templates read once, so that reconciling many notes of one
+/// type does not read each template again for every note.
+pub(super) struct Plan<'a> {
+    pub note_type: &'a NoteType,
+    fronts: Vec<Parsed>,
+}
+
+impl<'a> Plan<'a> {
+    pub(super) fn new(note_type: &'a NoteType) -> Self {
+        Self {
+            note_type,
+            fronts: note_type
+                .templates
+                .iter()
+                .map(|t| parse_front(&t.front))
+                .collect(),
+        }
+    }
+}
+
+/// A note's values by field name, for the live fields of its note type only: a removed field reads
+/// as empty. If a merge left two fields with one name, the first in order is the one a template
+/// reads.
+pub(super) fn values_by_name<'a>(
+    note_type: &'a NoteType,
+    values: &'a HashMap<Id, String>,
+) -> HashMap<&'a str, &'a str> {
     let mut by_name: HashMap<&str, &str> = HashMap::new();
     for field in &note_type.fields {
         let value = values.get(&field.id).map_or("", String::as_str);
         by_name.entry(field.name.as_str()).or_insert(value);
     }
-    let value = |name: &str| by_name.get(name).map(|v| (*v).to_owned());
+    by_name
+}
+
+/// Reads a field by name from `values_by_name`. A named function, so that the closure gets the
+/// right lifetimes (the value outlives the name it is looked up by).
+pub(super) fn reader<'v>(
+    by_name: &'v HashMap<&'v str, &'v str>,
+) -> impl Fn(&str) -> Option<&'v str> + 'v {
+    move |name| by_name.get(name).copied()
+}
+
+/// The cards a note should have, as `(template, ordinal)`, in template order.
+pub(super) fn wanted(plan: &Plan<'_>, values: &HashMap<Id, String>) -> Vec<(Id, u32)> {
+    let by_name = values_by_name(plan.note_type, values);
+    let value = reader(&by_name);
     let mut wanted = Vec::new();
-    for template in &note_type.templates {
-        match note_type.kind {
+    for (template, front) in plan.note_type.templates.iter().zip(&plan.fronts) {
+        match plan.note_type.kind {
             Kind::Standard => {
-                if front_shows_content(&template.front, &value) {
+                if front_shows_content(front, &value) {
                     wanted.push((template.id, 0));
                 }
             }
             Kind::Cloze => {
-                for number in cloze_numbers(&template.front, &value) {
+                for number in cloze_numbers(front, &value) {
                     wanted.push((template.id, number));
                 }
             }
@@ -76,12 +113,12 @@ fn blob(id: Id) -> Value {
 /// Makes the cards of one live note match its note type, in the write `w`.
 pub(super) fn reconcile(
     w: &mut WriteTx<'_>,
-    note_type: &NoteType,
+    plan: &Plan<'_>,
     note: &NoteState,
 ) -> Result<Reconciled, CollectionError> {
     let mut done = Reconciled::default();
     let mut keep = Vec::new();
-    for (template, ordinal) in wanted(note_type, &note.values) {
+    for (template, ordinal) in wanted(plan, &note.values) {
         let id = card_id(note.id, template, ordinal);
         keep.push(id);
         match note.cards.get(&id) {
@@ -211,8 +248,9 @@ impl Collection {
         let Some(found) = self.note_type(note_type).map_err(CollectionError::from)? else {
             return Ok(());
         };
+        let plan = Plan::new(&found);
         for note in self.note_states(note_type)? {
-            reconcile(w, &found, &note)?;
+            reconcile(w, &plan, &note)?;
         }
         Ok(())
     }

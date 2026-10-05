@@ -6,11 +6,13 @@
 
 pub mod clock;
 pub mod collection;
+mod html;
 pub mod id;
 pub mod note;
 pub mod notetype;
 pub mod scheduling;
 pub mod sync;
+pub mod template;
 
 use std::sync::Mutex;
 
