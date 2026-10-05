@@ -7,10 +7,11 @@
 //! come back with it. Nothing here is ever hard-deleted. Removing sets the `deleted` register, and
 //! restoring clears it (ADR 0006, section 5).
 //!
-//! Two things are decided by later steps and only stored here: the text of templates (opaque to this
-//! module until step 1.4 defines the grammar, which also owns rewriting `{{Field}}` references when
-//! a field is renamed), and the notes and cards of a deleted note type (step 1.3 adds their
-//! tombstones and the "still referenced, so still alive" rule).
+//! The text of templates is stored as written. Step 1.4 defines the grammar and checks it. Until then
+//! `crate::note::scan` reads the little of it that card generation needs, and renaming a field
+//! rewrites `{{OldName}}` in the note type's templates with it. Changing a note type brings the cards
+//! of its notes in line (`Collection::reconcile_note_type`), and deleting one tombstones its notes
+//! and cards; a note that is still live keeps a deleted note type alive (ADR 0006, section 5).
 
 pub mod builtin;
 mod error;

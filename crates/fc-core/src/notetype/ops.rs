@@ -92,7 +92,7 @@ fn place(
 impl Collection {
     fn live_type(&self, id: Id) -> Result<Kind, NoteTypeError> {
         match note_type_info(&self.conn, id)? {
-            Some((kind, false)) => Ok(kind),
+            Some(info) if !info.deleted => Ok(info.kind),
             _ => Err(NoteTypeError::NotFound),
         }
     }
@@ -181,25 +181,38 @@ impl Collection {
     }
 
     /// Deletes a note type: it moves to the trash and can be restored with everything in it. Its
-    /// fields and templates are not touched, they are hidden with it. Deleting a deleted note type
-    /// does nothing.
+    /// fields and templates are not touched, they are hidden with it. Its notes and their cards are
+    /// deleted with it, one tombstone each (ADR 0006, section 5). Deleting a deleted note type does
+    /// nothing.
     pub fn delete_note_type(&self, id: Id) -> Result<(), NoteTypeError> {
         match note_type_info(&self.conn, id)? {
             None => Err(NoteTypeError::NotFound),
-            Some((_, true)) => Ok(()),
-            Some((_, false)) => {
-                Ok(self.write(|w| w.set(NOTE_TYPE.entity, id, "deleted", flag(true)))?)
-            }
+            Some(info) if info.deleted => Ok(()),
+            Some(info) => Ok(self.write(|w| {
+                if !info.register_deleted {
+                    w.set(NOTE_TYPE.entity, id, "deleted", flag(true))?;
+                }
+                self.tombstone_notes_of(w, id)
+            })?),
         }
     }
 
-    /// Brings a deleted note type back. Restoring one that is not deleted does nothing.
+    /// Brings a deleted note type back, with the notes that were deleted along with it and their
+    /// cards. A note deleted on its own before stays in the trash. Restoring one that is not
+    /// deleted does nothing.
     pub fn restore_note_type(&self, id: Id) -> Result<(), NoteTypeError> {
         match note_type_info(&self.conn, id)? {
             None => Err(NoteTypeError::NotFound),
-            Some((_, false)) => Ok(()),
-            Some((_, true)) => {
-                Ok(self.write(|w| w.set(NOTE_TYPE.entity, id, "deleted", flag(false)))?)
+            Some(info) if !info.register_deleted => Ok(()),
+            Some(_) => {
+                let since = self
+                    .register_clock(NOTE_TYPE.entity, id, "deleted")?
+                    .map_or(0, |clock| clock.hlc.to_stored());
+                Ok(self.write(|w| {
+                    w.set(NOTE_TYPE.entity, id, "deleted", flag(false))?;
+                    self.restore_notes_deleted_since(w, id, since)?;
+                    self.reconcile_note_type(w, id)
+                })?)
             }
         }
     }
@@ -291,7 +304,8 @@ impl Collection {
         }
         Ok(self.write(|w| {
             w.set(TEMPLATE.entity, template, "front", text(front))?;
-            w.set(TEMPLATE.entity, template, "back", text(back))
+            w.set(TEMPLATE.entity, template, "back", text(back))?;
+            self.reconcile_note_type(w, note_type)
         })?)
     }
 
@@ -366,6 +380,9 @@ impl Collection {
             ];
             values.extend(extra);
             w.insert(part.entity(), id, values)?;
+            if part == Part::Template {
+                self.reconcile_note_type(w, note_type)?;
+            }
             Ok(id)
         })?)
     }
@@ -392,7 +409,14 @@ impl Collection {
             return Ok(());
         }
         check_name_free(&live_items(&self.conn, part, note_type)?, &name, Some(id))?;
-        Ok(self.write(|w| w.set(part.entity(), id, "name", Value::Text(name)))?)
+        Ok(self.write(|w| {
+            w.set(part.entity(), id, "name", Value::Text(name.clone()))?;
+            if part == Part::Field {
+                self.rewrite_field_references(w, note_type, &current, &name)?;
+                self.reconcile_note_type(w, note_type)?;
+            }
+            Ok(())
+        })?)
     }
 
     fn move_part(
@@ -436,7 +460,10 @@ impl Collection {
                 Part::Template => NoteTypeError::LastTemplate,
             });
         }
-        Ok(self.write(|w| w.set(part.entity(), id, "deleted", flag(true)))?)
+        Ok(self.write(|w| {
+            w.set(part.entity(), id, "deleted", flag(true))?;
+            self.reconcile_note_type(w, note_type)
+        })?)
     }
 
     fn restore_part(&self, part: Part, note_type: Id, id: Id) -> Result<(), NoteTypeError> {
@@ -453,7 +480,42 @@ impl Collection {
             &info.name,
             Some(id),
         )?;
-        Ok(self.write(|w| w.set(part.entity(), id, "deleted", flag(false)))?)
+        Ok(self.write(|w| {
+            w.set(part.entity(), id, "deleted", flag(false))?;
+            self.reconcile_note_type(w, note_type)
+        })?)
+    }
+
+    /// Changes `{{OldName}}` to `{{NewName}}` in every template of a note type, removed ones too, so
+    /// that renaming a field does not make a template stop showing it (and cards disappear).
+    fn rewrite_field_references(
+        &self,
+        w: &mut WriteTx<'_>,
+        note_type: Id,
+        old: &str,
+        new: &str,
+    ) -> Result<(), crate::collection::CollectionError> {
+        let mut statement = self
+            .conn
+            .prepare("SELECT id, front, back FROM template WHERE note_type = ?1 ORDER BY id")?;
+        let rows = statement
+            .query_map([note_type], |row| {
+                Ok((
+                    row.get::<_, Id>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        for (id, front, back) in rows {
+            for (register, old_text) in [("front", front), ("back", back)] {
+                let new_text = crate::note::scan::rename_field(&old_text, old, new);
+                if new_text != old_text {
+                    w.set(TEMPLATE.entity, id, register, Value::Text(new_text))?;
+                }
+            }
+        }
+        Ok(())
     }
 
     fn removed_parts(&self, part: Part, note_type: Id) -> Result<Vec<Item>, NoteTypeError> {

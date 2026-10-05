@@ -2,9 +2,11 @@
 //! `(hlc, device, pushed = false)` in `register_clock`, in the same transaction as the value.
 
 use rusqlite::types::Value;
-use rusqlite::{Connection, Transaction, TransactionBehavior, params, params_from_iter};
+use rusqlite::{
+    Connection, OptionalExtension, Transaction, TransactionBehavior, params, params_from_iter,
+};
 
-use super::registry::GUARD_TABLE;
+use super::registry::{DYNAMIC_TABLES, GUARD_TABLE};
 use super::{Hlc, SyncedTable, state};
 use crate::clock::Host;
 use crate::collection::{Collection, CollectionError};
@@ -125,6 +127,42 @@ impl WriteTx<'_> {
             return Err(problem(format!("no `{entity}` row {id} to change")));
         }
         self.record(entity, id, field)
+    }
+
+    /// Sets one value of a dynamic table (a note's value for one field), and writes its clock under
+    /// the register name `key`. The value is created if there is none yet. Writing the value a
+    /// register already has changes nothing and writes no clock.
+    pub fn set_value(
+        &mut self,
+        entity: &str,
+        owner: Id,
+        key: Id,
+        value: &str,
+    ) -> Result<(), CollectionError> {
+        let table = DYNAMIC_TABLES
+            .iter()
+            .find(|t| t.entity == entity)
+            .ok_or_else(|| problem(format!("`{entity}` has no dynamic registers")))?;
+        let (name, o, k, v) = (table.table, table.owner, table.key, table.value);
+        let current: Option<String> = self
+            .tx
+            .query_row(
+                &format!("SELECT \"{v}\" FROM \"{name}\" WHERE \"{o}\" = ?1 AND \"{k}\" = ?2"),
+                params![owner, key],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if current.as_deref() == Some(value) || (current.is_none() && value.is_empty()) {
+            return Ok(());
+        }
+        self.tx.execute(
+            &format!(
+                "INSERT INTO \"{name}\" (\"{o}\", \"{k}\", \"{v}\") VALUES (?1, ?2, ?3)
+                 ON CONFLICT (\"{o}\", \"{k}\") DO UPDATE SET \"{v}\" = excluded.\"{v}\""
+            ),
+            params![owner, key, value],
+        )?;
+        self.record(entity, owner, &key.to_string())
     }
 
     /// Reads one value, inside this transaction.

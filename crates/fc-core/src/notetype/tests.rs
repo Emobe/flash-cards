@@ -2,13 +2,12 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use rusqlite::Transaction;
 use rusqlite::types::Value;
 
 use super::*;
 use crate::clock::{Host, ManualClock};
-use crate::collection::{Collection, MIGRATIONS, Migration, Schema};
-use crate::sync::{SYNCED_TABLES, check_schema, install_guard};
+use crate::collection::{Collection, MIGRATIONS, Schema};
+use crate::sync::{SYNCED_TABLES, check_schema};
 
 const START: i64 = 1_700_000_000_000;
 
@@ -896,82 +895,32 @@ fn an_edit_is_stamped_after_everything_the_device_has_seen() {
     assert!(renamed.hlc > created.hlc);
 }
 
-// What changing a note type does to notes. Notes arrive in step 1.3, so these tests use a stand-in
-// table that stores values the way notes will: one row per (note, field ID). Step 1.3 repeats them
-// with real notes. What they pin down is that no note type operation touches note data, and that
-// what the person sees of a note follows the note type's live fields.
+// What changing a note type does to notes (step 1.2's tests, repeated with real notes). What they pin
+// down is that no note type operation touches note values, and that what the person sees of a note
+// follows the note type's live fields.
 
-const STAND_IN: SyncedTable = SyncedTable {
-    entity: "stand_in_value",
-    table: "stand_in_value",
-    registers: &["note", "field", "value"],
-};
-
-fn stand_in_migration(tx: &Transaction) -> rusqlite::Result<()> {
-    tx.execute_batch(
-        "CREATE TABLE stand_in_value (
-            id BLOB PRIMARY KEY NOT NULL,
-            note BLOB NOT NULL DEFAULT x'',
-            field BLOB NOT NULL DEFAULT x'',
-            value TEXT NOT NULL DEFAULT ''
-        ) WITHOUT ROWID",
-    )?;
-    install_guard(tx, &STAND_IN)
-}
-
-const WITH_STAND_IN: Schema = Schema {
-    migrations: &[
-        MIGRATIONS[0],
-        MIGRATIONS[1],
-        MIGRATIONS[2],
-        Migration {
-            version: 4,
-            apply: stand_in_migration,
-        },
-    ],
-    tables: &[
-        SYNCED_TABLES[0],
-        SYNCED_TABLES[1],
-        SYNCED_TABLES[2],
-        SYNCED_TABLES[3],
-        STAND_IN,
-    ],
-};
-
-/// A collection, and a note of the built-in Basic type with one value per field.
+/// A collection, and a note of the built-in Basic type with a value for each field.
 fn with_a_note() -> (Collection, Id) {
-    let clock = Arc::new(ManualClock::new(START));
-    let collection = Collection::create_with(":memory:", WITH_STAND_IN, host(&clock)).unwrap();
-    let note = Id::from_bytes([5; 16]);
+    let (collection, _) = collection();
     let fields = collection
         .note_type(builtin::basic())
         .unwrap()
         .unwrap()
         .fields;
-    for (field, value) in fields.iter().zip(["pies", "dog"]) {
-        collection
-            .write(|w| {
-                let id = w.new_id()?;
-                w.insert(
-                    STAND_IN.entity,
-                    id,
-                    vec![
-                        ("note", Value::Blob(note.as_bytes().to_vec())),
-                        ("field", Value::Blob(field.id.as_bytes().to_vec())),
-                        ("value", text(value)),
-                    ],
-                )
-            })
-            .unwrap();
-    }
-    (collection, note)
+    let added = collection
+        .add_note(
+            builtin::basic(),
+            &[(fields[0].id, "pies"), (fields[1].id, "dog")],
+        )
+        .unwrap();
+    (collection, added.id)
 }
 
 /// Everything stored for notes, as it is in the table.
 fn stored(collection: &Collection) -> Vec<(Vec<u8>, String)> {
     collection
         .conn
-        .prepare("SELECT field, value FROM stand_in_value ORDER BY value")
+        .prepare("SELECT field, value FROM note_field_value ORDER BY value")
         .unwrap()
         .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
         .unwrap()
@@ -980,22 +929,14 @@ fn stored(collection: &Collection) -> Vec<(Vec<u8>, String)> {
 }
 
 /// What a note shows: its values for the live fields of its note type, in field order.
-fn shown(collection: &Collection, note_type: Id) -> Vec<(String, String)> {
-    let found = collection.note_type(note_type).unwrap().unwrap();
-    found
+fn shown(collection: &Collection, note: Id) -> Vec<(String, String)> {
+    collection
+        .note(note)
+        .unwrap()
+        .unwrap()
         .fields
-        .iter()
-        .filter_map(|field| {
-            collection
-                .conn
-                .query_row(
-                    "SELECT value FROM stand_in_value WHERE field = ?1",
-                    [field.id],
-                    |row| row.get::<_, String>(0),
-                )
-                .ok()
-                .map(|value| (field.name.clone(), value))
-        })
+        .into_iter()
+        .map(|field| (field.name, field.value))
         .collect()
 }
 
@@ -1005,7 +946,7 @@ fn pair(name: &str, value: &str) -> (String, String) {
 
 #[test]
 fn renaming_or_reordering_a_field_leaves_note_values_untouched_and_attached_to_it() {
-    let (collection, _) = with_a_note();
+    let (collection, note) = with_a_note();
     let before = stored(&collection);
     let fields = collection
         .note_type(builtin::basic())
@@ -1020,14 +961,15 @@ fn renaming_or_reordering_a_field_leaves_note_values_untouched_and_attached_to_i
         .unwrap();
     assert_eq!(stored(&collection), before);
     assert_eq!(
-        shown(&collection, builtin::basic()),
+        shown(&collection, note),
         [pair("Back", "dog"), pair("Polish", "pies")]
     );
+    assert_eq!(collection.cards_of_note(note).unwrap().len(), 1);
 }
 
 #[test]
 fn removing_a_field_hides_its_values_and_restoring_it_brings_them_back() {
-    let (collection, _) = with_a_note();
+    let (collection, note) = with_a_note();
     let before = stored(&collection);
     let fields = collection
         .note_type(builtin::basic())
@@ -1038,22 +980,19 @@ fn removing_a_field_hides_its_values_and_restoring_it_brings_them_back() {
         .remove_field(builtin::basic(), fields[1].id)
         .unwrap();
     assert_eq!(stored(&collection), before, "the value is kept");
-    assert_eq!(
-        shown(&collection, builtin::basic()),
-        [pair("Front", "pies")]
-    );
+    assert_eq!(shown(&collection, note), [pair("Front", "pies")]);
     collection
         .restore_field(builtin::basic(), fields[1].id)
         .unwrap();
     assert_eq!(
-        shown(&collection, builtin::basic()),
+        shown(&collection, note),
         [pair("Front", "pies"), pair("Back", "dog")]
     );
 }
 
 #[test]
 fn a_field_added_later_starts_empty_and_a_removed_name_can_be_reused_for_a_new_field() {
-    let (collection, _) = with_a_note();
+    let (collection, note) = with_a_note();
     let fields = collection
         .note_type(builtin::basic())
         .unwrap()
@@ -1066,8 +1005,8 @@ fn a_field_added_later_starts_empty_and_a_removed_name_can_be_reused_for_a_new_f
     assert_ne!(new_back, fields[1].id);
     // The new field is a different field: it does not pick up the removed one's value.
     assert_eq!(
-        shown(&collection, builtin::basic()),
-        [pair("Front", "pies")]
+        shown(&collection, note),
+        [pair("Front", "pies"), pair("Back", "")]
     );
     // Restoring the old one now collides with the new name, which the person resolves.
     assert_eq!(
@@ -1078,7 +1017,7 @@ fn a_field_added_later_starts_empty_and_a_removed_name_can_be_reused_for_a_new_f
 
 #[test]
 fn deleting_and_restoring_a_note_type_leaves_note_values_untouched() {
-    let (collection, _) = with_a_note();
+    let (collection, note) = with_a_note();
     let before = stored(&collection);
     collection.delete_note_type(builtin::basic()).unwrap();
     assert_eq!(stored(&collection), before);
@@ -1092,32 +1031,45 @@ fn deleting_and_restoring_a_note_type_leaves_note_values_untouched() {
     collection.restore_note_type(builtin::basic()).unwrap();
     assert_eq!(stored(&collection), before);
     assert_eq!(
-        shown(&collection, builtin::basic()),
+        shown(&collection, note),
         [pair("Front", "pies"), pair("Back", "dog")]
     );
 }
 
 #[test]
-fn removing_and_restoring_a_template_changes_no_note_value() {
-    let (collection, _) = with_a_note();
-    let before = stored(&collection);
+fn removing_and_restoring_a_template_changes_no_note_value_and_brings_the_same_card_back() {
+    let (collection, _) = collection();
     let reversed = collection
         .note_type(builtin::basic_and_reversed())
         .unwrap()
         .unwrap();
+    let added = collection
+        .add_note(
+            builtin::basic_and_reversed(),
+            &[
+                (reversed.fields[0].id, "pies"),
+                (reversed.fields[1].id, "dog"),
+            ],
+        )
+        .unwrap();
+    let before = stored(&collection);
     let second = reversed.templates[1].id;
+    let cards = collection.cards_of_note(added.id).unwrap();
+    assert_eq!(cards.len(), 2);
     collection
         .remove_template(builtin::basic_and_reversed(), second)
         .unwrap();
+    assert_eq!(collection.cards_of_note(added.id).unwrap().len(), 1);
     collection
         .restore_template(builtin::basic_and_reversed(), second)
         .unwrap();
-    // The template keeps its ID, which is what lets step 1.3 give a returning card its old ID.
+    // The template keeps its ID, so the returning card has its old ID.
     let after = collection
         .note_type(builtin::basic_and_reversed())
         .unwrap()
         .unwrap();
     assert_eq!(after.templates[1].id, second);
+    assert_eq!(collection.cards_of_note(added.id).unwrap(), cards);
     assert_eq!(stored(&collection), before);
 }
 

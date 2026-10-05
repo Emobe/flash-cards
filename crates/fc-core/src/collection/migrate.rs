@@ -40,6 +40,10 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         version: 3,
         apply: v3,
     },
+    Migration {
+        version: 4,
+        apply: v4,
+    },
 ];
 
 /// The newest version in `migrations`.
@@ -170,6 +174,49 @@ fn v3(tx: &Transaction) -> rusqlite::Result<()> {
         )?;
     }
     crate::notetype::builtin::seed(tx)
+}
+
+/// Version 4 (step 1.3): notes, their field values and cards. See `crate::note`.
+///
+/// A note's values are one row per `(note, field)`, with no `id`: the register is named by the field
+/// ID (a dynamic table). Every column has a default and nothing has a foreign key, so a card can
+/// arrive before its note (ADR 0006, section 6). A card's deck, suspension and scheduling are later
+/// registers, added by the steps that need them.
+fn v4(tx: &Transaction) -> rusqlite::Result<()> {
+    tx.execute_batch(
+        "CREATE TABLE note (
+            id BLOB PRIMARY KEY NOT NULL,
+            note_type BLOB NOT NULL DEFAULT x'',
+            deleted INTEGER NOT NULL DEFAULT 0
+        ) WITHOUT ROWID;
+        CREATE INDEX note_by_note_type ON note (note_type);
+        CREATE TABLE note_field_value (
+            note BLOB NOT NULL,
+            field BLOB NOT NULL,
+            value TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (note, field)
+        ) WITHOUT ROWID;
+        CREATE TABLE card (
+            id BLOB PRIMARY KEY NOT NULL,
+            note BLOB NOT NULL DEFAULT x'',
+            template BLOB NOT NULL DEFAULT x'',
+            ordinal INTEGER NOT NULL DEFAULT 0,
+            deleted INTEGER NOT NULL DEFAULT 0
+        ) WITHOUT ROWID;
+        CREATE INDEX card_by_note ON card (note);",
+    )?;
+    // Frozen copies, as in `v2`: the guard only needs the names.
+    for name in ["note", "note_field_value", "card"] {
+        install_guard(
+            tx,
+            &SyncedTable {
+                entity: name,
+                table: name,
+                registers: &[],
+            },
+        )?;
+    }
+    Ok(())
 }
 
 /// What a database file is, before anything is written to it.

@@ -60,3 +60,14 @@ impl From<rusqlite::Error> for NoteTypeError {
         Self::Collection(error.into())
     }
 }
+
+impl From<NoteTypeError> for CollectionError {
+    /// For code that reads note types inside a collection operation. Reading only fails in the
+    /// database, so the other kinds cannot happen there.
+    fn from(error: NoteTypeError) -> Self {
+        match error {
+            NoteTypeError::Collection(error) => error,
+            other => Self::Storage(other.to_string()),
+        }
+    }
+}
