@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Permissions for the main window. Only this window may call the core (ADR 0002).",
   "windows": ["main"],
-  "permissions": ["allow-call"]
+  "permissions": ["allow-call", "allow-subscribe", "allow-cancel"]
 }
