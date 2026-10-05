@@ -19,9 +19,9 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-0.3b done so far: `fc-api` notices, operation context, attachments and debug methods (commit 2); `fc-native` `subscribe`, `cancel`, operations map, throttled notice hub, base64 attachments in and framed attachments out (commit 3, Rust tests pass).
+0.3b done so far (all committed, `cargo xtask check` passes): `fc-api` notices, operation context, attachments, debug methods; `fc-native` `subscribe`, `cancel`, operations map, throttled notice hub, base64 attachments; `core-client` operation IDs, `signal`, `onProgress`, `onEvent`, attachment typing, fake transport; Tauri transport and tests.
 
-Still to do: `core-client` (operation IDs, `signal`, `onProgress`, `onEvent`, attachment typing, fake transport), Tauri transport (`subscribe`, `cancel`, base64), TS tests, gating check on desktop, Android timings for 1 MB and 5 MB attachments into ADR 0002, ADR and README notes, then `cargo xtask check` and the PR report.
+Still to do: desktop verification in a built app (new commands gated, subscribe, cancel, attachment round trip, no IPC warning), Android timings for 1 MB and 5 MB attachments into ADR 0002 (needs a temporary debug button and a standalone APK), ADR 0002 build notes, README and ADR 0001 notes if needed, then the PR report.
 
 ## Open items
 

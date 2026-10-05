@@ -14,3 +14,5 @@ export type Methods = {
   debugEchoBytes: { input: null; output: EchoOutput; bytesIn: true; bytesOut: true };
   debugEmitEvent: { input: EmitInput; output: null; bytesIn: false; bytesOut: false };
 };
+
+export const bytesOutMethods: ReadonlySet<string> = new Set(["debugEchoBytes"]);

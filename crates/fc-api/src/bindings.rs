@@ -30,9 +30,9 @@ impl<'a> Collector<'a> {
         self.visit::<T>();
     }
 
-    /// `entries` are `(Methods line, names to import)` from `methods_entry`.
-    pub fn finish(mut self, entries: Vec<(String, Vec<String>)>) -> BTreeMap<String, String> {
-        let mut used: Vec<&String> = entries.iter().flat_map(|(_, names)| names).collect();
+    /// `entries` come from `methods_entry`.
+    pub fn finish(mut self, entries: Vec<Entry>) -> BTreeMap<String, String> {
+        let mut used: Vec<&String> = entries.iter().flat_map(|e| &e.imports).collect();
         used.sort();
         used.dedup();
         let mut text =
@@ -41,10 +41,16 @@ impl<'a> Collector<'a> {
             text.push_str(&format!("import type {{ {name} }} from \"./{name}\";\n"));
         }
         text.push_str("\nexport type Methods = {\n");
-        for (entry, _) in entries {
-            text.push_str(&entry);
+        for entry in &entries {
+            text.push_str(&entry.line);
         }
         text.push_str("};\n");
+        // Types vanish at runtime, so the client needs this to know which methods reply with bytes.
+        text.push_str("\nexport const bytesOutMethods: ReadonlySet<string> = new Set([");
+        for entry in entries.iter().filter(|e| e.bytes_out) {
+            text.push_str(&format!("\"{}\",", entry.name));
+        }
+        text.push_str("]);\n");
         self.files.insert("Methods.ts".to_owned(), text);
         self.files
     }
@@ -70,8 +76,16 @@ fn file_name(path: &Path) -> String {
         .into_owned()
 }
 
+/// One method's line in the `Methods` map and what it needs.
+pub(crate) struct Entry {
+    name: &'static str,
+    line: String,
+    imports: Vec<String>,
+    bytes_out: bool,
+}
+
 /// The `Methods` line for `M` (`()` is `null`), and the type names it needs imported.
-pub(crate) fn methods_entry<M: Method>(cfg: &Config) -> (String, Vec<String>) {
+pub(crate) fn methods_entry<M: Method>(cfg: &Config) -> Entry {
     let (input, output) = (<M::Input as TS>::name(cfg), <M::Output as TS>::name(cfg));
     let imports = [
         (<M::Input as TS>::output_path(), &input),
@@ -80,15 +94,17 @@ pub(crate) fn methods_entry<M: Method>(cfg: &Config) -> (String, Vec<String>) {
     .into_iter()
     .filter_map(|(path, name)| path.map(|_| name.clone()))
     .collect();
-    (
-        format!(
+    Entry {
+        name: M::NAME,
+        line: format!(
             "  {}: {{ input: {input}; output: {output}; bytesIn: {}; bytesOut: {} }};\n",
             M::NAME,
             M::ATTACHMENT_IN,
             M::ATTACHMENT_OUT,
         ),
         imports,
-    )
+        bytes_out: M::ATTACHMENT_OUT,
+    }
 }
 
 #[cfg(test)]

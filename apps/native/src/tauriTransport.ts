@@ -1,5 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
-import { isApiError, type Transport } from "core-client";
+import { Channel, invoke } from "@tauri-apps/api/core";
+import { isApiError, type Notice, type Transport } from "core-client";
 
 /**
  * Splits a reply from the `call` command: `u32` little-endian JSON length, the JSON output, then
@@ -13,20 +13,65 @@ export function decodeFrame(reply: ArrayBuffer | number[]): { output: unknown; b
   return { output: JSON.parse(json), bytes: data.subarray(4 + length) };
 }
 
-/** Talks to the Rust core through Tauri's `call` command. */
+/**
+ * Base64 of `bytes`, the fast way to send bytes to Rust on every platform (ADR 0002, findings 7
+ * and 9). Uses `Uint8Array.prototype.toBase64` where the WebView has it.
+ */
+export function encodeBase64(bytes: Uint8Array): string {
+  const native = (bytes as Uint8Array & { toBase64?: () => string }).toBase64;
+  if (typeof native === "function") return native.call(bytes);
+  const chunk = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+/** Talks to the Rust core through Tauri's `call`, `subscribe` and `cancel` commands. */
 export function createTauriTransport(): Transport {
+  const listeners = new Set<(notice: Notice) => void>();
+  // The Rust side keeps one channel per webview, so register one for the whole transport. `call`
+  // waits for it, so a progress notice cannot be sent before the channel is registered.
+  let registration: Promise<void> | undefined;
+
+  function ensureRegistered(): Promise<void> {
+    registration ??= (async () => {
+      const channel = new Channel<Notice>((notice) => {
+        for (const listener of listeners) listener(notice);
+      });
+      await invoke("subscribe", { onNotice: channel });
+    })().catch((error: unknown) => {
+      registration = undefined;
+      console.error("Could not subscribe to core notices", error);
+    });
+    return registration;
+  }
+
   return {
-    async call({ method, input }) {
+    async call({ method, input, bytes, op }) {
+      if (listeners.size > 0) await ensureRegistered();
+      const attachment = bytes && bytes.length > 0 ? encodeBase64(bytes) : undefined;
       let reply: unknown;
       try {
-        reply = await invoke<ArrayBuffer | number[]>("call", { method, input });
+        reply = await invoke<ArrayBuffer | number[]>("call", { method, input, attachment, op });
       } catch (error) {
         // Core errors arrive as `{ kind, message }` and pass through. Anything else (for example a
         // command the webview may not call) is turned into a generic error by `CoreClient`.
         throw isApiError(error) ? error : new Error(String(error));
       }
-      const { output } = decodeFrame(reply as ArrayBuffer | number[]);
-      return { output };
+      const frame = decodeFrame(reply as ArrayBuffer | number[]);
+      return { output: frame.output, bytes: frame.bytes.length > 0 ? frame.bytes : undefined };
+    },
+    cancel(op) {
+      invoke("cancel", { op }).catch(() => {});
+    },
+    subscribe(onNotice) {
+      listeners.add(onNotice);
+      void ensureRegistered();
+      return () => {
+        listeners.delete(onNotice);
+      };
     },
   };
 }
