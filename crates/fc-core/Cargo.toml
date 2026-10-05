@@ -16,3 +16,12 @@ rusqlite = { version = "=0.40.2", features = ["bundled"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 rusqlite = "=0.40.2"
+
+# FSRS scheduler and optimiser (ADR 0004). Pure Rust. Exact version, as for other key crates.
+[dependencies]
+fsrs = "=6.6.2"
+
+# fsrs uses rand 0.10, which needs getrandom's browser backend on wasm (ADR 0003, ADR 0004).
+[target.'cfg(target_arch = "wasm32")'.dependencies.getrandom]
+version = "=0.4.3"
+features = ["wasm_js"]

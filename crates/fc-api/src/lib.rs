@@ -10,6 +10,7 @@ mod error;
 mod examples;
 mod notice;
 mod spike;
+mod spike_scheduling;
 
 pub use bindings::generate_bindings;
 pub use context::OpContext;
@@ -108,6 +109,8 @@ methods! {
         examples::ExampleDivide,
         spike::SpikeAddNote,
         spike::SpikeListNotes,
+        spike_scheduling::SpikeSchedule,
+        spike_scheduling::SpikeOptimise,
     ],
     debug: [
         debug::DebugSlow,
@@ -147,6 +150,37 @@ mod tests {
             err.message,
             "Can't divide by zero. Enter a divisor other than 0."
         );
+    }
+
+    #[test]
+    fn spike_schedule_returns_one_review_per_rating() {
+        let out = call(
+            "spikeSchedule",
+            json!({ "ratings": ["good", "good", "again"], "desiredRetention": 0.9 }),
+        )
+        .unwrap();
+        let reviews = out["reviews"].as_array().unwrap();
+        assert_eq!(reviews.len(), 3);
+        assert_eq!(reviews[0]["intervalDays"], 2);
+        assert_eq!(reviews[1]["intervalDays"], 11);
+    }
+
+    #[test]
+    fn spike_schedule_rejects_a_retention_outside_the_range() {
+        let err = call(
+            "spikeSchedule",
+            json!({ "ratings": ["good"], "desiredRetention": 0.2 }),
+        )
+        .unwrap_err();
+        assert_eq!(err.kind, ErrorKind::InvalidInput);
+    }
+
+    #[test]
+    fn spike_optimise_returns_21_parameters() {
+        let out = call("spikeOptimise", json!({ "cards": 100 })).unwrap();
+        assert_eq!(out["parameters"].as_array().unwrap().len(), 21);
+        let err = call("spikeOptimise", json!({ "cards": 0 })).unwrap_err();
+        assert_eq!(err.kind, ErrorKind::InvalidInput);
     }
 
     #[test]

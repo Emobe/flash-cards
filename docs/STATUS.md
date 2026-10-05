@@ -4,7 +4,7 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-0.5 Scheduling spike: evaluation done, ADR 0004 written (Proposed, recommends `fsrs` 6.6.2). Waiting for Anthony to accept it, including the MPL-2.0 exception for `priority-queue`. Nothing built yet. 0.4 was reviewed and merged (PR #5).
+0.5 Scheduling spike: ADR 0004 accepted (`fsrs` 6.6.2, `priority-queue` MPL-2.0 exception in `deny.toml`). Built: `fc_core::scheduling`, `spikeSchedule` and `spikeOptimise` methods, shared UI section. `cargo xtask check` passes. Not yet verified in the browser, on the phone, or the optimiser on wasm. 0.4 was reviewed and merged (PR #5).
 
 ## Branch
 
@@ -20,8 +20,9 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: read `docs/adr/0004-scheduling.md`, accept or change it (licence exception for `priority-queue`, new `fsrs` dependency).
-- Then: `fc-core` scheduling module and unit test, debug method for the spike panel, verify on desktop, browser and phone (optimiser on wasm is the open risk), update the ADR build notes.
+- Verify in the browser (headless Brave, `bun run web:build`): schedule intervals 2, 11, 46, 163, 497, and the optimiser on wasm (rayon risk, timing).
+- Verify on the phone (APK, screenshot) and desktop.
+- Write build notes into ADR 0004, then the PR report.
 
 ## Open items
 

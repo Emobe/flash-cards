@@ -1,6 +1,7 @@
 import { CoreError } from "core-client";
 import { type FormEvent, useEffect, useState } from "react";
 import { useCore } from "./core";
+import { SchedulingSpike } from "./SchedulingSpike";
 
 /**
  * Placeholder root screen. Shared by every platform, so it must not import
@@ -13,6 +14,7 @@ export function App() {
       <p>Placeholder screen. Nothing to study yet.</p>
       <CoreVersion />
       <DivideForm />
+      <SchedulingSpike />
     </main>
   );
 }

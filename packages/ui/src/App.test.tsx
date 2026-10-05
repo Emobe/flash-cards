@@ -10,6 +10,9 @@ function renderApp() {
   const client = new CoreClient(
     createFakeTransport({
       getCoreInfo: () => ({ coreVersion: "9.9.9" }),
+      spikeSchedule: ({ ratings }) => ({
+        reviews: ratings.map((_, i) => ({ intervalDays: 2 + i, stability: 1, difficulty: 1 })),
+      }),
       exampleDivide: ({ dividend, divisor }) => {
         if (divisor === 0) {
           throw {
@@ -46,5 +49,13 @@ test("shows a readable message when the core returns an error", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Divide" }));
   expect((await screen.findByRole("alert")).textContent).toBe(
     "Can't divide by zero. Enter a divisor other than 0.",
+  );
+});
+
+test("shows the intervals the core scheduled", async () => {
+  renderApp();
+  fireEvent.click(screen.getByRole("button", { name: "Schedule 5 Good reviews" }));
+  expect((await screen.findByTestId("intervals")).textContent).toBe(
+    "Intervals in days: 2, 3, 4, 5, 6",
   );
 });
