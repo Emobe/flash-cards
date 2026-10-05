@@ -4,21 +4,22 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-0.3 UI-to-core bridge. Model: Opus design session (`/adr 0.3`), then Sonnet build (`/step 0.3`).
+0.3a UI-to-core bridge, call path (Sonnet build, `/step 0.3a`). Plan: `docs/plans/0.3-bridge.md`, ADR 0002 (Accepted). 0.3b (notices, long operations, attachments) follows as a separate PR.
 
 ## Branch
 
-`step/0.3-bridge`: ADR 0002 (Proposed) and `docs/plans/0.3-bridge.md`, waiting for Anthony's review. Step 0.2 is merged to `master` (PR #1).
+`step/0.3a-bridge` (from `step/0.3-bridge`).
 
 ## Done
 
 - Planning docs (`docs/`).
 - 0.1 Repository and workspace boilerplate. Verified on Manjaro only.
 - 0.2 Android build. Debug APK and USB live reload verified on the phone, workflow runs through Bun. Includes a 16 KB page alignment fix.
+- 0.3a plan items 1 to 3 and 5 (committed): `crates/fc-api` (dispatcher, errors, example methods, bindings stale test), `cargo xtask bindings`, `packages/core-client` (`Transport`, `CoreClient`, fake transport, tests). `cargo xtask check` passes.
 
 ## Remaining in this step
 
-- 0.3: Anthony reviews ADR 0002 and the plan (proposed split into PRs 0.3a and 0.3b). After acceptance, Sonnet builds from the plan (`/step 0.3`).
+- 0.3a plan items 6 to 11: `fc-native` `call` command, command access (`AppManifest`), CSP, Tauri transport, UI (`CoreProvider`, divide form), ADR 0001 update. Then manual checks on desktop and phone, and the PR report.
 
 ## Open items
 

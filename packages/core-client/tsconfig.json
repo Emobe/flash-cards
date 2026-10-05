@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "../../node_modules/.tsbuild/core-client",
+    "rootDir": "src",
+    "types": []
+  },
+  "include": ["src"]
+}
