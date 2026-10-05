@@ -22,3 +22,4 @@ apps/native/src-tauri/gen/schemas/
 !.vscode/extensions.json
 .DS_Store
 Thumbs.db
+apps/web/src/wasm/

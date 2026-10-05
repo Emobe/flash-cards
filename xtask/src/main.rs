@@ -17,6 +17,8 @@ Tasks:
   fmt     Format all Rust and JS/TS code in place
   bindings
           Regenerate the TypeScript bindings in packages/core-client/src/generated from Rust
+  wasm [--release]
+          Build fc-wasm for the browser and generate its JS glue into apps/web/src/wasm
   doctor-android
           Check the Android toolchain setup (SDK, NDK, JDK, Rust target, device)";
 
@@ -39,6 +41,7 @@ fn main() -> ExitCode {
         Some("check") => check(),
         Some("fmt") => fmt(),
         Some("bindings") => bindings(),
+        Some("wasm") => wasm(&env::args().skip(2).collect::<Vec<_>>()),
         Some("doctor-android") => doctor_android::run(),
         _ => {
             eprintln!("{USAGE}");
@@ -69,10 +72,26 @@ fn check() -> Result<(), String> {
             "warnings",
         ],
     )?;
+    run(
+        "cargo",
+        &[
+            "clippy",
+            "-p",
+            "fc-wasm",
+            "--target",
+            "wasm32-unknown-unknown",
+            "--locked",
+            "--",
+            "-D",
+            "warnings",
+        ],
+    )?;
     run("cargo", &["test", "--workspace", "--locked"])?;
     run("cargo", &["deny", "--locked", "check"])?;
     run("bun", &["install", "--frozen-lockfile"])?;
     run("bun", &["run", "lint"])?;
+    // The generated .d.ts must exist before `tsc` checks apps/web.
+    wasm(&[])?;
     run("bun", &["run", "typecheck"])?;
     run("bun", &["run", "test"])?;
     println!("\nAll checks passed.");
@@ -113,6 +132,63 @@ fn bindings() -> Result<(), String> {
             "packages/core-client/src/generated",
         ],
     )
+}
+
+/// Builds `fc-wasm` and generates the JS glue. Stops early when the `wasm-bindgen` CLI does not match
+/// the crate version in `Cargo.lock`, since a mismatch fails with an unreadable error.
+fn wasm(args: &[String]) -> Result<(), String> {
+    let release = match args {
+        [] => false,
+        [flag] if flag == "--release" => true,
+        _ => return Err("usage: cargo xtask wasm [--release]".to_owned()),
+    };
+    let wanted = locked_version("wasm-bindgen")?;
+    let install = format!("cargo install wasm-bindgen-cli --version {wanted} --locked");
+    let output = Command::new("wasm-bindgen")
+        .arg("--version")
+        .output()
+        .map_err(|_| format!("`wasm-bindgen` is not installed or not on PATH. Run: {install}"))?;
+    let found = String::from_utf8_lossy(&output.stdout);
+    if found.split_whitespace().nth(1) != Some(wanted.as_str()) {
+        return Err(format!(
+            "`wasm-bindgen` is \"{}\", but Cargo.lock needs {wanted}. Run: {install}",
+            found.trim()
+        ));
+    }
+    let mut build = vec![
+        "build",
+        "-p",
+        "fc-wasm",
+        "--target",
+        "wasm32-unknown-unknown",
+        "--locked",
+    ];
+    if release {
+        build.push("--release");
+    }
+    run("cargo", &build)?;
+    let profile = if release { "release" } else { "debug" };
+    let module = format!("target/wasm32-unknown-unknown/{profile}/fc_wasm.wasm");
+    run(
+        "wasm-bindgen",
+        &["--target", "web", "--out-dir", "apps/web/src/wasm", &module],
+    )
+}
+
+/// The version of package `name` recorded in `Cargo.lock`.
+fn locked_version(name: &str) -> Result<String, String> {
+    let lock = fs::read_to_string(repo_root().join("Cargo.lock"))
+        .map_err(|e| format!("reading Cargo.lock: {e}"))?;
+    let header = format!("name = \"{name}\"");
+    let mut lines = lock.lines();
+    while let Some(line) = lines.next() {
+        if line == header
+            && let Some(version) = lines.next().and_then(|l| l.strip_prefix("version = \""))
+        {
+            return Ok(version.trim_end_matches('"').to_owned());
+        }
+    }
+    Err(format!("{name} is not in Cargo.lock"))
 }
 
 fn step(name: &str, f: impl FnOnce() -> Result<(), String>) -> Result<(), String> {

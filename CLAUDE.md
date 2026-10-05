@@ -24,6 +24,7 @@ See `README.md` for prerequisites.
 - `cargo xtask check`: run every check. Must pass before opening a PR (there is no CI).
 - `cargo xtask fmt`: format Rust and JS/TS.
 - `bun run dev`: launch the desktop app.
+- `bun run web:dev`: build the wasm core and run the web client (debug wasm has the `debug*` methods; `web:build` is release).
 - `cargo xtask doctor-android`: check the Android setup (not part of `check`).
 - `bun run android:dev`: run on the connected phone with live reload over USB.
 - `bun run android:build` then `bun run android:install`: build, install and launch a standalone debug APK.

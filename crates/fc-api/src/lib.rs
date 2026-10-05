@@ -9,6 +9,7 @@ mod debug;
 mod error;
 mod examples;
 mod notice;
+mod spike;
 
 pub use bindings::generate_bindings;
 pub use context::OpContext;
@@ -105,11 +106,14 @@ methods! {
     always: [
         examples::GetCoreInfo,
         examples::ExampleDivide,
+        spike::SpikeAddNote,
+        spike::SpikeListNotes,
     ],
     debug: [
         debug::DebugSlow,
         debug::DebugEchoBytes,
         debug::DebugEmitEvent,
+        debug::DebugPanic,
     ],
 }
 
@@ -143,6 +147,49 @@ mod tests {
             err.message,
             "Can't divide by zero. Enter a divisor other than 0."
         );
+    }
+
+    #[test]
+    fn spike_methods_need_an_open_collection() {
+        let err = call("spikeListNotes", Value::Null).unwrap_err();
+        assert_eq!(err.kind, ErrorKind::NotFound);
+        assert_eq!(err.message, "No collection is open.");
+        let err = call("spikeAddNote", json!({ "text": "hi" })).unwrap_err();
+        assert_eq!(err.kind, ErrorKind::NotFound);
+    }
+
+    #[test]
+    fn spike_notes_are_added_and_listed() {
+        let core = Core::new();
+        core.open_spike(":memory:").unwrap();
+        let ctx = OpContext::uncancellable();
+        let added = dispatch(&core, "spikeAddNote", json!({ "text": "one" }), &ctx).unwrap();
+        assert_eq!(added.output, json!({ "notes": ["one"] }));
+        dispatch(&core, "spikeAddNote", json!({ "text": "two" }), &ctx).unwrap();
+        let listed = dispatch(&core, "spikeListNotes", Value::Null, &ctx).unwrap();
+        assert_eq!(listed.output, json!({ "notes": ["one", "two"] }));
+    }
+
+    #[test]
+    fn spike_notes_must_be_between_1_and_1000_characters() {
+        let core = Core::new();
+        core.open_spike(":memory:").unwrap();
+        let ctx = OpContext::uncancellable();
+        for text in [String::new(), "x".repeat(1001)] {
+            let err = dispatch(&core, "spikeAddNote", json!({ "text": text }), &ctx).unwrap_err();
+            assert_eq!(err.kind, ErrorKind::InvalidInput);
+            assert_eq!(
+                err.message,
+                "A note must be between 1 and 1000 characters. Change the text and try again."
+            );
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic(expected = "debugPanic")]
+    fn debug_panic_panics() {
+        let _ = call("debugPanic", Value::Null);
     }
 
     #[test]

@@ -15,7 +15,10 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "typecheck": "tsc --build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "web:dev": "cargo xtask wasm && bun run --cwd apps/web dev",
+    "web:build": "cargo xtask wasm --release && bun run --cwd apps/web build",
+    "web:preview": "bun run --cwd apps/web preview"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
