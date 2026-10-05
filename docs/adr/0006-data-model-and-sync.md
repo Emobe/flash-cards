@@ -975,3 +975,77 @@ step 1.5 left open.
   to read the deck tree and count cards with many decks and 50,000 cards (the tree is rebuilt on every
   read, and counts group all live cards, which is likely fine; 1.14's large fake collection should
   measure it).
+
+## Build notes (step 1.6)
+
+Note tags, built to this ADR with no change to the decision. Section 3 lists "Note tag: (note, tag)
+present or absent". These are the choices step 1.6 left open, and Anthony approved the first one in
+the plan.
+
+- **A tag's identity is its name.** There is no tag entity and no tag ID. A tag exists while a live
+  note has it. The alternative, tag entities with IDs and a `parent` register like decks, would make
+  a rename one write that also reaches tags added on another device afterwards, but it needs a
+  read-time rule for two devices creating the same name and for renaming one of the two. It can be
+  added later, since section 10 allows new registers. The price of this choice: a tag added to a note
+  on another device after a rename, with the old name, keeps the old name (nothing is lost, and it can
+  be renamed again).
+- **Table (migration v6).** `note_tag` (`note`, `tag`, `present`), primary key `(note, tag)`, with the
+  guard triggers. `present` is `1` while the note has the tag and empty after it was removed, so
+  removing is a write and rows are never deleted. It is a `DynamicTable` with a new `text_key` flag: in
+  sync data the entity is `note_tag`, the entity ID is the note and the register name is the tag as
+  written. `WriteTx::set_text_value` is its write path, next to `set_value`, with the same rule that
+  writing the value a register already has writes nothing (so removing a tag a note lacks writes
+  nothing, and two devices changing different tags of one note both keep theirs). `knows_register`
+  treats every register name of `note_tag` as known when the database has the table.
+- **Names.** Trimmed, not empty, no whitespace, and no empty part around `::` (so `lang::` and
+  `a::::b` are refused, with a message that says how to fix it). The separator is the same `::` as
+  deck paths. Whitespace is refused so that a tag is one word in the CLI and in the search syntax 1.9
+  designs (Anthony to confirm). `lang::polish` is a child of `lang`, and a parent shows in the tree as
+  soon as a child exists, with no notes of its own if none has it directly.
+- **Case.** Tags are compared in lower case (full Unicode lower-casing, so `Żółć` is `żółć`) and stored
+  as written. Adding a tag spells each part the way the collection already spells it, so `POLISH`
+  becomes `polish` if that exists. A merge can still leave two spellings on one note. Read-time rule,
+  nothing written: each part of a name is shown as the smallest spelling of that part under the same
+  parent in any note (deleted ones included, so a restore changes nothing), a tag is on a note once,
+  and removing a tag removes every spelling. A test checks that the order things arrived in does not
+  change what is shown.
+- **Operations (`fc_core::tag`).**
+  - `add_tags`, `remove_tags` (over several notes at once; if any note is not live nothing changes)
+    and `set_note_tags` write only the pairs that change. Removing a tag does not remove the tags inside
+    it.
+  - `rename_tag(from, to)` renames the tag and everything inside it, so `lang` to `language` also
+    renames `lang::polish`, and leaves `language` and `lang2` alone (the match is on whole parts). It
+    can merge onto an existing tag, change only the case, or move a tag under another parent. It rewrites
+    notes in the trash too, so a restore does not bring the old name back. It writes only the pairs that
+    change. Refused with `NoSuchTag` if no live note has the tag.
+  - `delete_tag` takes a tag and what is inside it off every note (the trash too).
+  - Reads: `note_tags`, `tags` (the tree with counts of live notes, a parent before its children,
+    exact count and count with what is inside it) and `notes_with_tag(tag, include_children)`, which is
+    what a tag search in 1.9 will use. A note's tags are hidden from the counts while the note is in the
+    trash, and a tag whose note has not arrived yet is hidden (section 6).
+  - The tag readers load every present `(note, tag)` row and filter in Rust, because SQLite lower-cases
+    only ASCII. 1.9 may want an index of lower-cased names if search needs it.
+- **CLI.** `fc tags`, `fc tag`, `fc untag`, `fc rename-tag`, `fc add-note --tag` (checked before the
+  note is made), and `fc notes` shows each note's tags. Deleting a tag and bulk changes wait for 1.14.
+- **Timings** (Linux, release, a throwaway test with 50,000 notes inserted directly): adding two tags to
+  all 50,000 notes 1.9 s; renaming a parent tag on 50,000 notes 2.0 s; adding one tag to one note when
+  100,000 rows exist 64 ms (the scan above); `tags()` 77 ms; `notes_with_tag` 53 ms. Not kept as a
+  test (`fc-core` may not read the clock). The phone and the web will be slower, 1.14's fake collection
+  should measure it again.
+- **Verified.**
+  - Linux: 37 new core tests (289 in `fc-core` in all) and 2 new CLI tests (13 in all). They cover
+    add, remove and set, validation, all-or-nothing over several notes, case and Polish letters, the
+    spelling rule and its order independence, the tree and counts, trash and restore, a tag on a note
+    that has not arrived, search by tag with and without children, rename (a parent, a child, onto an
+    existing tag, case only, into its own subtree, whole-part matching, the trash, only changed pairs
+    written), delete, merging remote registers (different tags kept, the later write wins), a clock for
+    every register, raw SQL refused, the schema check, and an upgrade from a real version-5 layout.
+  - The CLI on a copy of the real desktop collection (it opened at storage version 6): nested tags,
+    a rename of a parent, tags shown in `fc notes`. That collection has no notes of its own.
+- **Not verified:** Windows, Firefox, Safari, the phone and a browser (the web API and the bridge have
+  no tag methods, so nothing in a UI or the wasm API changed), merging tags from two collections (step
+  1.11 writes the real merge, the tests here write remote registers with their clocks), timings on the
+  phone and the web.
+- **Left for later steps:** the `Tags` field in templates (1.4 left it for here, but nothing in the 1.6
+  brief needs it, so it waits for a step that renders cards in the UI), tag search syntax and `tag:` in
+  search (1.9), the CLI commands beyond these (1.14), a tags screen and bulk tagging (Phase 3).

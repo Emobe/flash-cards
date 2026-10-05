@@ -4,13 +4,15 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.6 Tags: in progress on `step/1.6-tags`. Plan approved by Anthony (tag identity is its name, option 1). Core done and tested (`fc_core::tag`, migration v6, `note_tag` text-keyed register table). CLI done (`fc tags`, `fc tag`, `fc untag`, `fc rename-tag`, `fc notes` shows tags, `fc add-note --tag`, 2 CLI tests). Remaining: a throwaway timing at 50,000 notes, ADR 0006 build notes, phase file status, `cargo xtask check`, final report. 1.5 was merged (PR #14).
+1.6 Tags: built, `cargo xtask check` passes, waiting for Anthony's review of the PR on `step/1.6-tags`. Next: 1.7 Study queues and answering (new session; check its Model line first, it may need an ADR first).
 
 ## Branch
 
 `step/1.6-tags` (from master after PR #14).
 
 ## Done
+
+- 1.6 Tags (ADR 0006 build notes, step 1.6). `fc_core::tag`, migration v6 (`note_tag`: note, tag text, present; a `DynamicTable` with a new `text_key` flag and `WriteTx::set_text_value`). A tag's identity is its name (matched ignoring case, stored as written), `::` makes a child. Add, remove, set, rename (a parent renames what is inside it, can merge onto an existing tag), delete; `tags` (tree with counts), `notes_with_tag(tag, include_children)` for search in 1.9. Read-time rules for two spellings after a merge. `fc tags`, `fc tag`, `fc untag`, `fc rename-tag`, `fc add-note --tag`, tags in `fc notes`. 37 more core tests (289 in `fc-core`), 2 more CLI tests (13). Verified on Linux (tests, CLI on a copy of the real desktop collection, v5 to v6, timings at 50,000 notes). Not run in a UI, a browser or the phone (nothing there changed).
 
 - 1.5 Decks and deck options (ADR 0006 build notes, step 1.5). `fc_core::deck`, migration v5 (`deck`, `options_preset`, a `deck` register on `card`, a Default deck and preset with fixed IDs). Decks nest through `parent`; cycles, missing parents, same names and "deleted but still referenced" are settled when reading; deleting a deck deletes its sub-decks, cards and notes left with no card, and restoring brings them back; editing a note does not bring back a card from a deleted deck. Presets with daily limits, learning steps and desired retention, shared by decks, deleting one sends its decks to the Default preset. `add_note_to_deck`, `move_cards`. `fc decks`, `fc add-deck`, `fc add-note --deck`. 48 more core tests (252 in `fc-core`), 2 more CLI tests. Verified on Linux (tests, CLI on a copy of the real desktop collection, v4 to v5). Not run in a UI, a browser or the phone (nothing there changed).
 
@@ -33,11 +35,18 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
+- Anthony: review and merge the 1.6 PR. The desktop app's collection will migrate from storage version 5 to 6 the next time it opens, and the phone's the next time the APK runs (no APK built or installed for 1.6). Please confirm the tag rules below.
+- Then 1.7: new session, `/step 1.7` (check its Model line, and whether it needs an ADR first).
+
 - Anthony: review and merge the 1.5 PR. The desktop app's collection will migrate from storage version 4 to 5 the next time it opens, and the phone's the next time the APK runs (no APK built or installed for 1.5). Please also confirm the placeholders: starting limits 20 new and 200 reviews a day, steps `1 10`, retention 0.90, and the rules below.
 - Then 1.6: new session, Sonnet, `/step 1.6`.
 
 ## Open items
 
+- 1.6 rules for Anthony to confirm: a tag's identity is its name (so a rename rewrites the notes that have it, and an old name added on another device later stays); a tag name cannot contain whitespace (a tag is one word in the CLI and in search), cannot be empty, and has no empty part around `::`; tags match ignoring case and a new tag takes the spelling already in use; deleting a note keeps its tags (hidden from counts and search until restored); a rename also rewrites notes in the trash.
+- 1.6 not verified: Windows, Firefox, Safari, the phone, a browser (no web API or UI change), merging tags from two collections (1.11), timings on the phone and the web. Timings on Linux (release, 50,000 notes): rename a parent tag on all of them 2.0 s, add a tag to one note 64 ms (loads every tag row), `tags()` 77 ms.
+- 1.6 leaves for later steps: the `Tags` field in templates, `tag:` in search (1.9, `notes_with_tag` is the core of it; it may want a lower-cased index), delete-tag and bulk commands in the CLI (1.14), tags screen and bulk tagging (Phase 3).
+- No new dependencies in 1.6.
 - 1.5 rules for Anthony to confirm: a deck name cannot contain `::`; the Default deck and Default preset cannot be deleted; deleting a deck also deletes a note left with no card; a deleted preset sends its decks to the Default preset.
 - 1.5 not verified: Windows, Firefox, Safari, the phone, a browser (no web API or UI change), merging decks from two collections (1.11), the time to read the deck tree with many decks and 50,000 cards.
 - 1.5 leaves for later steps: FSRS parameters and relearning steps registers on presets (1.7, 1.8); what the limits mean for nested decks in queues (1.7); `deck:` in search (1.9, paths use `::`); the `Deck` field in templates (1.4 left it for decks); a "merge decks" action and the decks screen (Phase 2, 3); the CLI commands that change decks and presets beyond `add-deck` (1.14).

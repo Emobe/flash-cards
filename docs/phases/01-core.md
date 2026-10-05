@@ -125,6 +125,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Add, remove, rename tags, including renaming a parent tag.
 - Tags are usable in search (1.9).
 
+**Status:** done (2026-10-06), pending Anthony's review. Built to ADR 0006 (build notes, step 1.6). `fc_core::tag`, migration v6 (`note_tag`, a text-keyed register table): a tag's identity is its name, matched ignoring case, `::` makes a child, add, remove, set, rename (a parent renames what is inside it) and delete, `tags` (tree with counts), `notes_with_tag` for 1.9. `fc tags`, `fc tag`, `fc untag`, `fc rename-tag`, `fc add-note --tag`. Not in any UI or the web API.
+
 ---
 
 ## 1.7 Study queues and answering
