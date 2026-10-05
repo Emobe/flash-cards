@@ -1,0 +1,1 @@
+Read docs/STATUS.md, docs/ROADMAP.md and the phase files in docs/phases/. Find the next step that is not marked done. Tell me: its number and title, whether it is an Opus design session (/adr) or a Sonnet build (/step) according to the Model line in the step, and the exact command to type. Also say whether I should start a fresh session. Do not start any work.

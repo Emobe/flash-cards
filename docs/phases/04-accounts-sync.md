@@ -21,6 +21,8 @@ Hosting, storage, TLS, monitoring and email must all have a zero-cost path (see 
 
 ## 4.1 Sync server foundation and self-host packaging
 
+**Model:** Sonnet build (/step)
+
 **Acceptance criteria:**
 - Server runs locally for development with one command.
 - Self-host package (for example a container image with compose file) runs on a fresh Linux VPS by following the docs.
@@ -29,6 +31,8 @@ Hosting, storage, TLS, monitoring and email must all have a zero-cost path (see 
 ---
 
 ## 4.2 Accounts
+
+**Model:** Opus design session (/adr), then Sonnet build (/step)
 
 **Notes:** Claude Code writes an ADR comparing auth approaches (for example email and password versus email magic links) for a small self-funded service that is also self-hostable. Anthony picks. Any email sending (verification, reset, magic links) must work at zero cost, or the design must work without email for now.
 
@@ -41,6 +45,8 @@ Hosting, storage, TLS, monitoring and email must all have a zero-cost path (see 
 
 ## 4.3 Sync of collection data
 
+**Model:** Opus design session (/adr), then Sonnet build (/step)
+
 **Acceptance criteria:**
 - Incremental sync between devices per the ADR.
 - First sync of a device with an existing collection merges rather than overwrites.
@@ -50,6 +56,8 @@ Hosting, storage, TLS, monitoring and email must all have a zero-cost path (see 
 
 ## 4.4 Media sync
 
+**Model:** Sonnet build (/step)
+
 **Acceptance criteria:**
 - Media syncs incrementally; unchanged files never re-upload.
 - Large media libraries sync without blocking study.
@@ -58,6 +66,8 @@ Hosting, storage, TLS, monitoring and email must all have a zero-cost path (see 
 ---
 
 ## 4.5 Sync edge case test suite
+
+**Model:** Opus design session (/adr), then Sonnet build (/step)
 
 **Acceptance criteria:**
 - Automated tests for: a device offline for weeks; the same card reviewed on two devices; edit on one device and delete on another; device clocks wrong by hours or days; two app versions syncing; schema migration with devices on old versions; interrupted sync; corrupted local data.
@@ -69,6 +79,8 @@ Hosting, storage, TLS, monitoring and email must all have a zero-cost path (see 
 
 ## 4.6 Sync UX
 
+**Model:** Sonnet build (/step)
+
 **Acceptance criteria:**
 - Status indicator on every platform (synced, syncing, offline, error).
 - Errors say exactly what happened and what to do.
@@ -78,6 +90,8 @@ Hosting, storage, TLS, monitoring and email must all have a zero-cost path (see 
 
 ## 4.7 Deploy the hosted instance
 
+**Model:** Sonnet build (/step)
+
 **Acceptance criteria:**
 - Running on a zero-cost host (own machine or a free tier) with TLS, automated backups of server data and media, restore tested.
 - Basic monitoring and alerting.
@@ -85,6 +99,8 @@ Hosting, storage, TLS, monitoring and email must all have a zero-cost path (see 
 ---
 
 ## 4.8 Account deletion and data export
+
+**Model:** Sonnet build (/step)
 
 **Acceptance criteria:**
 - User can export all their data and delete their account from the app.

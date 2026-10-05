@@ -13,6 +13,8 @@ Anthony can study, add cards and manage decks on desktop and phone. Every screen
 
 ## 2.1 App shell and design direction
 
+**Model:** Sonnet build (/step)
+
 **Goal:** navigation, theming and layout rules shared by every later screen.
 
 **Scope:** navigation structure for phone and desktop, light and dark themes, typography and spacing, responsive rules, basic accessibility (contrast, font scaling, screen reader labels). An ADR or short design doc for the visual direction.
@@ -32,6 +34,8 @@ Anthony can study, add cards and manage decks on desktop and phone. Every screen
 
 ## 2.2 Home and deck list
 
+**Model:** Sonnet build (/step)
+
 **Acceptance criteria:**
 - Deck tree with new, learning and review counts.
 - One tap or click to start studying a deck.
@@ -40,6 +44,8 @@ Anthony can study, add cards and manage decks on desktop and phone. Every screen
 ---
 
 ## 2.3 Review screen
+
+**Model:** Sonnet build (/step)
 
 **Acceptance criteria:**
 - Card renders in the sandbox, show answer, four rating buttons with next interval shown.
@@ -54,6 +60,8 @@ Anthony can study, add cards and manage decks on desktop and phone. Every screen
 
 ## 2.4 Add note
 
+**Model:** Sonnet build (/step)
+
 **Acceptance criteria:**
 - Pick deck and note type, fill fields, tags.
 - Attach images and audio from files on desktop, and camera, gallery and files on Android.
@@ -65,6 +73,8 @@ Anthony can study, add cards and manage decks on desktop and phone. Every screen
 
 ## 2.5 Deck management
 
+**Model:** Sonnet build (/step)
+
 **Acceptance criteria:**
 - Create, rename, nest and delete decks on both platforms.
 - Edit option presets with plain-language explanations of each setting.
@@ -73,6 +83,8 @@ Anthony can study, add cards and manage decks on desktop and phone. Every screen
 
 ## 2.6 Settings and local backups
 
+**Model:** Sonnet build (/step)
+
 **Acceptance criteria:**
 - Settings screen for app-level preferences.
 - Automatic local backups with restore from the UI.
@@ -80,6 +92,8 @@ Anthony can study, add cards and manage decks on desktop and phone. Every screen
 ---
 
 ## 2.7 Dogfood builds
+
+**Model:** Sonnet build (/step)
 
 **Acceptance criteria:**
 - Documented process to produce an Android APK (sideloaded, no Play Store) and unsigned Linux and Windows installers, all at zero cost.

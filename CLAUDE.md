@@ -27,3 +27,26 @@ See `README.md` for prerequisites.
 - `cargo xtask doctor-android`: check the Android setup (not part of `check`).
 - `bun run android:dev`: run on the connected phone with live reload over USB.
 - `bun run android:build` then `bun run android:install`: build, install and launch a standalone debug APK.
+
+## Stop conditions
+
+Work through a step without asking, except stop and ask if:
+
+- the step needs a design decision with no accepted ADR;
+- a requirement in `docs/` is unclear, contradictory or looks wrong;
+- something could cost money;
+- something needs a system-wide install, a change outside the repo, or editing shell config;
+- a tool does not work under Bun;
+- an acceptance criterion cannot be verified, or the plan needs to deviate.
+
+## Standing rules
+
+- `master` is the branch name.
+- There is no CI yet.
+- Pin exact versions of key tools.
+- Ask before adding dependencies that are not in the plan.
+- Never touch Anthony's phone beyond installing the app and taking screenshots. Never unlock it.
+
+## Usage
+
+Anthony is on a limited plan. Commit often, keep `docs/STATUS.md` current, and do not start research or experiments the step does not need.
