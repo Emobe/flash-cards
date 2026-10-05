@@ -4,7 +4,7 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-0.6 Sandboxed card rendering spike: ADR 0005 is Accepted. Build (Sonnet, `/step 0.6`) in progress from `docs/plans/0.6-card-sandbox.md`. 0.5 was reviewed and merged (PR #6).
+0.6 Sandboxed card rendering spike: built and verified, waiting for Anthony's review (PR not opened yet). Next: 0.7 Data model and sync strategy (Opus design session, `/adr 0.7`).
 
 ## Branch
 
@@ -12,6 +12,7 @@ Kept current by every session. A new session reads this first.
 
 ## Done
 
+- 0.6 Sandboxed card rendering (ADR 0005 accepted). Cards render in `<iframe sandbox="allow-scripts">` from a trusted `frame.html` with its own CSP (a `card` URI scheme on native, `/card-frame.html` on web), media as frame-local blob URLs. Every bridge command needs a session token from `handshake`. The 54-attempt malicious card: 0 SUCCEEDED on desktop, the phone and web, and a negative control on the phone (token check removed) did reach the core. Sample card (image, audio, JS) works on all three. Timings and limits are in ADR 0005 build notes.
 - Planning docs (`docs/`).
 - 0.1 Repository and workspace boilerplate. Verified on Manjaro only.
 - 0.2 Android build. Debug APK and USB live reload verified on the phone, workflow runs through Bun. Includes a 16 KB page alignment fix.
@@ -21,22 +22,17 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-Build commits, in order (tick as done):
-
-- [x] 1. STATUS: ADR 0005 Accepted.
-- [x] 2. Token gate, `handshake`, token on `call`/`subscribe`/`cancel`, Rust tests.
-- [x] 3. Tauri transport token handling, top-frame guard.
-- [x] 4. `frame.html`, `card` scheme, CSP, capabilities.
-- [x] 5. `CardFrame`, platform wiring, spike media.
-- [x] 6. Spike panel and malicious cards.
-- [ ] 7. Verification (desktop, phone, web), ADR build notes, ADR 0002 amendment, mark step done.
+- Anthony: review the branch `step/0.6-card-sandbox`, especially the token gate (`apps/native/src-tauri/src/gate.rs`), `frame.html` and the malicious card. Try to break it with your own card. Open the spike panel on the phone and in a desktop browser if you want.
+- Then open the PR (not done: ask or run `gh pr create`).
 
 ## Open items
 
 - Installed for the 0.4 experiment (per-user, approved): the `wasm32-unknown-unknown` target for toolchain 1.98.1 and `wasm-bindgen-cli` 0.2.129 in `~/.cargo/bin`. `~/.cargo/bin` is not on the PATH of Claude's shell, so call it by full path or add it to PATH (not done).
 - Web (0.4): verified only in headless Brave (Chromium) on Linux, built and run through Bun. Firefox, Safari, mobile browsers and Windows are unverified. Measurements are in ADR 0003 build notes.
 - Android: call path, progress, cancel, events and attachments verified (0.3a, 0.3b). Reload behaviour of the notice channel on the phone is not.
-- The phone may still have the APK with the temporary 0.3b check harness. Run `bun run android:build` then `bun run android:install` to replace it.
+- The phone has the 0.6 debug APK (real build, with the spike panel). It replaced the 0.3b harness build.
+- 0.6 not verified: Windows (Tauri may expose IPC to card frames there, the token covers it), Firefox, Safari, a main-frame reload on Android. Freeze recovery for looping cards is Phase 2 (a looping card freezes the app, checked on desktop).
+- Temporary code to delete: `CardSandboxSpike`, its cards file, `spikeCardMedia` and the sample media (1.10). Lasting: the gate, `handshake`, the `card` scheme, `frame.html`, `CardFrame`, `PlatformContext`.
 - Windows: desktop launch and `cargo xtask check` from step 0.1 are unverified and deferred to a manual check by Anthony.
 - Step 2.1 must handle edge-to-edge drawing and safe areas (status bar, navigation bar, cutout, keyboard) once in the app shell.
 - Design experiment for 0.6 shared the repo's `target/` dir, so `fc-native` was cleaned afterwards (`cargo clean -p fc-native`, host and Android). The next desktop and Android builds recompile more than usual.

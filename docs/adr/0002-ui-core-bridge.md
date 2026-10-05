@@ -211,7 +211,8 @@ transport. A `CoreError`'s `message` is what the user sees.
 
 ### Tauri host: `apps/native`
 
-- **Rust (`fc-native`):** three commands. `call` runs `fc_api::dispatch` on `spawn_blocking` and
+- **Rust (`fc-native`):** three commands (**amended by ADR 0005: a fourth, `handshake`, issues a
+  session token that `call`, `subscribe` and `cancel` must be given**). `call` runs `fc_api::dispatch` on `spawn_blocking` and
   returns a `tauri::ipc::Response` whose body is a small frame:
   `u32 little-endian JSON length | JSON output | attachment bytes`. `subscribe(Channel<Notice>)`
   registers the webview's notice channel, replacing any earlier one from the same webview (a reload).
@@ -242,7 +243,8 @@ yield between chunks. The core side (`checkpoint()`) is the same either way.
 - **Media for display.** Images and audio in cards and the editor load by URL, never as bytes
   through `call`. On native this is a custom URI scheme, on the web a Service Worker or blob URLs. The
   shape is decided in step 0.6 with the sandbox, as a `mediaUrl`-style function in a platform
-  interface.
+  interface. **Amended by ADR 0005 (step 0.6):** for card content this is reversed. Media bytes go
+  through `call` as attachments and into the card frame as `Blob`s.
 - **Large files on native.** Import and export on desktop and Android pass a file reference from a
   file picker (a path, or an Android content URI the host resolves), not bytes through JS. This keeps
   big files out of JS memory and avoids Android's slow JS-to-Rust path. Designed in the step that adds

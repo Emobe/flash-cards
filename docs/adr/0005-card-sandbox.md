@@ -320,3 +320,75 @@ previews, and in the editor. No card HTML is ever inserted into the app's own DO
 - Shared decks need remote images. Then allow specific hosts in `img-src` as a user setting, with
   the privacy cost stated.
 - Video in cards needs streaming rather than whole `Blob`s.
+
+## Build notes (step 0.6)
+
+What was built is what the Decision describes. Differences and results:
+
+- **Malicious card.** 54 attempts (bridge, parent and top, storage, network, prompts and
+  permissions), each reported inside the card as "blocked", "SUCCEEDED" or "other". Results:
+
+  | Platform | Blocked | SUCCEEDED | Other | CSP violations seen by the card |
+  | --- | --- | --- | --- | --- |
+  | Linux desktop, built debug app (WebKitGTK) | 38 | 0 | 16 | 38 |
+  | Android, Anthony's phone (debug APK) | 38 | 0 | 16 | 40 |
+  | Web, headless Brave, `web:dev` | 38 | 0 | 16 | 19 |
+  | Web, headless Brave, `web:build` + `web:preview` | 38 | 0 | 16 | 19 |
+
+  "Other" means the outcome is not visible from inside the card: the bridge on web and Linux ("no
+  bridge in frame", except `webkit.messageHandlers.ipc`, which exists on Linux and is dropped by Tauri
+  without the key, finding 3), or attempts the app checks from outside (`top.location`, a form or
+  link with `target="_top"`, `BroadcastChannel`, a huge `height` message, `alert`).
+- **The bridge on Android.** All seven `invoke` attempts and `window.ipc.postMessage` ran with no
+  error and no answer within 2.5 s. That confirms finding 2 on the phone: the frame has Tauri's
+  invoke. The panel's "A card reached the core" banner never appeared, and `getCoreInfo` still
+  answered afterwards. **Negative control:** a temporary build with the token check removed from
+  `call` (not committed) showed the banner on the phone, so the check does stop a real attack, and
+  the banner can fire. The real build was reinstalled afterwards.
+- **Two false "SUCCEEDED" results, fixed in the test card.** A frame fires `load` for its CSP error
+  page, and `sendBeacon` returns `true` when it only queues the request. The CSP blocked both
+  (console: "Framing ... violates ... default-src 'none'"). The card now waits for the matching
+  `securitypolicyviolation` event before it reports. Lesson for the Phase 1 tests: "no error" is not
+  "got through".
+- **Outside checks.** On every platform, after the malicious card: the app page was not reloaded
+  (same `performance.timeOrigin`), the core answered, the frame height was clamped (largest 10,000 px
+  after a card sent `1e9`), and no banner appeared. The `BroadcastChannel` from the card did not
+  reach the app.
+- **Navigating card.** Both variants (to the app's URL and to `https://example.com`) were removed
+  after the third `load` with the message, on desktop, Android and web. The top-frame guard was
+  checked on web: the app framed inside a frame rendered an empty `#root` and started no worker.
+  Native shares the same guard, but on native the app's `frame-src` CSP also refuses to frame the
+  app. Not exercised on its own on native.
+- **Page-load event.** On desktop (WebKitGTK) it fired for the `main` webview once per main-frame
+  load and never for the card frame, including when a card navigated its frame to the app (log
+  lines `[page-load] main Started/Finished`, debug builds only). A reload (dev live reload) was
+  followed by a new handshake and a working app and sample card. On Android the card frames loaded
+  without the token being lost (the post-card `getCoreInfo` succeeded), but the event log is not
+  visible there, and a main-frame reload was not exercised.
+- **Sample card.** Image (64x64 PNG), audio (0.5 s WAV from a frame-local blob URL, played to the
+  end) and JS (a number and a hint) all worked on Linux, Android and web, matching finding 9.
+- **Timing, mount to first `height`** (sample card, no frame reuse):
+
+  | Platform | Median | Notes |
+  | --- | --- | --- |
+  | Linux desktop | 24 ms | 10 runs |
+  | Android, phone | 48.5 ms | 12 runs (first 59 ms, last 36 ms) |
+  | Web, headless Brave | 21 to 22 ms | 10 runs each on dev and the production build |
+
+  Creating a frame per card is fast enough on all three. No reason to reuse frames yet.
+- **Infinite loop.** `<script>while(true){}</script>` froze the whole app on desktop (the web
+  process at 100% CPU, the Clear button did nothing) and the card was never removed. This is the
+  known limit above. It was a one-off manual check with a temporary button, not left in the code.
+  Freeze recovery stays Phase 2 work.
+- **`debugEmitEvent` is debug-only.** The panel's banner and the card's `call` attempt can only
+  show a breach in debug builds (the web production build answers `unknownMethod`). The Android
+  check above used the debug APK, as does the negative control.
+- **`CardFrame` reset.** A new `html` or media list creates a new frame. The same card shown twice in a
+  row keeps its frame, so the future study screen must give each card side a distinct `html` or a
+  key if two identical sides can follow each other.
+- **Dependencies.** `getrandom` 0.3 was already in the lockfile through Tauri. It is now a direct
+  dependency of `fc-native` for the 128-bit token. Nothing else was added.
+- **Not verified:** Windows (finding 4), Firefox, Safari and mobile browsers, `Content-Security-Policy:
+  sandbox` on the `card` response is set but only checked by the unit test (the iframe `sandbox`
+  attribute is what was tested), a main-frame reload on Android, and the real keyboard shortcut
+  and focus behaviour inside a card (Phase 2).
