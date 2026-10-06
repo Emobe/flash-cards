@@ -29,7 +29,7 @@ Design and reasons: `adr/0009-core-events.md`. Rust: `fc_core::events`. Wire for
 | `answerUndone` | an answer is taken back | `card`, `event` (the review now voided) |
 | `studySessionStarted` | a study session starts | `session`, `deck` (`null` for the whole collection) |
 | `studySessionEnded` | a study session ends | `session`, `deck`, `reason` (`ended`, `replaced`, `closed`), `summary` |
-| `mergeApplied` | a merge changed anything | `registersApplied`, `rowsAdded`, `unknownKept`, `notesReconciled`, `cardsRebuilt`, `rejected` |
+| `mergeApplied` | a merge, or a restore or import of a backup file (1.13), changed anything | `registersApplied`, `rowsAdded`, `unknownKept`, `notesReconciled`, `cardsRebuilt`, `rejected` |
 | `syncCompleted` | **a stub**: nothing sends it until Phase 4 | none yet |
 | `debug` | the debug-only `debugEmitEvent` method (debug builds) | `message` |
 
@@ -42,7 +42,7 @@ started that are not undone, whatever their deck.
 - A write that fails or rolls back.
 - A no-op: deleting a deleted note, restoring a live one, an edit that changes no field and adds or
   removes no card, a merge that applies and keeps nothing, ending a session that is not open.
-- A merge sends one `mergeApplied`, not an event per note.
+- A merge, a restore or an import sends one `mergeApplied`, not an event per note. `registersApplied` of a restore counts what it moved to the trash too.
 
 ### What has no event yet
 

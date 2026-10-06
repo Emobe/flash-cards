@@ -883,3 +883,96 @@ fn a_field_and_a_template_added_after_the_backup_are_removed_by_a_restore() {
         "the extra card went with its template"
     );
 }
+
+/// Timings for the notes in `docs`: `cargo test --release -p fc-core --lib backup::tests::timing --
+/// --ignored --nocapture`.
+#[test]
+#[ignore = "a measurement, not a check"]
+fn timing_of_a_large_collection() {
+    use std::time::Instant;
+    let (a, _) = pair();
+    let (f, b) = crate::sync::merge_tests::basic_fields(&a.c);
+    let started = Instant::now();
+    let mut cards = Vec::new();
+    for n in 0..20_000 {
+        let front =
+            format!("front {n} <b>with</b> some html and words to make it a realistic size");
+        let added =
+            a.c.add_note(
+                builtin_basic(),
+                &[(f, front.as_str()), (b, "back text of the note")],
+            )
+            .unwrap();
+        cards.push(added.cards[0]);
+    }
+    for card in cards.iter().take(10_000) {
+        a.clock.advance(MINUTE);
+        a.c.answer(*card, Rating::Good, 3_000).unwrap();
+        a.clock.advance(MINUTE);
+        a.c.answer(*card, Rating::Good, 3_000).unwrap();
+    }
+    for n in 0..200 {
+        a.c.add_media(
+            "pic.png",
+            format!("media bytes {n}").repeat(2_000).as_bytes(),
+        )
+        .unwrap();
+    }
+    println!("built in {:?}", started.elapsed());
+
+    let started = Instant::now();
+    let (bytes, summary) = export(&a.c, &whole());
+    println!(
+        "export {:?}: {} registers, {} rows, {} media files, {} bytes",
+        started.elapsed(),
+        summary.manifest.registers,
+        summary.manifest.rows,
+        summary.manifest.media_files,
+        bytes.len()
+    );
+    let started = Instant::now();
+    let fresh = Dev::new(2, START);
+    let report = restore(&fresh.c, &bytes);
+    println!("restore into empty {:?}: {report:?}", started.elapsed());
+    let started = Instant::now();
+    let report = restore(&a.c, &bytes);
+    println!(
+        "restore of the same state {:?}: {report:?}",
+        started.elapsed()
+    );
+}
+
+// ---- Events ----
+
+#[test]
+fn a_restore_sends_one_merge_event_even_when_it_only_trashes_things() {
+    use crate::events::Event;
+    use crate::events::tests::Recorder;
+    let (a, _) = pair();
+    let (bytes, _) = export(&a.c, &whole());
+    add(&a.c, "later", "l");
+    a.clock.advance(MINUTE);
+    let rec = Recorder::attach(&a.c);
+    let report = restore(&a.c, &bytes);
+    assert!(report.removed > 0);
+    assert_eq!(report.registers_written, 0);
+    let batch = rec.one();
+    assert!(
+        matches!(batch.as_slice(), [Event::MergeApplied { registers_applied, .. }] if *registers_applied as usize == report.removed),
+        "{batch:?}"
+    );
+
+    // Nothing to do, nothing sent.
+    let rec = Recorder::attach(&a.c);
+    restore(&a.c, &bytes);
+    assert!(rec.take().is_empty());
+}
+
+#[test]
+fn a_refused_file_sends_no_event() {
+    use crate::events::tests::Recorder;
+    let (a, _) = pair();
+    let rec = Recorder::attach(&a.c);
+    assert!(a.c.restore_backup(Cursor::new(b"nope".as_slice())).is_err());
+    assert!(rec.take().is_empty());
+}

@@ -179,7 +179,7 @@ impl Collection {
         let report = applied.report;
         Ok(RestoreReport {
             manifest,
-            registers_written: report.registers_applied,
+            registers_written: report.registers_applied - applied.trashed,
             registers_unchanged: report.registers_ignored,
             rows_added: report.rows_added,
             unknown_kept: report.unknown_registers + report.unknown_rows,

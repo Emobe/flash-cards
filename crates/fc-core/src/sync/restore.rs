@@ -29,6 +29,7 @@ pub(crate) enum FileMode {
 /// What applying a file did.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Applied {
+    /// `registers_applied` includes what went to the trash.
     pub report: MergeReport,
     /// Things that were not in the backup and went to the trash (a restore only).
     pub trashed: usize,
@@ -62,6 +63,8 @@ impl Collection {
                 FileMode::Restore => trash_what_is_not_in(w, &targets, changes, &mut touched)?,
                 FileMode::Import => 0,
             };
+            // A restore that only trashes things is still a change, and the event says so.
+            report.registers_applied += trashed;
             let extra = extra(w)?;
             self.finish_batch(w, &touched, &mut report)?;
             Ok(Applied {
