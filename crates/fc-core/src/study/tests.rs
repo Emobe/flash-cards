@@ -434,7 +434,7 @@ fn a_version_6_collection_upgrades_and_keeps_its_presets() {
     old.close().unwrap();
 
     let upgraded = Collection::open(location, host(&clock)).unwrap();
-    assert_eq!(upgraded.info().unwrap().schema_version, 7);
+    assert_eq!(upgraded.info().unwrap().schema_version, 8);
     check_schema(&upgraded.conn, SYNCED_TABLES).unwrap();
     let kept = upgraded.preset(mine).unwrap().unwrap();
     assert_eq!(kept.new_per_day, 7);

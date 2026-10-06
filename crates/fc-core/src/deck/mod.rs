@@ -35,14 +35,21 @@ use crate::sync::{SyncedTable, seed_row};
 
 pub use error::DeckError;
 pub use preset::PresetChange;
-pub(crate) use read::{card_deck, dead_decks};
+pub(crate) use preset::presets_by_id;
+pub(crate) use read::{Tree, card_deck, dead_decks};
 
 /// The sync entity types and register names are part of the sync format and never change (ADR 0006,
 /// section 10). `parent` and `options_preset` are an ID, or empty for none.
 pub const DECK: SyncedTable = SyncedTable {
     entity: "deck",
     table: "deck",
-    registers: &["name", "parent", "options_preset", "deleted"],
+    registers: &[
+        "name",
+        "parent",
+        "options_preset",
+        "limits_include_subdecks",
+        "deleted",
+    ],
 };
 
 pub const PRESET: SyncedTable = SyncedTable {
@@ -56,6 +63,7 @@ pub const PRESET: SyncedTable = SyncedTable {
         "desired_retention",
         "relearning_steps",
         "fsrs_parameters",
+        "space_siblings",
         "deleted",
     ],
 };
@@ -135,6 +143,8 @@ pub struct Deck {
     pub depth: usize,
     /// The options preset it uses: its own, or the Default preset if that is gone.
     pub preset: Id,
+    /// Whether this deck's daily limits count the cards in its sub-decks too (ADR 0007, part 3).
+    pub limits_include_subdecks: bool,
     /// Live cards directly in this deck (not in its sub-decks).
     pub cards: usize,
     pub deleted: bool,
@@ -156,6 +166,9 @@ pub struct Preset {
     /// The FSRS parameters, 21 numbers, or empty for the defaults. Written by the optimiser (1.8).
     /// A stored value that is not a valid set reads as empty, so reading never fails.
     pub fsrs_parameters: Vec<f32>,
+    /// Whether a new or review card is held back until tomorrow when another card of its note was
+    /// answered today (ADR 0007, part 4).
+    pub space_siblings: bool,
     /// Live decks that use it.
     pub decks: usize,
     pub deleted: bool,

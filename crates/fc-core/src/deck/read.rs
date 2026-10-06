@@ -28,7 +28,7 @@ pub(crate) fn card_deck(bytes: &[u8]) -> Id {
 
 /// One deck after the read-time rules.
 #[derive(Debug, Clone)]
-pub(super) struct Row {
+pub(crate) struct Row {
     pub id: Id,
     pub name: String,
     pub display_name: String,
@@ -37,6 +37,7 @@ pub(super) struct Row {
     pub parent: Option<Id>,
     pub depth: usize,
     pub preset: Id,
+    pub limits_include_subdecks: bool,
     pub cards: usize,
     /// What the deck's own `deleted` register says.
     pub register_deleted: bool,
@@ -55,6 +56,7 @@ impl Row {
             parent: self.parent,
             depth: self.depth,
             preset: self.preset,
+            limits_include_subdecks: self.limits_include_subdecks,
             cards: self.cards,
             deleted: self.deleted,
         }
@@ -63,7 +65,7 @@ impl Row {
 
 /// Every deck, in tree order: a deck comes right before its sub-decks, and decks next to each other
 /// are ordered by name (ignoring case) and then ID.
-pub(super) struct Tree {
+pub(crate) struct Tree {
     pub rows: Vec<Row>,
     index: HashMap<Id, usize>,
 }
@@ -73,6 +75,7 @@ struct Raw {
     name: String,
     parent: Option<Id>,
     preset: Option<Id>,
+    limits_include_subdecks: bool,
     deleted: bool,
     /// The clock of the `parent` register, which decides which move of a cycle is ignored.
     parent_clock: (i64, Id),
@@ -164,6 +167,7 @@ impl Tree {
                     .preset
                     .filter(|p| usable.contains(p))
                     .unwrap_or_else(default_preset),
+                limits_include_subdecks: r.limits_include_subdecks,
                 cards: counts.get(&r.id).copied().unwrap_or(0),
                 register_deleted: r.deleted,
                 deleted: !alive[i],
@@ -171,6 +175,11 @@ impl Tree {
         }
         let index = rows.iter().enumerate().map(|(i, r)| (r.id, i)).collect();
         Ok(Self { rows, index })
+    }
+
+    /// Where a deck is in `rows`, which is tree order.
+    pub fn position(&self, id: Id) -> Option<usize> {
+        self.index.get(&id).copied()
     }
 
     pub fn get(&self, id: Id) -> Option<&Row> {
@@ -220,7 +229,8 @@ impl Tree {
 
 fn load_raw(conn: &Connection) -> rusqlite::Result<Vec<Raw>> {
     let mut statement = conn.prepare(
-        "SELECT d.id, d.name, d.parent, d.options_preset, d.deleted, rc.hlc, rc.device
+        "SELECT d.id, d.name, d.parent, d.options_preset, d.deleted, rc.hlc, rc.device,
+                d.limits_include_subdecks
          FROM deck d
          LEFT JOIN register_clock rc ON rc.entity_type = 'deck' AND rc.entity_id = d.id
                                     AND rc.field = 'parent'
@@ -233,6 +243,7 @@ fn load_raw(conn: &Connection) -> rusqlite::Result<Vec<Raw>> {
                 name: row.get(1)?,
                 parent: optional_id(&row.get::<_, Vec<u8>>(2)?),
                 preset: optional_id(&row.get::<_, Vec<u8>>(3)?),
+                limits_include_subdecks: row.get::<_, i64>(7)? != 0,
                 deleted: row.get::<_, i64>(4)? != 0,
                 parent_clock: (
                     row.get::<_, Option<i64>>(5)?.unwrap_or(0),

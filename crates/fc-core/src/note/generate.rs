@@ -171,6 +171,8 @@ pub(super) fn reconcile(
                         ("template", blob(template)),
                         ("ordinal", Value::Integer(i64::from(ordinal))),
                         ("deck", blob(new_deck)),
+                        ("suspended", flag(false)),
+                        ("buried_until", Value::Integer(0)),
                         ("deleted", flag(false)),
                     ],
                 )?;

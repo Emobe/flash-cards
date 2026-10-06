@@ -49,7 +49,15 @@ pub const NOTE_VALUE: DynamicTable = DynamicTable {
 pub const CARD: SyncedTable = SyncedTable {
     entity: "card",
     table: "card",
-    registers: &["note", "template", "ordinal", "deck", "deleted"],
+    registers: &[
+        "note",
+        "template",
+        "ordinal",
+        "deck",
+        "suspended",
+        "buried_until",
+        "deleted",
+    ],
 };
 
 /// A note with its values for the live fields of its note type, in field order. A field with no

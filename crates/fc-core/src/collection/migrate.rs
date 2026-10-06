@@ -56,6 +56,10 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         version: 7,
         apply: v7,
     },
+    Migration {
+        version: 8,
+        apply: v8,
+    },
 ];
 
 /// The newest version in `migrations`.
@@ -401,6 +405,40 @@ fn v7(tx: &Transaction) -> rusqlite::Result<()> {
                 table: name,
                 columns: &[],
             },
+        )?;
+    }
+    Ok(())
+}
+
+/// Version 8 (step 1.7b): queues. See `crate::study::queue`.
+///
+/// New registers, all with column defaults, so no existing row is rewritten: `card.suspended` and
+/// `card.buried_until` (a study day, 0 for none), `deck.limits_include_subdecks` (on) and
+/// `options_preset.space_siblings` (on). The seeded Default deck and preset get the lowest clock for
+/// the new registers, as `seed_row` gives the rest of them.
+fn v8(tx: &Transaction) -> rusqlite::Result<()> {
+    tx.execute_batch(
+        "ALTER TABLE card ADD COLUMN suspended INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE card ADD COLUMN buried_until INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE deck ADD COLUMN limits_include_subdecks INTEGER NOT NULL DEFAULT 1;
+        ALTER TABLE options_preset ADD COLUMN space_siblings INTEGER NOT NULL DEFAULT 1;",
+    )?;
+    for (entity, id, field) in [
+        (
+            "deck",
+            crate::deck::default_deck(),
+            "limits_include_subdecks",
+        ),
+        (
+            "options_preset",
+            crate::deck::default_preset(),
+            "space_siblings",
+        ),
+    ] {
+        tx.execute(
+            "INSERT INTO register_clock (entity_type, entity_id, field, hlc, device, pushed)
+             VALUES (?1, ?2, ?3, 0, ?4, 1)",
+            rusqlite::params![entity, id, field, crate::id::Id::from_bytes([0; 16])],
         )?;
     }
     Ok(())

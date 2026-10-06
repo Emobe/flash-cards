@@ -633,11 +633,23 @@ fn a_version_5_collection_upgrades_and_keeps_its_notes() {
             )
             .is_err()
     );
-    let n = note(&old, "kept");
+    // A note as step 1.5 wrote it. (The note API reads columns that came later, so it cannot run on
+    // this old layout.)
+    let n = Id::from_bytes([9; 16]);
+    old.conn
+        .execute("INSERT INTO write_guard (id) VALUES (1)", [])
+        .unwrap();
+    old.conn
+        .execute(
+            "INSERT INTO note (id, note_type, deleted) VALUES (?1, ?2, 0)",
+            rusqlite::params![n, crate::notetype::builtin::basic()],
+        )
+        .unwrap();
+    old.conn.execute("DELETE FROM write_guard", []).unwrap();
     old.close().unwrap();
 
     let upgraded = Collection::open(location, host(&clock)).unwrap();
-    assert_eq!(upgraded.info().unwrap().schema_version, 7);
+    assert_eq!(upgraded.info().unwrap().schema_version, 8);
     check_schema(&upgraded.conn, SYNCED_TABLES).unwrap();
     assert!(upgraded.note(n).unwrap().is_some());
     assert!(upgraded.note_tags(n).unwrap().is_empty());

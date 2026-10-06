@@ -61,6 +61,10 @@ impl Id {
     /// uses the browser's `crypto` on the web).
     pub fn generate(unix_ms: i64) -> Result<Self, NoRandomness> {
         let mut random = [0u8; 10];
+        #[cfg(test)]
+        if seeded::fill(&mut random) {
+            return Ok(Self::new_v7(unix_ms, &random));
+        }
         getrandom::fill(&mut random).map_err(|e| NoRandomness(e.to_string()))?;
         Ok(Self::new_v7(unix_ms, &random))
     }
@@ -189,5 +193,41 @@ mod tests {
         assert_eq!(length, 16);
         let bad = conn.query_row("SELECT x'0102'", [], |r| r.get::<_, Id>(0));
         assert!(bad.is_err());
+    }
+}
+
+/// Tests that pin exact results (the multi-day queue simulation) need the same IDs on every run,
+/// because the fuzz is chosen from an event's ID. `seed` makes `Id::generate` on the calling thread
+/// draw its random bits from a fixed sequence instead of the system. Only tests have this.
+#[cfg(test)]
+pub(crate) mod seeded {
+    use std::cell::Cell;
+
+    thread_local! {
+        static STATE: Cell<Option<u64>> = const { Cell::new(None) };
+    }
+
+    pub(crate) fn seed(value: u64) {
+        STATE.with(|state| state.set(Some(value)));
+    }
+
+    /// Fills `bytes` from the sequence (SplitMix64) and returns true, or returns false if this
+    /// thread is not seeded.
+    pub(super) fn fill(bytes: &mut [u8; 10]) -> bool {
+        STATE.with(|state| {
+            let Some(mut x) = state.get() else {
+                return false;
+            };
+            for chunk in bytes.chunks_mut(8) {
+                x = x.wrapping_add(0x9E37_79B9_7F4A_7C15);
+                let mut z = x;
+                z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+                z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+                z ^= z >> 31;
+                chunk.copy_from_slice(&z.to_le_bytes()[..chunk.len()]);
+            }
+            state.set(Some(x));
+            true
+        })
     }
 }

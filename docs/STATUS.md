@@ -4,11 +4,11 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.7a Answering and the schedule: built on `step/1.7a-answering` (6 commits plus this docs one), `cargo xtask check` passes, waiting for Anthony's review (ADR 0007 build notes, step 1.7a, lists the deviations). Next: merge it, then a new Sonnet session runs `/step 1.7b` (queues, limits, suspend and bury, the simulated multi-day test; plan in `docs/plans/1.7-study-queues.md`).
+1.7b Queues (ADR 0007 parts 3, 4, 5, 11; plan in `docs/plans/1.7-study-queues.md`), in progress on `step/1.7b-queues`. Plan approved. Done so far: migration v8 (registers `suspended`, `buried_until`, `limits_include_subdecks`, `space_siblings`), suspend and bury operations, `study::queue` (counts, `next_card`, limits, siblings, spreading). Still to do: tests for all of it, the 30-day simulation, `fc due`, `fc next`, `fc suspend`, `fc unsuspend`, `fc bury`, `fc unbury`, ADR 0007 build notes, phase status. 1.7a is merged (PR #18).
 
 ## Branch
 
-`step/1.7a-answering` (from master after PR #16). Not pushed.
+`step/1.7b-queues` (from master after PR #18). Not pushed.
 
 ## Done
 
@@ -39,8 +39,7 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review and merge `step/1.7a-answering`.
-- Then a new session with Sonnet: `/step 1.7b`.
+- 1.7b: see "Current step".
 
 ## Open items
 
