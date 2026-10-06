@@ -4,11 +4,11 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.10b Media in the card frame (a Sonnet build): built on `step/1.10b-media-frame`, `cargo xtask check` passes, waiting for Anthony's close review (it changes the trusted `frame.html`). ADR 0005 build notes, step 1.10b, list the results and the deviations. 1.10 was reviewed and merged (PR #22).
+1.11 Change tracking for sync (an Opus design session): ADR 0008 (Proposed) and `docs/plans/1.11-merge.md` are written, waiting for Anthony's review. Nothing is built. 1.10b was reviewed and merged (PR #23).
 
 ## Branch
 
-`step/1.10b-media-frame` (from master after PR #22). Not pushed.
+`step/1.11-merge` (from master after PR #23). Not pushed.
 
 ## Done
 
@@ -49,10 +49,19 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review and merge `step/1.10b-media-frame` (close review of `frame.html`).
-- Next: see `docs/ROADMAP.md` (1.11 change tracking for sync is an Opus design session, `/adr 1.11`).
+- Anthony: review ADR 0008 and answer its four questions:
+  1. the new superseded-values rule;
+  2. two PRs;
+  3. purge and per-entity `requires` designed but built later;
+  4. rejected values dropped and reported.
+- Then: on acceptance, add a pointer in ADR 0006 section 3 to ADR 0008 part 7, and build 1.11a (`/step 1.11a`), then 1.11b.
 
 ## Open items
+
+- **ADR 0006 looks wrong in one place.** Its rule for the superseded-values log ("a local value that was never pushed") misses about half the values lost to concurrent edits under its own sync protocol. This is ADR 0008 finding 1, from a simulation. ADR 0008 part 7 proposes the fix.
+- **Per-entity `requires`** (ADR 0006 section 10) must ship in the first app version that syncs: before step 4.3 is released, not when a feature first writes it (ADR 0008 part 9).
+- **Purge ("Empty trash")** is designed in ADR 0008 part 8. It is built with the first trash screen, and no step builds one yet.
+- There is a git stash on master (`WIP on master: 0364c87`) that this session did not make. It was left alone.
 
 - 1.10b deviations from the plan are listed under "Deviations from the plan" in the ADR 0005 build notes, step 1.10b.
 - 1.10b choices for Anthony to confirm: scripts get `fcMedia.url(name)` and cannot read the bytes (no `fetch` of a blob); only names the core lists are supplied (note type CSS and `src`/`[sound:]`), so a name only in a field's `style=""` or in script text is not given.
