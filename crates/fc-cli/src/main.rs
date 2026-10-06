@@ -2,6 +2,7 @@
 //! terminal before any UI exists. Step 1.14 grows it into the full tool.
 
 mod host;
+mod media;
 mod search;
 mod stats;
 mod study;
@@ -32,6 +33,16 @@ Usage:
                    Rename a tag on every note, together with the tags inside it
   fc render <file> <note ID>
                    Print the front and back HTML of each card of a note, and its media
+  fc add-media <file> <path>
+                   Add an image or sound file and print the name to use in a field. The same bytes
+                   are stored once
+  fc media <file>  List the media files, whether notes use them, and the names they use
+  fc media-get <file> <name> <path>
+                   Write a media file's bytes to <path>
+  fc media-check <file>
+                   List media nothing uses, names with no file, and files whose bytes are not here
+  fc delete-unused-media <file>
+                   Delete the media files nothing uses
   fc answer <file> <card ID> <again|hard|good|easy>
                    Answer a card and print when it is due next
   fc undo <file>   Take back the last answer made on this device
@@ -595,6 +606,11 @@ fn run(args: &[String]) -> Result<String, Failure> {
             collection.close()?;
             Ok(text.trim_end().to_owned())
         }
+        [command, file, path] if command == "add-media" => media::add(file, path),
+        [command, file] if command == "media" => media::list(file),
+        [command, file, name, out] if command == "media-get" => media::get(file, name, out),
+        [command, file] if command == "media-check" => media::check(file),
+        [command, file] if command == "delete-unused-media" => media::delete_unused(file),
         [command, file, card, answer] if command == "answer" => study::answer(file, card, answer),
         [command, file] if command == "undo" => study::undo(file),
         [command, file, card] if command == "history" => stats::history(file, card),
