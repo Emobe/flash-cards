@@ -239,6 +239,16 @@ the session.
   hear about those must wait for the variant.
 - **No new dependencies, no migration.**
 
+## Decisions on review
+
+Anthony, 2026-10-06.
+
+1. **Study sessions: S1, built in 1.12.** One session held in memory per open collection, with the
+   summary counted from `card_event`.
+2. **The core `Event` is not `#[non_exhaustive]`**, a change from the handoff's starting point, for
+   the reason in part 2.
+3. **The debug methods stay** until the first real long method (part 4).
+
 ## Revisit if
 
 - **A listener needs to call the core**, or a slow listener visibly stalls calls. Then deliver
