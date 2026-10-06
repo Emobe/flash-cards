@@ -9,6 +9,7 @@ use super::fold::{ParameterSets, rebuild_card};
 use super::schedule::{CardSchedule, read_cached};
 use super::{CARD_EVENT, StudyError};
 use crate::collection::Collection;
+use crate::events::Event;
 use crate::id::Id;
 use crate::scheduling::{Rating, study_day};
 use crate::sync::state;
@@ -87,6 +88,10 @@ impl Collection {
         self.write(|w| {
             w.insert_row(CARD_EVENT.entity, id, void.values())?;
             rebuild_card(w.local(), card, &sets)?;
+            w.emit(Event::AnswerUndone {
+                card,
+                event: target.id,
+            });
             Ok(())
         })?;
         Ok(Some(Undone {

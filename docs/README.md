@@ -9,6 +9,7 @@ Planning documents for the app (name TBD, referred to as "the app" and `<APP_NAM
 | `PROCESS.md` | How work moves between Anthony, the planning chat and Claude Code. Step format, ADRs, definition of done. |
 | `phases/` | One file per phase, broken into PR-sized steps. Detailed only up to the current horizon. |
 | `adr/` | Architecture Decision Records. Written by Claude Code, reviewed and accepted by Anthony. |
+| `events.md` | The public events surface: each event, when it fires, listener rules and the stability promise. |
 | `plans/` | Implementation plans from design sessions, one per step, for the build session. |
 
 Division of responsibility:

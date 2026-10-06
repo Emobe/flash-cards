@@ -200,4 +200,44 @@ mod tests {
         hub.send_at(&event("x"), Instant::now());
         assert!(hub.subscribers.lock().unwrap().is_empty());
     }
+
+    #[test]
+    fn a_forwarded_core_event_reaches_the_subscriber() {
+        use fc_api::{Clock, Core, Host, Id, Reading, forward_events};
+
+        #[derive(Debug)]
+        struct Fixed;
+        impl Clock for Fixed {
+            fn now(&self) -> Reading {
+                Reading {
+                    unix_ms: 1_700_000_000_000,
+                    utc_offset_minutes: 0,
+                }
+            }
+        }
+
+        let core = Core::new();
+        let hub = Arc::new(NoticeHub::default());
+        let rec = Recorder::default();
+        hub.subscribe("main", rec.clone());
+        forward_events(&core, hub.clone());
+        let host = Host {
+            clock: Arc::new(Fixed),
+            installation_id: Id::from_bytes([5; 16]),
+        };
+        core.open_collection(":memory:", host).unwrap();
+        // A study session starts with no API call in progress, so only the forwarder can deliver it.
+        core.with_collection(|c| c.start_study_session(None).unwrap())
+            .unwrap();
+        let seen = rec.0.lock().unwrap().clone();
+        assert!(
+            matches!(
+                seen.as_slice(),
+                [Notice::Event {
+                    event: CoreEvent::StudySessionStarted { deck: None, .. }
+                }]
+            ),
+            "{seen:?}"
+        );
+    }
 }

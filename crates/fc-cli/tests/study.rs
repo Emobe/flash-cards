@@ -201,7 +201,7 @@ fn explains_what_went_wrong() {
         "6d13136c-b899-571c-abde-7d442cf14223",
         "good",
     ]);
-    assert!(err(&missing).contains("That card no longer exists."));
+    assert!(err(&missing).contains("That card or deck no longer exists."));
     let wrong = fc(&["info", file.path(), "--now", "yesterday"]);
     assert_eq!(wrong.status.code(), Some(2));
     assert!(err(&wrong).contains("\"yesterday\" is not a time"));

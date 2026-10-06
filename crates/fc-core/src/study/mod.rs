@@ -19,6 +19,9 @@ mod queue;
 #[cfg(test)]
 mod queue_tests;
 mod schedule;
+mod session;
+#[cfg(test)]
+mod session_tests;
 mod settings;
 #[cfg(test)]
 mod simulation_tests;
@@ -37,6 +40,8 @@ pub use error::StudyError;
 pub use event::{CardEvent, EventKind};
 pub use queue::{Counts, DeckCounts, LEARN_AHEAD_MS, Next};
 pub use schedule::CardSchedule;
+pub(crate) use session::OpenSession;
+pub use session::{EndReason, SessionSummary};
 pub use undo::Undone;
 
 pub(crate) use fold::{ParameterSets, check_cache, rebuild_card};

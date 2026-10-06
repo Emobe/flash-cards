@@ -16,6 +16,7 @@ use super::write::read_clock;
 use super::{APPEND_ONLY_TABLES, DYNAMIC_TABLES, SyncedTable, WriteTx};
 use crate::collection::{Collection, CollectionError, Schema};
 use crate::deck::dead_decks;
+use crate::events::{Event, count};
 use crate::id::Id;
 use crate::study::{CARD_EVENT, PARAMETER_SET, ParameterSets, rebuild_card};
 
@@ -480,6 +481,17 @@ impl Collection {
             }
             self.reconcile_after_merge(w, &touched, &mut report)?;
             self.rebuild_after_merge(w, &touched, &mut report)?;
+            let kept = report.unknown_registers + report.unknown_rows;
+            if report.registers_applied + report.rows_added + kept > 0 {
+                w.emit(Event::MergeApplied {
+                    registers_applied: count(report.registers_applied),
+                    rows_added: count(report.rows_added),
+                    unknown_kept: count(kept),
+                    notes_reconciled: count(report.notes_reconciled),
+                    cards_rebuilt: count(report.cards_rebuilt),
+                    rejected: count(report.rejected.len()),
+                });
+            }
             Ok(report)
         })
     }

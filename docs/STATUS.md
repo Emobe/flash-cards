@@ -4,13 +4,17 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.12 ADR 0009 accepted (2026-10-06); next is `/step 1.12` in a fresh session. Branch `step/1.12-extension-points`; the build plan is `docs/plans/1.12-extension-points.md`.
+1.12 Extension points: built, awaiting Anthony's review. Branch `step/1.12-extension-points`. Built to ADR 0009 (Accepted) and `docs/plans/1.12-extension-points.md`. Results, what was not verified and the deviations list are in ADR 0009, "Build notes (step 1.12)". Public surface: `docs/events.md`.
+
+Verified: `cargo xtask check` passes (wasm build, bindings, TypeScript). 621 tests in `fc-core` (28 new), 29 in `fc-api`, 21 in `fc-native`. `fc` on a copy of the desktop collection works (version 11). The desktop app (`bun run dev`) starts, loads the page and opens the collection with no error. The web page (`bun run web:dev`) served and loaded in headless Brave with no console error, but the DOM dump came back empty, so that the wasm core started was not confirmed by looking at the page.
+
+Not verified: the phone, Windows, Firefox, Safari, panic behaviour of listeners on wasm and Android. No API method can cause a real event yet, so the hosts are covered by their tests and by starting cleanly.
 
 1.11a Merge: built, awaiting Anthony's review. Branch `step/1.11a-merge`. Results, findings and the deviations list are in ADR 0008, "Build notes (step 1.11a)" (deviations: the list at the end of those notes). Not verified: the phone, the web, Windows, merge speed on the phone or in wasm.
 
 ## Branch
 
-`step/1.11a-merge` (from master after PR #24). Not pushed.
+`step/1.12-extension-points`. Not pushed since PR #26.
 
 ## Done
 

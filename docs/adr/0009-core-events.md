@@ -21,8 +21,8 @@ What exists (`docs/plans/1.12-adr-handoff.md` has the details):
 - **The core cannot emit.** ADR 0002 says "the core emits through an `EventSink` trait the host
   implements". `EventSink`, `Notice` and `CoreEvent` are in `fc-api`, which depends on `fc-core`, so
   the core cannot call them. This ADR changes how that sentence is carried out (the core gets its own
-  event type and listener, and `fc-api` adapts them to `EventSink`). ADR 0002 is not edited. Anthony
-  decides whether it gets a pointer here.
+  event type and listener, and `fc-api` adapts them to `EventSink`). ADR 0002 keeps its original
+  text and has a pointer to this ADR.
 - **Delivery is per call.** `OpContext::with_sink` gives a sink to one API call. A merge, or Phase 4's
   background sync, has no call to hang events on.
 - **There is no study session** in the core. Nothing defines one.
@@ -261,3 +261,65 @@ Anthony, 2026-10-06.
 - **Several windows study at once** (one open session per collection is then too few), or sessions
   need to survive a restart.
 - **wasm gains stable unwinding.** Then catch a listener's panic on the web too.
+
+## Build notes (step 1.12)
+
+Built to this ADR and `docs/plans/1.12-extension-points.md`. No migration, no new dependency.
+
+**What was built**
+
+- `fc_core::events` (`Event`, `Listener`, `Listeners`), `Collection::listen`, `Core::listen`, delivery
+  after the commit in `Collection::write`, and an emit in each operation of the table in part 2.
+- `study/session.rs`: `start_study_session`, `end_study_session`, `EndReason`, `SessionSummary`.
+- `fc-api`: the `CoreEvent` variants, `EventRating`, `SessionEndReason`, `SessionSummary`, an exhaustive
+  `From<&Event>` and `forward_events`. Bindings regenerated.
+- Hosts: `forward_events` in `fc-native` (core and hub are made before the Tauri builder) and in
+  `fc-wasm`'s `init`.
+- `docs/events.md`, linked from `docs/README.md`.
+
+**Verified**
+
+- Linux: `cargo xtask check` passes (it includes the wasm build, the bindings check, the TypeScript
+  checks and the TypeScript tests). 621 tests in `fc-core` (28 new), 29 in `fc-api` (3 new: the JSON
+  shape of every event, the forwarding in order, no field text in the notices), 21 in `fc-native` (1
+  new: a forwarded core event reaches a hub subscriber).
+- Adding a variant to `fc_core::events::Event` without an `fc-api` arm fails to compile (tried, then
+  reverted).
+- A panicking listener on native: caught, the next listener still hears the batch, the next operation
+  works, and the panicking listener is called again for the next batch.
+- Delivery order: no operation emits more than one event in a batch yet, so the order of a batch is
+  tested at `Listeners::deliver` and not through an operation.
+
+**Not verified**
+
+- The desktop app and the web page were not driven by a person: no API method can cause a real event
+  yet, so the hosts are covered by their tests and by starting without errors (see STATUS for what
+  was run).
+- The phone, Windows, Firefox and Safari. Panic behaviour on wasm and on Android (findings 1 to 4 were
+  Linux and Bun only).
+
+**Deviations from the plan**
+
+1. **`StudyError::NotFound` reads "That card or deck no longer exists."** A missing deck now reaches it
+   from `start_study_session`. `fc-cli/tests/study.rs` was updated to the new text.
+2. **The merge and two-device tests are in a new file, `sync/merge_events_tests.rs`**, not in
+   `events_tests.rs` and `session_tests.rs`. The merge test helpers are `pub(super)` to `sync`, and I
+   did not widen them.
+3. **`events::tests::Recorder` is `pub(crate)`**, shared by `events_tests.rs`, `session_tests.rs` and
+   `merge_events_tests.rs`.
+4. **`Core::open_collection` ends the old collection's session as `closed` (under the lock), and
+   `Core::close_collection` now closes under the lock.** The plan only said `Collection::close` ends
+   the open session. This keeps the end event in order with the others.
+5. **Crate-only helpers beyond the plan:** `Collection::open_session_id` and `end_open_session` (ends
+   with no event if the summary query fails while closing).
+6. **`MergeApplied.unknown_kept` is `unknown_registers + unknown_rows`** of the `MergeReport`. The ADR
+   said "unknown kept" without saying how the two are combined.
+7. **The `fc-api` types `EventRating`, `SessionEndReason` and `SessionSummary` are exported** (and have
+   generated TypeScript files). The plan named only the string unions.
+8. **`fc-wasm`'s `init` registers the forwarder once per instance**, behind a `FORWARDING` flag, so a
+   second `init` does not send every event twice.
+9. **Two existing TypeScript tests** (`client.test.ts`, `tauriTransport.test.ts`) narrow with
+   `e.kind === "debug"` before reading `message`, because `CoreEvent` is now a union.
+10. **Two planned test ideas were dropped or changed.** "The order of a batch" is tested at `Listeners::deliver`, because no operation emits more than one event yet. A "listener sees stored data" test was not written: a listener may not call the core, so it could only check after the fact. Delivery after the commit is by construction in `Collection::write`.
+11. **The session summary test** answers one card before the session starts, to show it is left out.
+    The plan's version had no such answer.

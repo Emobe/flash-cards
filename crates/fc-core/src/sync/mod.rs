@@ -42,6 +42,8 @@ pub use write::{RegisterClock, WriteTx};
 pub(crate) use registry::check_schema;
 
 #[cfg(test)]
+mod merge_events_tests;
+#[cfg(test)]
 mod merge_tests;
 #[cfg(test)]
 mod tests;

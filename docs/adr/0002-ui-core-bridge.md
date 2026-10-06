@@ -171,6 +171,11 @@ ts-rs, and has no Tauri or platform dependency, so it compiles for desktop, Andr
   `{ type: "event", event: CoreEvent } | { type: "progress", op, progress }`. `CoreEvent` is a
   generated tagged union, filled in by step 1.12. The core emits through an `EventSink` trait the host
   implements. Hosts throttle progress to a few updates per second.
+  - **Changed by ADR 0009 (step 1.12):** the core cannot call `EventSink` (`fc-api` depends on
+    `fc-core`, not the other way round), so it emits through its own `fc_core::events::Listener`, and
+    `fc_api::forward_events` adapts that to the host's `EventSink`. The `Notice` shape, `EventSink` and
+    the "refetch, do not rely on order with the call's result" rule are unchanged. The list of events
+    is in `docs/events.md`.
 - **Types.** API types derive serde and ts-rs, with `rename_all = "camelCase"` (and
   `rename_all_fields` on enums). No `i64`/`u64` in API types: the generator sets the large-int type to
   an undefined name, so any 64-bit field fails `tsc` (finding 2). How IDs are represented is for
