@@ -1179,9 +1179,10 @@ dependency feature (`rusqlite` `functions`, see below), no new crate.
   - The CLI on a copy of the real desktop collection (it opened at storage version 9): a search,
     saving a search, an error message. That collection has no notes of its own. Also on a small
     demo collection, to read the rules above on real output.
-- **Not verified:** the web client at runtime (the wasm build compiles, but opening a collection in a
-  browser now registers the SQL functions, and nobody has run that: `bun run web:dev` should open the
-  collection as before), Windows, Firefox, Safari, the phone (it migrates to 9 the next time the APK
+- **Verified by Anthony:** `bun run web:dev` loads the page without an error (the wasm build now
+  registers the SQL functions when it opens a collection). Search itself has no web method yet, so
+  the functions were not called in the browser.
+- **Not verified:** Windows, Firefox, Safari, the phone (it migrates to 9 the next time the APK
   runs), merging saved searches from two collections (1.11; the tests write registers with their
   clocks), timings on the phone and the web.
 - **Left for later steps:** the browser screen, filter buttons and a search box (Phase 3, step 3.1),
