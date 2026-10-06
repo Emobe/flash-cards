@@ -327,6 +327,18 @@ the first that writes `requires`.
 - **Check:** `WriteTx` refuses `set` and `insert` on an entity whose `requires` names a feature this
   build does not support, with "Update the app to edit this".
 - **When to build:** in Phase 4 before step 4.3 ships. Added to `STATUS.md` so it is not lost.
+- **"Edit anyway" (Anthony, on review).** The read-only message also offers to make the item plain,
+  so a person who cannot update the app now is not stuck:
+  - It asks first, and names what will be lost: "This note uses a feature this version doesn't
+    have. Edit it anyway? The parts this version can't show will be removed on all your devices."
+  - If they agree, the older app writes ordinary changes: `requires` set to empty, and every
+    register of that entity it holds only as unknown data set to empty. It can do this without
+    understanding them, because the unknown store has their names. Then the entity is editable.
+  - These are normal later edits. They sync and win like any other, and a device that later adds
+    the feature again wins in turn.
+  - **Rule for every future feature that writes `requires`:** it must define what its entity means
+    with its own registers empty, and that must be a valid plain item (for example, a note with
+    hidden image areas becomes an ordinary note with the image). The ADR for that feature says so.
 
 ### 10. Checking every table (the first acceptance criterion)
 
