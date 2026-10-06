@@ -194,6 +194,23 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Identical files are stored once.
 - Works with the sync strategy from the ADR.
 
+**Status:** done (2026-10-06), awaiting review. Split in two as agreed in chat: this part is the core, the second part is 1.10b below. Built to ADR 0006 (build notes, step 1.10). Migration v10 (`media_file` synced, `media_blob` local, the bytes in the collection file). `fc_core::media`: names `<stem>-<16 hex of the SHA-256>.<ext>`, a media-file ID made from the hash (so two devices that add the same bytes write one entity), add, read, delete and restore, references from fields, templates and CSS (`url()` too), `check_media` (unused, missing, without bytes), a deleted file that a note names stays alive. `fc add-media`, `fc media`, `fc media-get`, `fc media-check`, `fc delete-unused-media`. `sha2` is a direct dependency now (already in the lockfile). Not in any UI or the web API.
+
+---
+
+## 1.10b Media in the card frame
+
+**Model:** Sonnet build (/step)
+
+**Goal:** a card can use media from CSS `url()` and from scripts, and the core lists those names.
+
+**Acceptance criteria:**
+- `frame.html` rewrites `url(name)` in the card's CSS and gives scripts a way to get a blob URL for a media file the card was given, still inside the sandbox (ADR 0005, the "Media" and "Card scripts" notes).
+- `render_card`'s media list includes the names used in CSS `url()` (core: `html::css_media_names` exists since 1.10).
+- The 54-attempt malicious card from 0.6 still gets 0 successes on desktop, the phone and the web, and the sample card still works on all three.
+
+**Notes:** this changes the trusted `frame.html`, so it needs Anthony's close review and the sandbox test re-run. The card sandbox spike code (`CardSandboxSpike`, its cards file, `spikeCardMedia`, the sample media) goes when `fc-api` has a media method (3.1) or Phase 2 shows a real card, not here.
+
 ---
 
 ## 1.11 Change tracking for sync
