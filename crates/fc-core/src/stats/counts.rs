@@ -45,6 +45,35 @@ pub struct DailyCount {
 }
 
 impl DailyCount {
+    /// Counts (or, with `remove`, takes off) answers made on cards in `state`.
+    fn add(&mut self, state: i64, count: u32, again: u32, time: i64, remove: bool) {
+        let change = |field: &mut u32, by: u32| {
+            *field = if remove {
+                field.saturating_sub(by)
+            } else {
+                *field + by
+            };
+        };
+        match state {
+            0 => change(&mut self.new, count),
+            1 => change(&mut self.learning, count),
+            2 => {
+                change(&mut self.review, count);
+                change(&mut self.review_passed, count - again.min(count));
+            }
+            3 => change(&mut self.relearning, count),
+            // A state from a newer app: not one of the four buckets.
+            _ => return,
+        }
+        change(&mut self.again, again);
+        let time = time.max(0) as u64;
+        self.time_ms = if remove {
+            self.time_ms.saturating_sub(time)
+        } else {
+            self.time_ms + time
+        };
+    }
+
     pub fn answers(&self) -> u32 {
         self.new + self.learning + self.relearning + self.review
     }
@@ -91,50 +120,56 @@ impl Collection {
                 ..Default::default()
             })
             .collect();
-        let mut statement = self.conn.prepare(
-            "SELECT e.day, COALESCE(e.state_before, -1), k.deck, k.deleted, n.deleted,
+        // Without a deck every answer counts, so the cards need not be looked at at all. Voided
+        // answers are counted with the rest and then taken off again: they are few, and asking of
+        // every answer whether it was voided costs more than the rest of the query.
+        let (joins, columns, group) = if filter.is_some() {
+            (
+                "LEFT JOIN card k ON k.id = e.card LEFT JOIN note n ON n.id = k.note",
+                "k.deck, k.deleted, n.deleted",
+                ", k.deck, k.deleted, n.deleted",
+            )
+        } else {
+            ("", "NULL, 0, 0", "")
+        };
+        let counted = format!(
+            "SELECT e.day, COALESCE(e.state_before, -1), {columns},
                     COUNT(*), COALESCE(SUM(e.rating = 1), 0), COALESCE(SUM(e.duration_ms), 0)
-             FROM card_event e
-             LEFT JOIN card k ON k.id = e.card
-             LEFT JOIN note n ON n.id = k.note
+             FROM card_event e {joins}
              WHERE e.kind = 'review' AND e.day BETWEEN ?1 AND ?2
-               AND NOT EXISTS (SELECT 1 FROM card_event v WHERE v.target = e.id)
-             GROUP BY e.day, COALESCE(e.state_before, -1), k.deck, k.deleted, n.deleted",
-        )?;
-        let rows = statement.query_map(params![range.from, range.to], |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, i64>(1)?,
-                row.get::<_, Option<Vec<u8>>>(2)?,
-                row.get::<_, Option<i64>>(3)?,
-                row.get::<_, Option<i64>>(4)?,
-                row.get::<_, u32>(5)?,
-                row.get::<_, u32>(6)?,
-                row.get::<_, i64>(7)?,
-            ))
-        })?;
-        for row in rows {
-            let (day, state, deck, k_deleted, n_deleted, count, again, time) = row?;
-            if let Some(filter) = &filter {
-                let live = k_deleted == Some(0) && n_deleted == Some(0);
-                if !live || !deck.as_deref().is_some_and(|d| filter.contains(d)) {
-                    continue;
+             GROUP BY e.day, COALESCE(e.state_before, -1){group}"
+        );
+        let voided = format!(
+            "SELECT e.day, COALESCE(e.state_before, -1), {columns},
+                    1, COALESCE(e.rating = 1, 0), COALESCE(e.duration_ms, 0)
+             FROM (SELECT DISTINCT target FROM card_event WHERE target IS NOT NULL) t
+             CROSS JOIN card_event e ON e.id = t.target {joins}
+             WHERE e.kind = 'review' AND e.day BETWEEN ?1 AND ?2"
+        );
+        for (sql, remove) in [(counted, false), (voided, true)] {
+            let mut statement = self.conn.prepare(&sql)?;
+            let rows = statement.query_map(params![range.from, range.to], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, Option<Vec<u8>>>(2)?,
+                    row.get::<_, Option<i64>>(3)?,
+                    row.get::<_, Option<i64>>(4)?,
+                    row.get::<_, u32>(5)?,
+                    row.get::<_, u32>(6)?,
+                    row.get::<_, i64>(7)?,
+                ))
+            })?;
+            for row in rows {
+                let (day, state, deck, k_deleted, n_deleted, count, again, time) = row?;
+                if let Some(filter) = &filter {
+                    let live = k_deleted == Some(0) && n_deleted == Some(0);
+                    if !live || !deck.as_deref().is_some_and(|d| filter.contains(d)) {
+                        continue;
+                    }
                 }
+                days[(day - range.from) as usize].add(state, count, again, time, remove);
             }
-            let entry = &mut days[(day - range.from) as usize];
-            match state {
-                0 => entry.new += count,
-                1 => entry.learning += count,
-                2 => {
-                    entry.review += count;
-                    entry.review_passed += count - again.min(count);
-                }
-                3 => entry.relearning += count,
-                // A state from a newer app: not one of the four buckets.
-                _ => continue,
-            }
-            entry.again += again;
-            entry.time_ms += time.max(0) as u64;
         }
         Ok(days)
     }

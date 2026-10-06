@@ -19,8 +19,8 @@ pub enum StudyError {
     /// The scheduler refused the options (a desired retention outside its range). The text is for
     /// the log.
     Scheduling(String),
-    /// Too few reviews to optimise the FSRS parameters. `items` is how many the history has (every
-    /// review after a card's first), `needed` how many it takes.
+    /// Too few reviews to optimise the FSRS parameters. `items` is how many the history has that
+    /// can be learned from (`TrainingSet::items`), `needed` how many it takes.
     NotEnoughHistory {
         items: u32,
         needed: u32,
@@ -45,9 +45,9 @@ impl fmt::Display for StudyError {
             ),
             Self::NotEnoughHistory { items, needed } => write!(
                 f,
-                "There is not enough review history to tune the scheduler yet: {items} reviews \
-                 so far after each card's first, and at least {needed} are needed. Keep \
-                 studying and try again later."
+                "There is not enough review history to tune the scheduler yet: {items} of the \
+                 {needed} reviews it needs. A review counts once its card is answered again on a \
+                 later day. Keep studying and try again later."
             ),
             Self::Collection(error) => error.fmt(f),
         }

@@ -4,19 +4,15 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.8 Review history and basic stats, in progress on `step/1.8-history-stats` (1.7b is merged, PR #19). Plan was approved in chat (no plan file: no ADR, no migration, no new dependency).
-
-Built so far (core, in `fc_core::stats`): `card_history`, `daily_counts`, `retention`, `due_forecast`, `optimisation_data` / `TrainingSet::optimise` / `optimise_preset`, `PresetChange.fsrs_parameters`, `study_today`. 21 tests in `stats/tests.rs`.
-
-Remaining: the CLI (`fc history`, `fc stats`, `fc forecast`, `fc optimise [--apply]`) with tests, timings on a large history, a run on a copy of the real collection, ADR 0007 and 0004 build notes, the 1.8 status line in `docs/phases/01-core.md`, `cargo xtask check`, PR report.
-
-Finding to carry into the notes: `fsrs` 6.6.2 panics (`expect`) on a training item whose reviews all fall on one day, which a card in its learning steps produces. `scheduling::training_items` filters them. It also returns the default parameters without a word under 8 items and only the first-interval parameters under 64, so `MIN_TRAINING_ITEMS` is 64.
+1.8 Review history and basic stats: built on `step/1.8-history-stats`, `cargo xtask check` passes, waiting for Anthony's review (ADR 0007 build notes, step 1.8, list the definitions and findings). Next: merge it, then step 1.9 (search and filtering, a Sonnet build, `/step 1.9`) in a new session.
 
 ## Branch
 
 `step/1.8-history-stats` (from master after PR #19). Not pushed.
 
 ## Done
+
+- 1.8 Review history and basic stats (ADR 0007 build notes, step 1.8). No migration, no new dependency. `fc_core::stats`: `card_history`, `daily_counts` (study day by state, again, time), `retention` (review-card answers not Again), `due_forecast` (overdue, today, next N days, learning today), `optimisation_data` / `TrainingSet::optimise` / `optimise_preset`, `PresetChange.fsrs_parameters`, `study_today`. `fc history`, `fc stats`, `fc forecast`, `fc optimise [--apply]`. 21 stats tests, 1 scheduling test, 3 CLI tests. Found and fixed: `fsrs` 6.6.2 panics on a training item whose reviews are all on one day (a card in learning steps); it also silently returns defaults under 8 items, so `MIN_TRAINING_ITEMS` is 64. Verified on Linux (tests, CLI on a copy of the real desktop collection, timings at 1,000,000 events: `daily_counts` for a year 1.7 s, forecast 11 ms, training on 990,000 items 19 s). Not run in a UI, a browser or the phone (nothing there changed).
 
 - 1.7b Queues (ADR 0007 build notes, step 1.7b). Migration v8: `card.suspended`, `card.buried_until`, `deck.limits_include_subdecks`, `options_preset.space_siblings`. `fc_core::study`: `study_counts`, `deck_counts`, `next_card` (counts, the card, the four previews, `Waiting`, `Done`), limits over the whole deck path with the per-deck switch, siblings held until tomorrow, learning first, new cards spread among reviews, the 20-minute learn-ahead; `suspend_cards`, `unsuspend_cards`, `bury_cards`, `unbury_cards`, `unbury_deck`. `fc due`, `fc next`, `fc suspend`, `fc unsuspend`, `fc bury`, `fc unbury`. 53 more core tests (423 in `fc-core`), 5 more CLI tests. The simulated month (200 notes, two nested decks) is pinned and gives the same table at other UTC offsets, across a daylight saving change and with another start hour. Verified on Linux (tests, CLI on a copy of the real desktop collection, which has no cards). At 50,000 cards (301 decks, release): `deck_counts` 130 ms, `next_card` 120 ms, answering one card 39 ms. Not run in a UI, a browser or the phone (nothing there changed).
 
@@ -47,11 +43,15 @@ Finding to carry into the notes: `fsrs` 6.6.2 panics (`expect`) on a training it
 
 ## Remaining in this step
 
-- Anthony: review and merge `step/1.7b-queues`.
-- Then a new session with Sonnet: `/step 1.8`.
+- Anthony: review and merge `step/1.8-history-stats`.
+- Then a new session with Sonnet: `/step 1.9`.
 
 ## Open items
 
+- 1.8 choices for Anthony to confirm (details in the ADR 0007 build notes): unfiltered totals include answers of deleted cards, a deck filter and the forecast and optimiser use live cards only; retention is one figure over review-card answers (no young/mature split); the forecast ignores limits and new cards and day 0 is today without the overdue; the optimiser trains per preset over the live cards in its decks; storing parameters does not recompute existing cards' memory (a reschedule event, Phase 3 or 1.14); training needs 64 items that come on a later day.
+- 1.8 not verified: the phone and the browser, Windows, Firefox, Safari, timings on the phone and the web (a year of stats on 1,000,000 events is 1.7 s on Linux; a covering index on `card_event` would fix it, with a migration, if 3.7 finds it slow), training on a real person's history (all test data is simulated), cancelling training (`fsrs` has no hook).
+- 1.8 leaves for later steps: `rated:` and `introduced:` style search (1.9, `card_history` and `daily_counts` read the same events), the stats screen and web API methods (3.7), reschedule after optimising (Phase 3, 1.14), the optimiser in a worker with progress (Phase 3).
+- No new dependencies in 1.8.
 - 1.7b choices for Anthony to confirm (details in the ADR 0007 build notes): `learning` in the counts is every learning card due before the end of today; a card held by the sibling rule or a limit is not counted; `Waiting` only for a learning card due later today (otherwise `Done`); `fc next` studies the Default deck unless `--deck` is given; new cards are spread among reviews by position in the day (R R N R R R N R for 6 reviews and 2 new).
 - 1.7b not verified: the phone and the browser (the phone migrates to 8 the next time the APK runs), Windows, Firefox, Safari, timings on the phone and the web, merging suspend and bury from two collections (1.11).
 - 1.7b finding: answering one card reads the deck tree, which counts every card: 39 ms at 50,000 cards on Linux. `next_card` is 120 ms there. Phase 2 measures the study screen on the phone; if slow, keep the queue in memory on top (ADR 0007 part 5, option C) and count cards per deck without a full scan.

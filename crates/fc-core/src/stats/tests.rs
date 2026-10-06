@@ -14,7 +14,7 @@ use crate::scheduling::{
 };
 use crate::study::answer_tests::{DAY, HOUR, MINUTE, basic_card, good, setup};
 use crate::study::fold_tests::{from_other_device, insert};
-use crate::study::{Next, StudyError};
+use crate::study::{EventKind, Next, StudyError};
 
 const DAY0: i64 = 19_675;
 
@@ -212,6 +212,29 @@ fn an_undone_answer_is_not_counted() {
     let days = c.daily_counts(range(DAY0 + 2, DAY0 + 2), None).unwrap();
     assert_eq!((days[0].relearning, days[0].review), (0, 1));
     assert_eq!(days[0].time_ms, 2_000);
+}
+
+#[test]
+fn a_review_voided_on_two_devices_is_taken_off_once_and_in_a_deck_too() {
+    let (c, _, x, _) = two_days();
+    let undone = c.undo_answer().unwrap().unwrap();
+    // Another device undid the same answer: a second void for the same review.
+    let mut second = c
+        .card_events(x)
+        .unwrap()
+        .into_iter()
+        .find(|e| e.kind == EventKind::Void)
+        .unwrap();
+    second.id = Id::new_v7(second.time_ms + 1, &[8; 10]);
+    second.time_ms += 1;
+    second.target = Some(undone.event);
+    insert(&c, &second);
+    for deck in [None, Some(default_deck())] {
+        let days = c.daily_counts(range(DAY0 + 2, DAY0 + 2), deck).unwrap();
+        assert_eq!((days[0].relearning, days[0].review), (0, 1), "{deck:?}");
+        assert_eq!(days[0].time_ms, 2_000);
+    }
+    assert_eq!(c.card_history(x).unwrap().len(), 3);
 }
 
 #[test]

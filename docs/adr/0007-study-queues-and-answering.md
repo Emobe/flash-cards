@@ -491,3 +491,98 @@ phone migrates to 8 the next time the APK runs), Windows, Firefox, Safari, timin
 web, merging suspend and bury from two collections (1.11; the tests write the other device's registers
 and events directly), limits when two devices study the same day (ADR 0006 section 11 already allows
 going over).
+
+## Build notes (step 1.8)
+
+Review history, statistics and optimisation, in `fc_core::stats`. No migration, no new dependency, no
+change to what is stored: everything reads `card_event` and `card_schedule`. Not in any UI or the web
+API (Phase 2, step 3.7).
+
+**What each number means.** These are the definitions a stats screen must use.
+
+- **History** (`card_history`): a card's non-voided reviews in the order the fold applies them. The
+  state before and after, the interval and the memory are the ones **recorded on the event**. A
+  concurrent event that the fold recomputes (ADR 0006 section 4) can end somewhere else on the card,
+  so the history shows what the answering device saw, which is also what a person remembers. A deleted
+  card keeps its history.
+- **Daily counts** (`daily_counts`): non-voided reviews grouped by the study day written on the event
+  (so a change of time zone or start hour never moves an old answer) and by the state the card was in
+  before the answer: new, learning, relearning, review. Also answers of Again (any state), review
+  answers that were not Again, and time spent (the recorded duration, at most an hour each). Days with
+  no answers are zeros. With no deck every answer counts, including those of deleted cards (history is
+  never lost, ADR 0006). With a deck, only cards that exist now in that deck or inside it. A range
+  longer than 36,525 days starts later.
+- **Retention** (`retention`): of the answers on **review cards** (state before is review), how many
+  were not Again. Counts, not a percentage. Learning and relearning answers are not retention. It is
+  one figure per range: no split into young and mature cards (3.7 can add it from the same events).
+- **Due forecast** (`due_forecast`): from `card_schedule` as it is now. Review cards due before
+  today (overdue), review cards due on each of today and the next N days, and learning or relearning
+  cards due before the end of today. Suspended and deleted cards are left out, buried ones are counted
+  on their due day. Daily limits are not applied, new cards are not in it, and a card that comes back
+  inside the window after being answered is not predicted. Day offset 0 is today and does not include
+  the overdue ones.
+- **A voided review** is left out everywhere. Two devices that undo the same review (two void events
+  for one target) take it off once.
+
+**Optimisation.**
+
+- `optimisation_data(preset)` reads the history of every live card that is in a deck using that preset
+  now (a card moved to a deck with another preset takes its history with it), undone reviews left out.
+  `TrainingSet::optimise` trains and returns 21 parameters. `optimise_preset` does both. Reading and
+  training are separate so a host can train without holding the collection (training cannot be
+  cancelled). Nothing is stored by training. `PresetChange.fsrs_parameters` stores a set (17, 19 or 21
+  numbers, filled to 21; empty goes back to the defaults; anything else is `DeckError::Parameters`).
+- **Input is what the scheduler used.** Every answer goes in, learning-step answers included, with the
+  days between the study days written on the events (0 within a day), as in finding 2. Test: a card
+  taken through learning steps, a lapse and relearning, Hard and Easy over 30 days ends with the same
+  memory state in the cache as `fsrs`'s `memory_state` over its history (to 0.1%).
+- **Two behaviours of `fsrs` 6.6.2 found in this step.** (1) `compute_parameters` **panics** on a
+  training item whose reviews all fall on one day (`expect("Invalid FSRS item: at least one review
+  with delta_t > 0 is required")`), which is what a card in its learning steps gives. A panic would
+  take down the web worker, so `scheduling::training_items` keeps only items that have a review on a
+  later day, and a test with 100 same-day cards pins it. The step 0.5 spike never saw it, because its
+  invented histories had gaps of days. (2) With fewer than 8 usable items it returns the default
+  parameters without saying so, and with fewer than 64 only the four first-interval parameters are
+  fitted. So `MIN_TRAINING_ITEMS` is 64 and `NotEnoughHistory` says how many there are. Even 64 is a
+  small set: expect a result close to the defaults (not measured on real data).
+- The relearning step count of the preset is passed to the optimiser.
+- **Applying parameters does not recompute the memory state of cards already studied.** They keep the
+  stability and difficulty they have until their next answer, which then uses the new parameters. A
+  recompute is a reschedule event (Phase 3 or 1.14). The CLI says this when it stores a set.
+
+**Timing** (Linux, release, a throwaway test on a file, not kept; 10,000 cards with 100 reviews each,
+1,000,000 events over 320 days, the extreme case): `daily_counts` for 365 days 1.7 s (3.1 s with a deck
+filter), `retention` and `daily_counts` over a range with few events under a millisecond (measured on
+a range with none), `due_forecast` 11 ms,
+`card_history` 0.4 ms, `optimisation_data` 3.3 s, training on 990,000 items 19 s. `daily_counts` spends
+its time fetching each event row from the `(day)` index (1.7 µs each), which a covering index
+`(day, kind, state_before, rating, duration_ms)` would remove (counting events by day alone, which the
+existing index covers, takes 24 ms), at the price of a migration and a longer first open. Not added: a
+heavy user with about 270 reviews a day has about 100,000 events a year, which at 1.7 µs each is about
+0.2 s for a year of stats on Linux (an estimate, not a measurement). Step 3.7 measures the real screen on the phone and adds the
+index if it is slow. Note that a `NOT EXISTS` void probe costs 6% and a join that SQLite plans the
+wrong way round costs 80%, so the void rows are subtracted after the scan and that join is written
+`CROSS JOIN`. The phone and the web are unmeasured.
+
+**Verified.**
+
+- Linux: 21 new tests in `stats` (history order, undo and re-answer, a remote event, a deleted card;
+  daily counts for each state bucket with pinned numbers, a void on two devices, deck filters with
+  sub-decks, deleted and moved cards, other UTC offsets and start hours, a huge and a reversed range;
+  retention with its empty case; the forecast at the window edges, suspended, buried, deleted, a deck
+  filter, and the forecast against what the queue offers on each later day; the optimiser on a
+  60-day simulated history, storing, using and resetting the parameters, per-preset data, undone
+  reviews, too little history, the memory check above, and parameter validation) and 1 in `scheduling`
+  (the panic case). 3 CLI tests (`fc history`, `fc stats`, `fc forecast`, `fc optimise`). Mutation
+  checks: not taking voided answers off fails 2 tests, counting suspended cards in the forecast fails
+  1, and removing the same-day filter panics the optimiser test.
+- The CLI on a copy of the real desktop collection (no cards; storage version 8): added two notes,
+  answered them over three days with `--now`, and `history`, `stats`, `forecast` and `optimise` gave
+  what the tests expect (`optimise` refused for lack of history).
+- `cargo xtask check` passes, including the wasm build.
+
+**Not verified:** the phone and the browser (no UI or web API; the phone migrates to 8 the next time
+the APK runs), Windows, Firefox, Safari, timings on the phone and the web, `compute_parameters` on
+real review history of a person (the data in the tests is simulated), training time on the phone and
+in the browser for a large history (spike: 2,000 cards 66 ms on wasm, 1,000,000 reviews 19 s here), a
+cancel for training (`fsrs` has none), merging events from two collections (1.11).

@@ -10,7 +10,7 @@ use fc_core::study::{Counts, Next};
 
 use super::{Failure, host, plural};
 
-fn card_id(text: &str) -> Result<Id, Failure> {
+pub(super) fn card_id(text: &str) -> Result<Id, Failure> {
     text.parse().map_err(|_| {
         Failure::Usage(format!(
             "\"{text}\" is not a card ID. `fc notes` lists them."
@@ -30,7 +30,7 @@ fn rating(text: &str) -> Result<Rating, Failure> {
     }
 }
 
-fn rating_name(rating: Rating) -> &'static str {
+pub(super) fn rating_name(rating: Rating) -> &'static str {
     match rating {
         Rating::Again => "Again",
         Rating::Hard => "Hard",
@@ -39,7 +39,7 @@ fn rating_name(rating: Rating) -> &'static str {
     }
 }
 
-fn state_name(state: CardState) -> &'static str {
+pub(super) fn state_name(state: CardState) -> &'static str {
     match state {
         CardState::New => "New",
         CardState::Learning => "Learning",
@@ -49,7 +49,7 @@ fn state_name(state: CardState) -> &'static str {
 }
 
 /// A moment as local time at `offset` minutes ahead of UTC.
-fn time(unix_ms: i64, offset: i32) -> String {
+pub(super) fn time(unix_ms: i64, offset: i32) -> String {
     let utc = DateTime::from_timestamp_millis(unix_ms);
     let zone = FixedOffset::east_opt(offset.saturating_mul(60));
     match (utc, zone) {
@@ -61,14 +61,14 @@ fn time(unix_ms: i64, offset: i32) -> String {
 }
 
 /// A study day as a calendar date.
-fn date(day: i64) -> String {
+pub(super) fn date(day: i64) -> String {
     NaiveDate::from_ymd_opt(1970, 1, 1)
         .and_then(|epoch| epoch.checked_add_signed(TimeDelta::days(day)))
         .map_or_else(|| "?".to_owned(), |date| date.to_string())
 }
 
 /// A length of time, as the person would say it.
-fn span(minutes: i64) -> String {
+pub(super) fn span(minutes: i64) -> String {
     match minutes {
         m if m < 120 => plural(m as usize, "minute"),
         m if m < 2 * 24 * 60 => plural((m / 60) as usize, "hour"),
@@ -93,12 +93,12 @@ fn in_days(days: i64) -> String {
     }
 }
 
-struct Open {
-    collection: Collection,
-    now: fc_core::clock::Reading,
+pub(super) struct Open {
+    pub(super) collection: Collection,
+    pub(super) now: fc_core::clock::Reading,
 }
 
-fn open(file: &str) -> Result<Open, Failure> {
+pub(super) fn open(file: &str) -> Result<Open, Failure> {
     let host = host::host_for(file, std::path::Path::new(file).exists()).map_err(Failure::Core)?;
     let now = host.clock.now();
     Ok(Open {
@@ -240,7 +240,7 @@ fn counts_text(counts: Counts) -> String {
 }
 
 /// What an answer would do, for the answer buttons.
-fn preview_text(due: Due) -> String {
+pub(super) fn preview_text(due: Due) -> String {
     match due {
         Due::Minutes(minutes) => span(i64::from(minutes)),
         Due::Days(days) => plural(days as usize, "day"),
