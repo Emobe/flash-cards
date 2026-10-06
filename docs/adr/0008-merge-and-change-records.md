@@ -3,6 +3,10 @@
 Status: Proposed
 Date: 2026-10-06
 
+Anthony's review answers are under "Decisions on review". In short: the superseded-values log
+(part 7) is postponed, so the later edit wins and nothing else is kept; purge and per-entity
+`requires` are built later; one PR.
+
 ## Context
 
 Step 1.11's acceptance criteria:
@@ -105,7 +109,7 @@ How a batch of changes looks in `fc-core`, without a wire encoding (step 4.3 pic
       pub field: String,       // column name, field ID text, or tag text
       pub value: Value,        // rusqlite's Value: Null, Integer, Real, Text, Blob
       pub clock: Clock,        // (hlc, device)
-      pub base: Option<Clock>, // part 7, kept registers only
+      // A `base: Option<Clock>` field comes with part 7, which is postponed.
   }
   pub struct RowChange { pub entity: String, pub id: Id, pub columns: Vec<(String, Value)> }
   ```
@@ -162,8 +166,7 @@ transaction. A failure rolls back all of it. The batch is idempotent, so a retry
   only by `merge` (and by tests that fake another device). The public surface is `changes` and
   `merge`.
 - **`MergeReport`** counts registers applied, registers ignored (older or equal), unknown registers
-  and rows stored, rows added, notes reconciled, cards rebuilt and values logged as superseded
-  (1.11b). It also lists the rejected changes, each with its reason.
+  and rows stored, rows added, notes reconciled and cards rebuilt. It also lists the rejected changes, each with its reason.
 
 ### 4. Values that do not fit
 
@@ -227,7 +230,9 @@ ADR 0007 left to 1.11 how a newer app's event fields are kept.
   - A new column on an append-only table is nullable, because older apps send rows without it.
   - A new register has a column default that matches what an older device assumes.
 
-### 7. The superseded-values log
+### 7. The superseded-values log (postponed)
+
+Postponed on review (see "Decisions on review"). Kept here as the design to build from later.
 
 ADR 0006 section 3 and its "Decisions on review" item 2 promise that a value lost to a concurrent
 edit is kept on the device that lost it. Finding 1 shows that its condition ("never pushed") misses
@@ -372,7 +377,7 @@ plan lists them.
 
 - `fc merge <from> <into>`: applies `changes(All)` of one collection file to another and prints the
   report.
-- `fc superseded <file>` (1.11b): lists the log.
+- `fc superseded <file>`: lists the log, when part 7 is built.
 
 Two files merged both ways is the manual test of this step.
 
@@ -380,17 +385,12 @@ Two files merged both ways is the manual test of this step.
 
 - **The merge function ADR 0006 asked for exists**, with no server. Phase 4 adds transport, cursors,
   pushed marks, paging and the skew check around it, not merge logic.
-- **The sync format gains:**
-  - a `base` clock on kept registers;
-  - the reserved register name `requires`;
-  - the reserved entity `purge`.
-- **ADR 0006 changes in one place:** the condition for the superseded-values log (part 7). Every
-  other rule is unchanged.
-- **New local tables:**
-  - `unknown_row_value` (1.11a);
-  - `superseded_value` and two nullable columns on `register_clock` (1.11b).
-
-  No synced table changes.
+- **The sync format reserves** the register name `requires` and the entity `purge`. A `base` clock
+  on kept registers is added only if the superseded-values log is built.
+- **ADR 0006 changes in one place:** its promise to keep a value lost to a concurrent edit of the same
+  field is postponed. For now the later edit wins and the other is gone. Every other rule is
+  unchanged.
+- **New local table:** `unknown_row_value`. No synced table changes.
 - **A merge can write.** Reconciling cards produces local, unpushed writes that every device makes
   identically. They cost some sync traffic, not correctness.
 - **Rejected changes are possible** and must be shown by Phase 4.
@@ -406,17 +406,27 @@ Two files merged both ways is the manual test of this step.
   - chunk the batch (it is idempotent);
   - skip the reconcile for notes whose cards all arrived in the same batch;
   - or keep clocks per entity (ADR 0006 already lists this).
-- **The log.** It fills up, or users see stale entries (the 325 case) often enough to mislead. Then
-  prune it by age, or move to version vectors (option D) for kept registers only.
+- **Lost edits.** People report edits disappearing after a sync, or several people start sharing one
+  account and editing the same notes. Then build part 7. If it is built and its stale entries (the
+  325 case) mislead, prune it by age or use version vectors (option D) for kept registers only.
 - **Rejected changes** occur in practice from our own clients. That is a bug to fix at the source,
   and a reason to look at the check.
 - **Purge semantics** turn out to need undo (a trash with a grace period on the server).
 
-## Questions for Anthony
+## Decisions on review
 
-1. **Accept the change to ADR 0006's superseded-values rule** (part 7, option C), based on finding 1?
-2. **Two PRs:** 1.11a (records, merge, derived state, unknown rows, audit, edge-case tests, `fc merge`)
-   then 1.11b (superseded-values log)?
-3. **Purge and per-entity `requires`:** design only here, built later? Purge with "Empty trash",
-   per-entity `requires` before Phase 4 ships sync.
-4. **Rejected changes:** dropped and reported (part 4), not stored?
+Anthony, 2026-10-06. These are recorded here; the ADR stays Proposed until Anthony accepts it.
+
+1. **The superseded-values log is postponed.** The same field edited on two devices before they sync
+   is rare for one person, and not expected in the MVP. For now the later edit wins and the other text
+   is not kept. Part 7 and finding 1 stay as the design to build from. Adding it later is additive: a
+   register with no `base` never matches, so older data can at worst log a stale value once.
+   - **Shared accounts.** Several people sharing one account follow the same rule: the server keeps the
+     latest value of each register, which is the one source of truth, and the later edit wins. If
+     shared accounts become common, that is a reason to build part 7 (see "Revisit if"). Shared decks
+     between different accounts are Phase 9's spaces (ADR 0006 section 12), not this.
+2. **One PR, 1.11a.** With the log postponed, nothing is left for a 1.11b.
+3. **Purge and per-entity `requires`** are not built now. Parts 8 and 9 record their shape. Purge
+   comes with "Empty trash". Per-entity `requires` must still ship before step 4.3 releases sync.
+4. **Rejected values** (part 4): Claude Code's call, as a technical decision. They are dropped and
+   reported, not stored.

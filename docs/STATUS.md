@@ -49,16 +49,12 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review ADR 0008 and answer its four questions:
-  1. the new superseded-values rule;
-  2. two PRs;
-  3. purge and per-entity `requires` designed but built later;
-  4. rejected values dropped and reported.
-- Then: on acceptance, add a pointer in ADR 0006 section 3 to ADR 0008 part 7, and build 1.11a (`/step 1.11a`), then 1.11b.
+- Anthony: accept ADR 0008. His review answers are recorded under its "Decisions on review": the superseded-values log is postponed (the later edit wins), one PR, purge and per-entity `requires` later, rejected values dropped and reported.
+- Then: on acceptance, add a pointer in ADR 0006 (section 3 and "Decisions on review" item 2) to ADR 0008's "Decisions on review", and build 1.11a (`/step 1.11a`).
 
 ## Open items
 
-- **ADR 0006 looks wrong in one place.** Its rule for the superseded-values log ("a local value that was never pushed") misses about half the values lost to concurrent edits under its own sync protocol. This is ADR 0008 finding 1, from a simulation. ADR 0008 part 7 proposes the fix.
+- **Follow-up, postponed by Anthony:** keeping the losing text when the same field is edited on two devices before they sync (ADR 0006's superseded-values log). For now the later edit wins. ADR 0006's own rule for it would have missed about half those cases (ADR 0008 finding 1); ADR 0008 part 7 is the design to use when it is built. Revisit if edits go missing after syncs or people share one account.
 - **Per-entity `requires`** (ADR 0006 section 10) must ship in the first app version that syncs: before step 4.3 is released, not when a feature first writes it (ADR 0008 part 9).
 - **Purge ("Empty trash")** is designed in ADR 0008 part 8. It is built with the first trash screen, and no step builds one yet.
 - There is a git stash on master (`WIP on master: 0364c87`) that this session did not make. It was left alone.

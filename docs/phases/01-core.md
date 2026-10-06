@@ -234,10 +234,10 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
   - the merge, and what it recomputes;
   - values that do not fit;
   - unknown rows;
-  - a corrected superseded-values rule (ADR 0006's misses about half the lost values);
+  - the superseded-values log, postponed on review (the later edit wins and nothing else is kept);
   - the shape of purge and per-entity `requires`.
-- The plan is `docs/plans/1.11-merge.md`, proposed as two PRs: **1.11a** (merge, audit, edge-case
-  tests, `fc merge`) and **1.11b** (superseded-values log).
+- The plan is `docs/plans/1.11-merge.md`: one PR, **1.11a** (merge, audit, edge-case tests,
+  `fc merge`). Anthony's review answers are recorded in the ADR; it still needs accepting.
 
 ---
 
