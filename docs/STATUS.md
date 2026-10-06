@@ -6,7 +6,7 @@ Kept current by every session. A new session reads this first.
 
 1.12 Extension points: build in progress on branch `step/1.12-extension-points` (fast-forwarded to master after PR #26). Built to ADR 0009 and `docs/plans/1.12-extension-points.md`. Continue with `/step 1.12`.
 
-Done (committed, `fc-core` compiles with no warnings, tests not run yet):
+Done (committed; `cargo test -p fc-core` passes, 621 tests, 28 of them new for 1.12):
 - `fc_core::events`: `Event` (not `#[non_exhaustive]`), `Listener`, `Listeners` (`deliver` skips an empty batch, copies the list out of its mutex, `catch_unwind` per listener), `count` (saturate to `u32`).
 - `Collection`: `listeners`, `session: RefCell<Option<OpenSession>>`, `listen`, crate-only `set_listeners` and `emit_now`, a compile-time `Send` check; `close` ends the open session as `Closed`.
 - `WriteTx::emit` (crate-only); `Collection::write` delivers after `commit()`.
@@ -15,8 +15,10 @@ Done (committed, `fc-core` compiles with no warnings, tests not run yet):
 - `study/session.rs`: `start_study_session`, `end_study_session`, `EndReason`, `SessionSummary`, crate-only `open_session_id` and `end_open_session` (ends with no event if the summary query fails).
 - Deviation so far: `StudyError::NotFound` reads "That card or deck no longer exists." (a missing deck now reaches it from `start_study_session`); `fc-cli/tests/study.rs` updated.
 
+- Core tests: `events_tests.rs` (20), `study/session_tests.rs` (7), and the new `sync/merge_events_tests.rs` (5; the merge helpers are `pub(super)` to `sync`, so the merge and cross-device tests live there).
+
 Remaining, in order:
-1. Tests in `crates/fc-core/src/events_tests.rs` and `study/session_tests.rs` (both placeholders), as listed in the plan's "Tests". Helpers: `study::answer_tests::{setup, basic_card, good}`, `sync::merge_tests::{pair, sync}` and `a_failed_merge_changes_nothing` for the failed merge. Then `cargo test -p fc-core`.
+1. (done) Core tests.
 2. `fc-api`: `CoreEvent` variants, rating and end-reason string unions, exhaustive `From<&Event>`, `forward_events`, JSON-shape tests, `cargo xtask bindings`.
 3. Hosts: `forward_events` in `apps/native/src-tauri/src/lib.rs` and `crates/fc-wasm/src/lib.rs` `init`; a hub test.
 4. Docs: `docs/events.md`, link in `docs/README.md`, ADR 0009 build notes with the deviations list, phase file Status line.
