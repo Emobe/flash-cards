@@ -295,23 +295,26 @@ impl Collection {
         w: &mut WriteTx<'_>,
         note_type: Id,
     ) -> Result<(), CollectionError> {
-        self.reconcile_note_type_counting(w, note_type).map(drop)
+        let dead = dead_decks(&self.conn)?;
+        self.reconcile_note_type_counting(w, note_type, &dead)
+            .map(drop)
     }
 
-    /// `reconcile_note_type`, returning how many notes had their cards changed.
+    /// `reconcile_note_type` with the decks to treat as deleted given, returning how many notes had
+    /// their cards changed.
     pub(crate) fn reconcile_note_type_counting(
         &self,
         w: &mut WriteTx<'_>,
         note_type: Id,
+        dead: &HashSet<Id>,
     ) -> Result<usize, CollectionError> {
         let Some(found) = self.note_type(note_type).map_err(CollectionError::from)? else {
             return Ok(0);
         };
         let plan = Plan::new(&found);
-        let dead = dead_decks(&self.conn)?;
         let mut changed = 0;
         for note in self.note_states(note_type)? {
-            changed += usize::from(reconciled(&reconcile(w, &plan, &note, &dead)?));
+            changed += usize::from(reconciled(&reconcile(w, &plan, &note, dead)?));
         }
         Ok(changed)
     }

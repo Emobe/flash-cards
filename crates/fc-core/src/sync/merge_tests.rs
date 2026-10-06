@@ -108,8 +108,12 @@ pub(super) fn digest(c: &Collection) -> String {
         out += "\n";
     }
     for table in APPEND_ONLY_TABLES {
+        let columns: String = table.columns.iter().map(|c| format!(", \"{c}\"")).collect();
         out += &format!("## {}\n", table.table);
-        out += &dump(c, &format!("SELECT * FROM \"{}\" ORDER BY id", table.table));
+        out += &dump(
+            c,
+            &format!("SELECT id{columns} FROM \"{}\" ORDER BY id", table.table),
+        );
         out += "\n";
     }
     out += "## clocks\n";
@@ -127,7 +131,10 @@ pub(super) fn digest(c: &Collection) -> String {
     out += &format!("{:?}\n", c.presets().unwrap());
     out += &format!("{:?}\n", c.deleted_presets().unwrap());
     out += &format!("{:?}\n", c.saved_searches().unwrap());
-    out += &format!("{:?}\n", c.media_files().unwrap());
+    // The bytes of a file are not synced (step 4.4), so whether they are here is left out.
+    for file in c.media_files().unwrap() {
+        out += &format!("{} {} {} {}\n", file.id, file.hash, file.size, file.deleted);
+    }
     out += &format!("{:?}\n", c.tags().unwrap());
     out += &format!("{:?}\n", c.deleted_notes().unwrap());
     for note_type in c.note_types().unwrap() {
@@ -139,6 +146,29 @@ pub(super) fn digest(c: &Collection) -> String {
         }
     }
     out
+}
+
+/// Compares two digests and shows the first line that differs.
+#[track_caller]
+pub(super) fn assert_same(left: &str, right: &str, what: &str) {
+    if left == right {
+        return;
+    }
+    let (l, r): (Vec<&str>, Vec<&str>) = (left.lines().collect(), right.lines().collect());
+    let at = (0..l.len().max(r.len()))
+        .find(|i| l.get(*i) != r.get(*i))
+        .unwrap_or(0);
+    let section = l[..=at.min(l.len().saturating_sub(1))]
+        .iter()
+        .rev()
+        .find(|line| line.starts_with("## "))
+        .copied()
+        .unwrap_or("?");
+    panic!(
+        "{what}: digests differ in `{section}` at line {at}\n  left:  {}\n  right: {}",
+        l.get(at).unwrap_or(&"<end>"),
+        r.get(at).unwrap_or(&"<end>")
+    );
 }
 
 pub(super) fn basic_fields(c: &Collection) -> (Id, Id) {
@@ -1357,4 +1387,46 @@ fn a_parameter_set_that_arrives_after_its_events_rebuilds_their_cards() {
         a.c.card_schedule(card).unwrap()
     );
     assert_eq!(digest(&a.c), digest(&b.c));
+}
+
+#[test]
+fn a_new_device_does_not_bring_back_cards_that_went_to_the_trash_with_their_deck() {
+    // A deck is deleted on A while B adds a note to it, so the deck reads as alive because of that
+    // one card. The other cards stay deleted. A new device reconciles every note, and must not
+    // bring them back (and then push the revival to everyone).
+    let (a, b) = pair();
+    let deck = a.c.create_deck("D", None).unwrap();
+    let (f, back_) = basic_fields(&a.c);
+    let old: Vec<Id> = (0..3)
+        .map(|i| {
+            a.c.add_note_to_deck(
+                deck,
+                builtin::basic(),
+                &[(f, &format!("o{i}")), (back_, "b")],
+            )
+            .unwrap()
+            .id
+        })
+        .collect();
+    sync(&a, &b);
+    a.clock.advance(HOUR);
+    a.c.delete_deck(deck).unwrap();
+    b.clock.advance(2 * HOUR);
+    let new =
+        b.c.add_note_to_deck(deck, builtin::basic(), &[(f, "new"), (back_, "b")])
+            .unwrap();
+    sync(&a, &b);
+    settle(&[&a, &b]);
+    let fresh = Dev::new(3, START);
+    fresh
+        .c
+        .merge(&a.c.changes(Selection::All).unwrap())
+        .unwrap();
+    assert_eq!(digest(&fresh.c), digest(&a.c));
+    for d in [&a, &b, &fresh] {
+        assert_eq!(d.c.cards_of_note(new.id).unwrap().len(), 1);
+        for note in &old {
+            assert!(d.c.cards_of_note(*note).unwrap().is_empty());
+        }
+    }
 }

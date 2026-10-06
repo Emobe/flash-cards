@@ -498,10 +498,6 @@ impl Collection {
                 types.insert(owner);
             }
         }
-        report.notes_reconciled += types
-            .iter()
-            .map(|t| self.reconcile_note_type_counting(w, *t))
-            .sum::<Result<usize, _>>()?;
         // Notes whose own registers changed, and that were not covered by their note type.
         let mut by_type: BTreeMap<Id, Vec<Id>> = BTreeMap::new();
         for note in &touched.notes {
@@ -520,11 +516,26 @@ impl Collection {
                 by_type.entry(note_type).or_default().push(*note);
             }
         }
-        if !by_type.is_empty() {
-            let dead = dead_decks(&self.conn)?;
-            for (note_type, notes) in by_type {
-                report.notes_reconciled += self.reconcile_notes(w, note_type, &notes, &dead)?;
-            }
+        if types.is_empty() && by_type.is_empty() {
+            return Ok(());
+        }
+        // A deck deleted by one device and still named by a card from another reads as alive, but
+        // the cards that went to the trash with it must not come back from a merge: a new device
+        // reconciles every note, and would bring back all of them. So for the merge a deleted deck
+        // is dead, whatever still refers to it.
+        let mut dead = dead_decks(&self.conn)?;
+        let mut statement = self
+            .conn
+            .prepare("SELECT id FROM deck WHERE deleted <> 0")?;
+        for id in statement.query_map([], |row| row.get::<_, Id>(0))? {
+            dead.insert(id?);
+        }
+        report.notes_reconciled += types
+            .iter()
+            .map(|t| self.reconcile_note_type_counting(w, *t, &dead))
+            .sum::<Result<usize, _>>()?;
+        for (note_type, notes) in by_type {
+            report.notes_reconciled += self.reconcile_notes(w, note_type, &notes, &dead)?;
         }
         Ok(())
     }

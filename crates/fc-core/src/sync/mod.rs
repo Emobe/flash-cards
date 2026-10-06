@@ -33,6 +33,8 @@ pub use registry::{
 };
 pub use requires::SUPPORTED_FEATURES;
 pub use unknown::UnknownRegister;
+#[cfg(test)]
+pub(crate) use unknown::adopt_unknown;
 pub(crate) use write::seed_row;
 pub use write::{RegisterClock, WriteTx};
 
@@ -43,3 +45,5 @@ pub(crate) use registry::check_schema;
 mod merge_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tour_tests;
