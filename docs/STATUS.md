@@ -4,11 +4,13 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.8 Review history and basic stats: built on `step/1.8-history-stats`, `cargo xtask check` passes, waiting for Anthony's review (ADR 0007 build notes, step 1.8, list the definitions and findings). Next: merge it, then step 1.9 (search and filtering, a Sonnet build, `/step 1.9`) in a new session.
+1.9 Search and filtering, on `step/1.9-search`. Plan approved by Anthony (syntax as in the plan: `deck:` includes subdecks and `deckonly:` does not, `rated:7:1`, `rusqlite` `functions` feature allowed, syntax recorded in the ADR 0006 build notes, a small speed check only). 1.8 was reviewed and merged (PR #20).
+
+Done on the branch: the core (`fc_core::search`: parser, SQL compiler, runner, sorting, paging, saved searches in a new synced table `saved_search`, migration v9, SQL functions for Unicode-aware matching) with 67 tests. Remaining: the CLI (`fc search`, `fc searches`, `fc save-search`, `fc delete-search`), a throwaway timing at 50,000 cards, the ADR 0006 build notes (syntax, rules, deviations), the phase file status, a run on a copy of the real desktop collection, and `cargo xtask check`.
 
 ## Branch
 
-`step/1.8-history-stats` (from master after PR #19). Not pushed.
+`step/1.9-search` (from master after PR #20). Not pushed.
 
 ## Done
 
@@ -43,8 +45,7 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review and merge `step/1.8-history-stats`.
-- Then a new session with Sonnet: `/step 1.9`.
+- Finish step 1.9 (see Current step), then Anthony reviews it.
 
 ## Open items
 

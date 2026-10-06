@@ -6,6 +6,7 @@ use super::requires;
 use crate::deck;
 use crate::note;
 use crate::notetype;
+use crate::search;
 use crate::study;
 use crate::tag;
 
@@ -31,6 +32,7 @@ pub const SYNCED_TABLES: &[SyncedTable] = &[
     deck::DECK,
     deck::PRESET,
     study::SETTING,
+    search::SAVED_SEARCH,
 ];
 
 /// A table of registers whose names are not fixed: one row per `(owner, key)`, where the key is an

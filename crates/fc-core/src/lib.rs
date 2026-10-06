@@ -12,6 +12,7 @@ pub mod id;
 pub mod note;
 pub mod notetype;
 pub mod scheduling;
+pub mod search;
 pub mod stats;
 pub mod study;
 pub mod sync;

@@ -99,8 +99,8 @@ pub(crate) fn escape(text: &str) -> String {
     out
 }
 
-/// A field's text reduced for comparing two notes: no tags, spaces collapsed, lower case.
-pub(crate) fn comparison_key(html: &str) -> String {
+/// A field's text as a person reads it: no tags, entities decoded, spaces collapsed.
+pub(crate) fn readable(html: &str) -> String {
     let mut plain = String::new();
     let mut rest = html;
     while let Some(open) = rest.find('<') {
@@ -122,11 +122,12 @@ pub(crate) fn comparison_key(html: &str) -> String {
         .replace("&gt;", ">")
         .replace("&quot;", "\"")
         .replace("&amp;", "&");
-    plain
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_lowercase()
+    plain.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// A field's text reduced for comparing two notes: no tags, spaces collapsed, lower case.
+pub(crate) fn comparison_key(html: &str) -> String {
+    readable(html).to_lowercase()
 }
 
 /// The end of the tag that starts at `html[0]` (a `<`): the index of its `>`, not counting a `>`

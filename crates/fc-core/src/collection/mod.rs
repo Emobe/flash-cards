@@ -157,5 +157,6 @@ fn connect(location: &str, create: bool) -> Result<Connection, CollectionError> 
     // keys stay off: synced tables never enforce them (ADR 0006, section 6).
     conn.busy_timeout(Duration::ZERO)?;
     conn.pragma_update(None, "foreign_keys", false)?;
+    crate::search::register_functions(&conn)?;
     Ok(conn)
 }

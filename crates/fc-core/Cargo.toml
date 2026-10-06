@@ -10,11 +10,13 @@ publish.workspace = true
 workspace = true
 
 # `bundled` compiles SQLite from C on native targets. On wasm32 rusqlite uses sqlite-wasm-rs.
+# `functions` (a feature of rusqlite itself, no new crate) lets search register the Unicode-aware
+# text matching SQLite lacks (step 1.9).
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-rusqlite = { version = "=0.40.2", features = ["bundled"] }
+rusqlite = { version = "=0.40.2", features = ["bundled", "functions"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-rusqlite = "=0.40.2"
+rusqlite = { version = "=0.40.2", features = ["functions"] }
 
 # FSRS scheduler and optimiser (ADR 0004). Pure Rust. Exact version, as for other key crates.
 [dependencies]
