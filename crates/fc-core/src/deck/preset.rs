@@ -32,6 +32,9 @@ pub struct PresetChange {
     pub relearning_steps: Option<Vec<u32>>,
     pub desired_retention: Option<f64>,
     pub space_siblings: Option<bool>,
+    /// The FSRS parameters: 17, 19 or 21 numbers (filled to 21), or empty to go back to the
+    /// defaults. Written by the optimiser (step 1.8).
+    pub fsrs_parameters: Option<Vec<f32>>,
 }
 
 /// A preset is deleted if its register says so and no live deck still uses it. A deck given the
@@ -81,6 +84,23 @@ pub(super) fn parse_parameters(stored: &str) -> Vec<f32> {
         .filter(|numbers| !numbers.is_empty())
         .and_then(|numbers| crate::scheduling::fill_parameters(&numbers))
         .unwrap_or_default()
+}
+
+/// The 21 numbers to store for a change of FSRS parameters, or empty for the defaults.
+fn checked_parameters(parameters: &[f32]) -> Result<Vec<f32>, DeckError> {
+    if parameters.is_empty() {
+        return Ok(Vec::new());
+    }
+    crate::scheduling::fill_parameters(parameters).ok_or(DeckError::Parameters)
+}
+
+fn join_parameters(parameters: &[f32]) -> String {
+    // `f32` prints the shortest text that reads back as the same number.
+    parameters
+        .iter()
+        .map(f32::to_string)
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn check_steps(steps: &[u32]) -> Result<(), DeckError> {
@@ -302,6 +322,11 @@ impl Collection {
         if let Some(retention) = change.desired_retention {
             check_retention(retention)?;
         }
+        let parameters = change
+            .fsrs_parameters
+            .as_deref()
+            .map(checked_parameters)
+            .transpose()?;
         let current = self.live_preset(id)?.preset;
         Ok(self.write(|w| {
             if let Some(limit) = change.new_per_day.filter(|l| *l != current.new_per_day) {
@@ -363,6 +388,14 @@ impl Collection {
                 .filter(|on| *on != current.space_siblings)
             {
                 w.set(PRESET.entity, id, "space_siblings", flag(on))?;
+            }
+            if let Some(parameters) = parameters.filter(|p| *p != current.fsrs_parameters) {
+                w.set(
+                    PRESET.entity,
+                    id,
+                    "fsrs_parameters",
+                    text(&join_parameters(&parameters)),
+                )?;
             }
             Ok(())
         })?)

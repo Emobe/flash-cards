@@ -23,7 +23,7 @@ struct Hidden {
 
 impl Collection {
     /// The current study day.
-    pub(super) fn today(&self) -> Result<i64, StudyError> {
+    pub(crate) fn today(&self) -> Result<i64, StudyError> {
         let now = self.host.clock.now();
         Ok(study_day(
             now.unix_ms,

@@ -4,11 +4,17 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.7b Queues: built on `step/1.7b-queues`, `cargo xtask check` passes, waiting for Anthony's review (ADR 0007 build notes, step 1.7b, list the choices). Next: merge it. Then step 1.8 (review history and basic stats, a Sonnet build, `/step 1.8`) in a new session.
+1.8 Review history and basic stats, in progress on `step/1.8-history-stats` (1.7b is merged, PR #19). Plan was approved in chat (no plan file: no ADR, no migration, no new dependency).
+
+Built so far (core, in `fc_core::stats`): `card_history`, `daily_counts`, `retention`, `due_forecast`, `optimisation_data` / `TrainingSet::optimise` / `optimise_preset`, `PresetChange.fsrs_parameters`, `study_today`. 21 tests in `stats/tests.rs`.
+
+Remaining: the CLI (`fc history`, `fc stats`, `fc forecast`, `fc optimise [--apply]`) with tests, timings on a large history, a run on a copy of the real collection, ADR 0007 and 0004 build notes, the 1.8 status line in `docs/phases/01-core.md`, `cargo xtask check`, PR report.
+
+Finding to carry into the notes: `fsrs` 6.6.2 panics (`expect`) on a training item whose reviews all fall on one day, which a card in its learning steps produces. `scheduling::training_items` filters them. It also returns the default parameters without a word under 8 items and only the first-interval parameters under 64, so `MIN_TRAINING_ITEMS` is 64.
 
 ## Branch
 
-`step/1.7b-queues` (from master after PR #18). Not pushed.
+`step/1.8-history-stats` (from master after PR #19). Not pushed.
 
 ## Done
 

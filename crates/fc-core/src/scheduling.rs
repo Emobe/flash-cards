@@ -183,35 +183,86 @@ pub fn default_parameters() -> &'static [f32] {
     &DEFAULT_PARAMETERS
 }
 
-/// Optimises parameters from review histories. Runs for as long as training takes and cannot be
-/// cancelled, so hosts should call it where blocking is acceptable.
-pub fn optimise(histories: &[Vec<HistoryReview>]) -> Result<Vec<f32>, SchedulingError> {
-    // One training item per review after the first, holding every review up to it.
-    let mut train_set = Vec::new();
+/// One training item per review after a card's first, holding every review up to it, and only the
+/// items with a review on a later day than the one before it. `fsrs` panics on an item whose
+/// reviews all fall on one day (a card still in its learning steps), so those never reach it.
+fn training_items(histories: &[Vec<HistoryReview>]) -> Result<Vec<FSRSItem>, SchedulingError> {
+    let mut items = Vec::new();
     for history in histories {
         if history.is_empty() {
             return Err(SchedulingError::InvalidInput);
         }
         let mut reviews = Vec::new();
         let mut previous_day = history[0].day;
+        let mut later_day = false;
         for (i, review) in history.iter().enumerate() {
+            let delta_t = review.day.saturating_sub(previous_day);
+            later_day |= delta_t > 0;
             reviews.push(FSRSReview {
                 rating: review.rating.number(),
-                delta_t: review.day.saturating_sub(previous_day),
+                delta_t,
             });
             previous_day = review.day;
-            if i > 0 {
-                train_set.push(FSRSItem {
+            if i > 0 && later_day {
+                items.push(FSRSItem {
                     reviews: reviews.clone(),
                 });
             }
         }
     }
+    Ok(items)
+}
+
+/// How many training items `optimise` would give `fsrs` for these histories.
+pub fn training_item_count(histories: &[Vec<HistoryReview>]) -> u32 {
+    training_items(histories).map_or(0, |items| items.len() as u32)
+}
+
+/// Optimises parameters from review histories. Runs for as long as training takes and cannot be
+/// cancelled, so hosts should call it where blocking is acceptable.
+pub fn optimise(histories: &[Vec<HistoryReview>]) -> Result<Vec<f32>, SchedulingError> {
+    optimise_with_steps(histories, 1)
+}
+
+/// Like `optimise`, told how many relearning steps the deck options have (at least 1), because the
+/// optimiser models a lapse's same-day repeats with it.
+pub fn optimise_with_steps(
+    histories: &[Vec<HistoryReview>],
+    relearning_steps: u32,
+) -> Result<Vec<f32>, SchedulingError> {
+    let train_set = training_items(histories)?;
     fsrs::compute_parameters(ComputeParametersInput {
         train_set,
+        num_relearning_steps: Some(relearning_steps.max(1) as usize),
         ..Default::default()
     })
     .map_err(|e| SchedulingError::Fsrs(e.to_string()))
+}
+
+/// The memory state FSRS works out from a whole history in one go (tests compare it with what the
+/// scheduler kept answer by answer).
+#[cfg(test)]
+pub(crate) fn memory_from_history(parameters: &[f32], history: &[HistoryReview]) -> Memory {
+    let mut previous = history[0].day;
+    let reviews = history
+        .iter()
+        .map(|r| {
+            let review = FSRSReview {
+                rating: r.rating.number(),
+                delta_t: r.day.saturating_sub(previous),
+            };
+            previous = r.day;
+            review
+        })
+        .collect();
+    let state = FSRS::new(parameters)
+        .unwrap()
+        .memory_state(FSRSItem { reviews }, None)
+        .unwrap();
+    Memory {
+        stability: state.stability,
+        difficulty: state.difficulty,
+    }
 }
 
 /// Deterministic made-up review histories (about 8 reviews per card, mostly Good) for the 0.5 spike,
@@ -252,6 +303,27 @@ pub fn synthetic_histories(cards: u32) -> Vec<Vec<HistoryReview>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn same_day_only_histories_are_not_training_items_and_do_not_panic() {
+        // `fsrs` panics on an item whose reviews all fall on one day.
+        let same_day = |ratings: &[Rating]| -> Vec<HistoryReview> {
+            ratings
+                .iter()
+                .map(|&rating| HistoryReview { day: 0, rating })
+                .collect()
+        };
+        let histories = vec![same_day(&[Rating::Good, Rating::Good, Rating::Good]); 100];
+        assert_eq!(training_item_count(&histories), 0);
+        assert!(optimise(&histories).is_ok());
+        // A later day makes the items from that review on count: 3 reviews, the last one a day on.
+        let mut later = same_day(&[Rating::Again, Rating::Good]);
+        later.push(HistoryReview {
+            day: 1,
+            rating: Rating::Good,
+        });
+        assert_eq!(training_item_count(&[later]), 1);
+    }
 
     const GOOD5: [Rating; 5] = [Rating::Good; 5];
 

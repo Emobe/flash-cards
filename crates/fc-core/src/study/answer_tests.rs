@@ -11,13 +11,13 @@ use crate::scheduling::{
     CardState, Due, Rating, Scheduler, default_parameters, fuzz, parameter_set_id, study_day,
 };
 
-pub(super) const DAY: i64 = 86_400_000;
-pub(super) const HOUR: i64 = 3_600_000;
-pub(super) const MINUTE: i64 = 60_000;
+pub(crate) const DAY: i64 = 86_400_000;
+pub(crate) const HOUR: i64 = 3_600_000;
+pub(crate) const MINUTE: i64 = 60_000;
 /// 2023-11-14 00:00 UTC, which is study day 19,675 at a midnight start and offset 0.
-pub(super) const DAY0: i64 = 19_675 * DAY;
+pub(crate) const DAY0: i64 = 19_675 * DAY;
 
-pub(super) fn host(clock: &Arc<ManualClock>) -> Host {
+pub(crate) fn host(clock: &Arc<ManualClock>) -> Host {
     Host {
         clock: clock.clone(),
         installation_id: Id::from_bytes(*b"installation-one"),
@@ -25,13 +25,13 @@ pub(super) fn host(clock: &Arc<ManualClock>) -> Host {
 }
 
 /// A collection whose clock is at 09:00 UTC on `DAY0`.
-pub(super) fn setup() -> (Collection, Arc<ManualClock>) {
+pub(crate) fn setup() -> (Collection, Arc<ManualClock>) {
     let clock = Arc::new(ManualClock::new(DAY0 + 9 * HOUR));
     let c = Collection::create(":memory:", host(&clock)).unwrap();
     (c, clock)
 }
 
-pub(super) fn basic_card(c: &Collection, front: &str) -> Id {
+pub(crate) fn basic_card(c: &Collection, front: &str) -> Id {
     let f: Vec<Id> = c
         .note_type(builtin::basic())
         .unwrap()
@@ -45,11 +45,11 @@ pub(super) fn basic_card(c: &Collection, front: &str) -> Id {
         .cards[0]
 }
 
-pub(super) fn events(c: &Collection, card: Id) -> Vec<CardEvent> {
+pub(crate) fn events(c: &Collection, card: Id) -> Vec<CardEvent> {
     c.card_events(card).unwrap()
 }
 
-pub(super) fn good(c: &Collection, card: Id) -> Answered {
+pub(crate) fn good(c: &Collection, card: Id) -> Answered {
     c.answer(card, Rating::Good, 3_000).unwrap()
 }
 
