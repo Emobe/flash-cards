@@ -13,8 +13,6 @@ pub enum StudyError {
     NotFound,
     /// The day can start at a whole hour from 0 to 23.
     StartHour,
-    /// Undo has nothing to undo: no answer was made on this device yet, or every one is undone.
-    NothingToUndo,
     /// The card was answered again, here or on another device, after the answer to undo. Undoing
     /// the older answer would leave the newer one built on something that is gone.
     LaterAnswer,
@@ -31,7 +29,6 @@ impl fmt::Display for StudyError {
             Self::StartHour => f.write_str(
                 "The day can start at a whole hour from 0 (midnight) to 23, for example 4 for 4 am.",
             ),
-            Self::NothingToUndo => f.write_str("There is no answer to undo."),
             Self::LaterAnswer => f.write_str(
                 "That card was answered again after this answer, so it cannot be undone. \
                  Answer the card again instead.",

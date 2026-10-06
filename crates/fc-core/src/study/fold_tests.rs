@@ -14,7 +14,7 @@ use crate::deck::default_preset;
 use crate::scheduling::{CardState, Rating, Scheduler, Steps, default_parameters};
 
 /// Every cache row, in a fixed order, as text (floats and all), for comparing two caches.
-fn snapshot(conn: &Connection) -> Vec<String> {
+pub(super) fn snapshot(conn: &Connection) -> Vec<String> {
     let mut statement = conn
         .prepare(
             "SELECT hex(card), state, step, due_day, due_ms, stability, difficulty, last_day,
@@ -189,7 +189,7 @@ fn a_cache_from_another_version_of_the_fold_is_rebuilt_when_the_collection_opens
 /// An event as another device would have written it, built on `previous`, with its result worked
 /// out by that device from the card as it saw it (`seen`).
 #[allow(clippy::too_many_arguments)]
-fn from_other_device(
+pub(super) fn from_other_device(
     card: Id,
     id: Id,
     previous: Option<Id>,
@@ -229,7 +229,7 @@ fn from_other_device(
     }
 }
 
-fn insert(c: &Collection, event: &CardEvent) {
+pub(super) fn insert(c: &Collection, event: &CardEvent) {
     c.write(|w| w.insert_row("card_event", event.id, event.values()))
         .unwrap();
 }

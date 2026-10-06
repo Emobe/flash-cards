@@ -19,6 +19,9 @@ mod schedule;
 mod settings;
 #[cfg(test)]
 mod tests;
+mod undo;
+#[cfg(test)]
+mod undo_tests;
 
 use crate::id::Id;
 use crate::sync::{AppendOnlyTable, SyncedTable};
@@ -27,6 +30,7 @@ pub use answer::Answered;
 pub use error::StudyError;
 pub use event::{CardEvent, EventKind};
 pub use schedule::CardSchedule;
+pub use undo::Undone;
 
 pub(crate) use fold::check_cache;
 pub use settings::DEFAULT_DAY_START_HOUR;

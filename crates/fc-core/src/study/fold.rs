@@ -34,8 +34,10 @@ impl ParameterSets {
             .query_map([], |row| {
                 let bytes: Vec<u8> = row.get(1)?;
                 let values = bytes
-                    .chunks_exact(4)
-                    .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .map(|b| f32::from_le_bytes(*b))
                     .collect();
                 Ok((row.get(0)?, values))
             })?

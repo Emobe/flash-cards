@@ -349,6 +349,7 @@ fn v7(tx: &Transaction) -> rusqlite::Result<()> {
         CREATE INDEX card_event_by_card ON card_event (card, time_ms);
         CREATE INDEX card_event_by_time ON card_event (time_ms);
         CREATE INDEX card_event_by_day ON card_event (day);
+        CREATE INDEX card_event_by_target ON card_event (target) WHERE target IS NOT NULL;
         CREATE TABLE card_schedule (
             card BLOB PRIMARY KEY NOT NULL,
             state INTEGER NOT NULL,

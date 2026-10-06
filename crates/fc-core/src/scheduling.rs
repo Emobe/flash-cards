@@ -448,10 +448,8 @@ mod day_tests {
     #[test]
     fn a_parameter_set_has_the_same_id_for_the_same_values_on_every_device() {
         let defaults = default_parameters();
-        assert_eq!(
-            parameter_set_id(defaults),
-            parameter_set_id(&defaults.to_vec())
-        );
+        let copy = defaults.to_vec();
+        assert_eq!(parameter_set_id(defaults), parameter_set_id(&copy));
         let mut changed = defaults.to_vec();
         changed[0] += 0.001;
         assert_ne!(parameter_set_id(defaults), parameter_set_id(&changed));
