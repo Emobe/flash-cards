@@ -21,8 +21,8 @@ What exists (`docs/plans/1.12-adr-handoff.md` has the details):
 - **The core cannot emit.** ADR 0002 says "the core emits through an `EventSink` trait the host
   implements". `EventSink`, `Notice` and `CoreEvent` are in `fc-api`, which depends on `fc-core`, so
   the core cannot call them. This ADR changes how that sentence is carried out (the core gets its own
-  event type and listener, and `fc-api` adapts them to `EventSink`). ADR 0002 is not edited. Anthony
-  decides whether it gets a pointer here.
+  event type and listener, and `fc-api` adapts them to `EventSink`). ADR 0002 keeps its original
+  text and has a pointer to this ADR.
 - **Delivery is per call.** `OpContext::with_sink` gives a sink to one API call. A merge, or Phase 4's
   background sync, has no call to hang events on.
 - **There is no study session** in the core. Nothing defines one.
