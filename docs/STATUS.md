@@ -4,13 +4,29 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.12 ADR 0009 accepted (2026-10-06); next is `/step 1.12` in a fresh session. Branch `step/1.12-extension-points`; the build plan is `docs/plans/1.12-extension-points.md`.
+1.12 Extension points: build in progress on branch `step/1.12-extension-points` (fast-forwarded to master after PR #26). Built to ADR 0009 and `docs/plans/1.12-extension-points.md`. Continue with `/step 1.12`.
+
+Done (committed, `fc-core` compiles with no warnings, tests not run yet):
+- `fc_core::events`: `Event` (not `#[non_exhaustive]`), `Listener`, `Listeners` (`deliver` skips an empty batch, copies the list out of its mutex, `catch_unwind` per listener), `count` (saturate to `u32`).
+- `Collection`: `listeners`, `session: RefCell<Option<OpenSession>>`, `listen`, crate-only `set_listeners` and `emit_now`, a compile-time `Send` check; `close` ends the open session as `Closed`.
+- `WriteTx::emit` (crate-only); `Collection::write` delivers after `commit()`.
+- `Core`: `listeners`, `listen`; `open_collection` hands them to the new collection and ends the old collection's session as `Closed` under the lock; `close_collection` now closes under the lock.
+- Emits in `add_note_to_deck`, `set_note_fields` (only if a field changed or a card was added or removed), `delete_note`, `restore_note`, `answer` (with the open session), `undo_answer`, `merge` (one `MergeApplied` when applied + rows + unknown kept > 0).
+- `study/session.rs`: `start_study_session`, `end_study_session`, `EndReason`, `SessionSummary`, crate-only `open_session_id` and `end_open_session` (ends with no event if the summary query fails).
+- Deviation so far: `StudyError::NotFound` reads "That card or deck no longer exists." (a missing deck now reaches it from `start_study_session`); `fc-cli/tests/study.rs` updated.
+
+Remaining, in order:
+1. Tests in `crates/fc-core/src/events_tests.rs` and `study/session_tests.rs` (both placeholders), as listed in the plan's "Tests". Helpers: `study::answer_tests::{setup, basic_card, good}`, `sync::merge_tests::{pair, sync}` and `a_failed_merge_changes_nothing` for the failed merge. Then `cargo test -p fc-core`.
+2. `fc-api`: `CoreEvent` variants, rating and end-reason string unions, exhaustive `From<&Event>`, `forward_events`, JSON-shape tests, `cargo xtask bindings`.
+3. Hosts: `forward_events` in `apps/native/src-tauri/src/lib.rs` and `crates/fc-wasm/src/lib.rs` `init`; a hub test.
+4. Docs: `docs/events.md`, link in `docs/README.md`, ADR 0009 build notes with the deviations list, phase file Status line.
+5. `cargo xtask check`, `fc` on a copy of the desktop collection, desktop app and web page start without errors. Then the PR report.
 
 1.11a Merge: built, awaiting Anthony's review. Branch `step/1.11a-merge`. Results, findings and the deviations list are in ADR 0008, "Build notes (step 1.11a)" (deviations: the list at the end of those notes). Not verified: the phone, the web, Windows, merge speed on the phone or in wasm.
 
 ## Branch
 
-`step/1.11a-merge` (from master after PR #24). Not pushed.
+`step/1.12-extension-points`. Not pushed since PR #26.
 
 ## Done
 

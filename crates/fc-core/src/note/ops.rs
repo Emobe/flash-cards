@@ -10,6 +10,7 @@ use super::generate::{NoteState, Plan, reconcile, wanted};
 use super::{CARD, NOTE, NOTE_VALUE, NoteError};
 use crate::collection::{Collection, CollectionError};
 use crate::deck::{dead_decks, default_deck};
+use crate::events::Event;
 use crate::html::comparison_key;
 use crate::id::Id;
 use crate::notetype::NoteType;
@@ -117,6 +118,12 @@ impl Collection {
             }
             state.id = id;
             let done = reconcile(w, &plan, &state, &HashSet::new())?;
+            w.emit(Event::NoteAdded {
+                note: id,
+                note_type,
+                deck,
+                cards: done.added.clone(),
+            });
             Ok((id, done))
         })?;
         Ok(AddedNote {
@@ -182,7 +189,16 @@ impl Collection {
             for (field, value) in &changed {
                 w.set_value(NOTE_VALUE.entity, note, *field, value)?;
             }
-            reconcile(w, &plan, &state, &dead)
+            let done = reconcile(w, &plan, &state, &dead)?;
+            if !changed.is_empty() || !done.added.is_empty() || !done.removed.is_empty() {
+                w.emit(Event::NoteEdited {
+                    note,
+                    fields: changed.iter().map(|(field, _)| *field).collect(),
+                    cards_added: done.added.clone(),
+                    cards_removed: done.removed.clone(),
+                });
+            }
+            Ok(done)
         })?;
         Ok(NoteChange {
             added_cards: done.added,
@@ -199,7 +215,9 @@ impl Collection {
             Some(true) => Ok(()),
             Some(false) => Ok(self.write(|w| {
                 w.set(NOTE.entity, note, "deleted", flag(true))?;
-                self.tombstone_cards(w, "WHERE note = ?1", note)
+                self.tombstone_cards(w, "WHERE note = ?1", note)?;
+                w.emit(Event::NoteDeleted { note });
+                Ok(())
             })?),
         }
     }
@@ -220,7 +238,12 @@ impl Collection {
                 let plan = Plan::new(&found);
                 let done = self.write(|w| {
                     w.set(NOTE.entity, note, "deleted", flag(false))?;
-                    reconcile(w, &plan, &self.note_state(note)?, &HashSet::new())
+                    let done = reconcile(w, &plan, &self.note_state(note)?, &HashSet::new())?;
+                    w.emit(Event::NoteRestored {
+                        note,
+                        cards: done.added.clone(),
+                    });
+                    Ok(done)
                 })?;
                 Ok(NoteChange {
                     added_cards: done.added,

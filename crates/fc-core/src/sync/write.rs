@@ -10,6 +10,7 @@ use super::registry::{APPEND_ONLY_TABLES, DYNAMIC_TABLES, GUARD_TABLE};
 use super::{Hlc, SyncedTable, state};
 use crate::clock::Host;
 use crate::collection::{Collection, CollectionError};
+use crate::events::Event;
 use crate::id::Id;
 
 /// The clock saved for one register.
@@ -30,6 +31,8 @@ pub struct WriteTx<'c> {
     tables: &'c [SyncedTable],
     device: Id,
     pub(super) hlc: Hlc,
+    /// Delivered to listeners after the commit, dropped with a rollback.
+    events: Vec<Event>,
 }
 
 fn problem(message: String) -> CollectionError {
@@ -37,6 +40,11 @@ fn problem(message: String) -> CollectionError {
 }
 
 impl WriteTx<'_> {
+    /// Adds an event, delivered once this transaction commits (ADR 0009).
+    pub(crate) fn emit(&mut self, event: Event) {
+        self.events.push(event);
+    }
+
     /// A new random ID, time-ordered (UUIDv7).
     pub fn new_id(&self) -> Result<Id, CollectionError> {
         state::new_id(self.host)
@@ -297,7 +305,8 @@ pub(crate) fn seed_row(
 }
 
 impl Collection {
-    /// Runs `f` in one write transaction. This is the only way to change a synced table.
+    /// Runs `f` in one write transaction. This is the only way to change a synced table. The
+    /// events `f` emitted go to the listeners after the commit.
     pub fn write<T>(
         &self,
         f: impl FnOnce(&mut WriteTx<'_>) -> Result<T, CollectionError>,
@@ -310,6 +319,7 @@ impl Collection {
             host: &self.host,
             tables: self.schema.tables,
             tx,
+            events: Vec::new(),
         };
         let value = f(&mut write)?;
         state::set_hlc_last(&write.tx, write.hlc)?;
@@ -317,6 +327,7 @@ impl Collection {
             .tx
             .execute(&format!("DELETE FROM {GUARD_TABLE}"), [])?;
         write.tx.commit()?;
+        self.listeners.deliver(&write.events);
         Ok(value)
     }
 

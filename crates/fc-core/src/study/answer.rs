@@ -9,6 +9,7 @@ use super::schedule::{after, compute, read_cached, write_cached};
 use super::{PARAMETER_SET, StudyError};
 use crate::collection::Collection;
 use crate::deck::Preset;
+use crate::events::Event;
 use crate::id::Id;
 use crate::scheduling::{
     CardState, Rating, Scheduler, Steps, default_parameters, parameter_bytes, parameter_set_id,
@@ -141,6 +142,13 @@ impl Collection {
             )?;
             w.insert_row(super::CARD_EVENT.entity, id, event.values())?;
             write_cached(w.local(), card, &row)?;
+            w.emit(Event::CardAnswered {
+                card,
+                deck,
+                event: id,
+                rating,
+                session: self.open_session_id(),
+            });
             Ok(())
         })?;
         Ok(Answered {

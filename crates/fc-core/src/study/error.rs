@@ -9,7 +9,7 @@ use crate::scheduling::SchedulingError;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum StudyError {
-    /// No card with that ID, or it is deleted.
+    /// No card (or, when starting a study session, deck) with that ID, or it is deleted.
     NotFound,
     /// The day can start at a whole hour from 0 to 23.
     StartHour,
@@ -31,7 +31,7 @@ pub enum StudyError {
 impl fmt::Display for StudyError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NotFound => f.write_str("That card no longer exists."),
+            Self::NotFound => f.write_str("That card or deck no longer exists."),
             Self::StartHour => f.write_str(
                 "The day can start at a whole hour from 0 (midnight) to 23, for example 4 for 4 am.",
             ),

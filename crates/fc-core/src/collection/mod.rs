@@ -10,12 +10,16 @@ mod migrate;
 #[cfg(test)]
 mod tests;
 
+use std::cell::RefCell;
+use std::sync::Arc;
 use std::time::Duration;
 
 use rusqlite::{Connection, OpenFlags};
 
 use crate::clock::Host;
+use crate::events::{Event, Listener, Listeners};
 use crate::id::Id;
+use crate::study::{EndReason, OpenSession};
 use crate::sync::{SYNCED_TABLES, SyncedTable, state};
 
 pub use error::CollectionError;
@@ -58,7 +62,16 @@ pub struct Collection {
     schema_version: u32,
     pub(crate) host: Host,
     pub(crate) schema: Schema,
+    pub(crate) listeners: Listeners,
+    /// The open study session, if any. In memory only (ADR 0009, part 5).
+    pub(crate) session: RefCell<Option<OpenSession>>,
 }
+
+// `Core` moves a collection between threads behind its mutex.
+const _: () = {
+    const fn send<T: Send>() {}
+    send::<Collection>();
+};
 
 impl Collection {
     /// Creates a new collection. Fails if the location already holds data.
@@ -116,7 +129,24 @@ impl Collection {
             schema_version: latest(schema.migrations),
             host,
             schema,
+            listeners: Listeners::default(),
+            session: RefCell::new(None),
         })
+    }
+
+    /// Adds a listener for this collection's events (see `events`).
+    pub fn listen(&self, listener: Arc<dyn Listener>) {
+        self.listeners.add(listener);
+    }
+
+    /// Shares `Core`'s listeners, so they hear every collection the core opens.
+    pub(crate) fn set_listeners(&mut self, listeners: Listeners) {
+        self.listeners = listeners;
+    }
+
+    /// Delivers an event that is not part of a write (a study session, a sync).
+    pub(crate) fn emit_now(&self, event: Event) {
+        self.listeners.deliver(&[event]);
     }
 
     pub fn info(&self) -> Result<CollectionInfo, CollectionError> {
@@ -136,6 +166,7 @@ impl Collection {
 
     /// Closes the collection, reporting a failure that dropping it would hide.
     pub fn close(self) -> Result<(), CollectionError> {
+        self.end_open_session(EndReason::Closed);
         self.conn.close().map_err(|(_, error)| error.into())
     }
 }

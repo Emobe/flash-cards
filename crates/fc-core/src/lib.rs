@@ -7,6 +7,7 @@
 pub mod clock;
 pub mod collection;
 pub mod deck;
+pub mod events;
 mod html;
 pub mod id;
 pub mod media;
@@ -20,10 +21,11 @@ pub mod sync;
 pub mod tag;
 pub mod template;
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use clock::Host;
 use collection::{Collection, CollectionError};
+use events::{Listener, Listeners};
 
 /// Version of the core library, taken from its Cargo manifest.
 pub fn version() -> &'static str {
@@ -37,6 +39,8 @@ pub fn version() -> &'static str {
 #[derive(Debug, Default)]
 pub struct Core {
     collection: Mutex<Option<Collection>>,
+    /// Shared with every collection the core opens.
+    listeners: Listeners,
 }
 
 impl Core {
@@ -44,18 +48,30 @@ impl Core {
         Self::default()
     }
 
+    /// Adds a listener for the events of every collection this core opens, before or after this
+    /// call (see `events`).
+    pub fn listen(&self, listener: Arc<dyn Listener>) {
+        self.listeners.add(listener);
+    }
+
     /// Opens the collection at a path or `file:` URI, creating it if nothing is there yet. Replaces
     /// (and closes) any collection that was open.
     pub fn open_collection(&self, location: &str, host: Host) -> Result<(), CollectionError> {
-        let collection = Collection::open_or_create(location, host)?;
-        *self.collection.lock().expect("collection lock") = Some(collection);
+        let mut collection = Collection::open_or_create(location, host)?;
+        collection.set_listeners(self.listeners.clone());
+        let mut open = self.collection.lock().expect("collection lock");
+        if let Some(old) = open.as_ref() {
+            old.end_open_session(study::EndReason::Closed);
+        }
+        *open = Some(collection);
         Ok(())
     }
 
     /// Closes the open collection, if any.
     pub fn close_collection(&self) -> Result<(), CollectionError> {
-        let taken = self.collection.lock().expect("collection lock").take();
-        taken.map_or(Ok(()), Collection::close)
+        // Closed under the lock, so the session's end event arrives in order with the others.
+        let mut open = self.collection.lock().expect("collection lock");
+        open.take().map_or(Ok(()), Collection::close)
     }
 
     /// Runs `f` on the open collection, or returns `None` when none is open.
