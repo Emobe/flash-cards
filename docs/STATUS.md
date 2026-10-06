@@ -4,13 +4,15 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.7 Study queues and answering: ADR 0007 Accepted (2026-10-06) with Anthony's decisions, plan in `docs/plans/1.7-study-queues.md`, both on `step/1.7-study-queues`. Nothing is built. Next: merge the design branch, then build 1.7a.
+1.7a Answering and the schedule: built on `step/1.7a-answering` (6 commits plus this docs one), `cargo xtask check` passes, waiting for Anthony's review (ADR 0007 build notes, step 1.7a, lists the deviations). Next: merge it, then a new Sonnet session runs `/step 1.7b` (queues, limits, suspend and bury, the simulated multi-day test; plan in `docs/plans/1.7-study-queues.md`).
 
 ## Branch
 
-`step/1.7-study-queues` (from master after PR #15).
+`step/1.7a-answering` (from master after PR #16). Not pushed.
 
 ## Done
+
+- 1.7a Answering and the schedule (ADR 0007 build notes, step 1.7a). Migration v7: preset registers `relearning_steps` and `fsrs_parameters`, `collection_setting` (`day_start_hour`), append-only `card_event` and `fsrs_parameter_set` (a third synced table kind with guard triggers, `WriteTx::insert_row`), local `card_schedule` and `unpushed_row`. `fc_core::scheduling`: `study_day`, the state machine (`scheduling/machine.rs`), fuzz, parameter set IDs. `fc_core::study`: `answer`, `undo_answer` (a void event), `card_schedule`, `card_events`, the fold and `rebuild_schedule` (cache version checked on open). `fc answer`, `fc undo`, `fc schedule`, `--now`, `--utc-offset`. 81 more core tests (370 in `fc-core`), 4 more CLI tests (17). Verified on Linux (tests, CLI on a copy of the real desktop collection, v2 to v7). Rebuild of 1,000,000 events: 1.7 s on Linux. Not run in a UI, a browser or the phone (nothing there changed).
 
 - 1.7 design session: ADR 0007 (Accepted) and the build plan. Throwaway experiments (scratch crate, Linux): FSRS-6 same-day answers through learning steps, `memory_state` matching step-by-step answers, queue queries at 50,000 cards (38 ms for counts over every deck). Not verified on the phone, the web or Windows.
 
@@ -37,11 +39,15 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: merge `step/1.7-study-queues` (docs only).
-- Then a new session with Sonnet: `/step 1.7a`, then `/step 1.7b` after 1.7a is merged. The split is described in the plan, not as headings in the phase file.
+- Anthony: review and merge `step/1.7a-answering`.
+- Then a new session with Sonnet: `/step 1.7b`.
 
 ## Open items
 
+- 1.7a deviations for Anthony to confirm (details in the ADR 0007 build notes): `card_event` has a `day` column; `steps` records both step lists (`1 10|10`); the namespaces of the setting and parameter set IDs are 16-byte names (`fc-setting-ids-1`, `fc-fsrs-params-1`); `WriteTx::insert_row` is one generic write path for append-only rows. Rules to confirm: Hard repeats the step (no averaging), Again on a new card with no learning steps graduates (at least 1 day), fuzz applies to reviews as well as graduations.
+- 1.7a not verified: the phone and the browser (the phone migrates to 7 the next time the APK runs), Windows, Firefox, Safari, timings on the phone and the web (the one-off rebuild when the fold changes: 1.7 s for 1,000,000 events on Linux), merging events from two collections (1.11).
+- 1.7a leaves for later steps: suspend, bury, limits, queues, counts and the simulated test (1.7b); history, stats and the optimiser writing `fsrs_parameters` (1.8); `is:due` and similar search (1.9); set due date, reset and reschedule events (Phase 3, 1.14); the merge calling the fold for touched cards (1.11).
+- No new dependencies in 1.7a.
 - 1.7 decisions are in ADR 0007, "Decisions on review": limits over the whole deck path with a per-deck "limits include sub-decks" switch, siblings held until the next day (preset switch), new cards spread among reviews, day starts at midnight, relearning steps `10`, two PRs. The phone and web timings of the queue are unverified; Phase 2 measures them in the real study screen.
 
 - 1.6 rules (Anthony reviewed 1.6 on 2026-10-06; say if any of these should change): a tag's identity is its name (so a rename rewrites the notes that have it, and an old name added on another device later stays); a tag name cannot contain whitespace (a tag is one word in the CLI and in search), cannot be empty, and has no empty part around `::`; tags match ignoring case and a new tag takes the spelling already in use; deleting a note keeps its tags (hidden from counts and search until restored); a rename also rewrites notes in the trash.

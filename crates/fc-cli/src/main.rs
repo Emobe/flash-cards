@@ -2,6 +2,7 @@
 //! terminal before any UI exists. Step 1.14 grows it into the full tool.
 
 mod host;
+mod study;
 
 use std::process::ExitCode;
 
@@ -29,10 +30,75 @@ Usage:
                    Rename a tag on every note, together with the tags inside it
   fc render <file> <note ID>
                    Print the front and back HTML of each card of a note, and its media
-  fc help          Show this text";
+  fc answer <file> <card ID> <again|hard|good|easy>
+                   Answer a card and print when it is due next
+  fc undo <file>   Take back the last answer made on this device
+  fc schedule <file> <card ID>
+                   Print a card's state, due date, memory and every answer so far
+  fc help          Show this text
+
+Options for any command:
+  --now <time>     Pretend it is this time (RFC 3339, e.g. 2026-10-06T09:00:00+02:00). The offset
+                   in the time is used unless --utc-offset is given. Step through days with it
+  --utc-offset <minutes>
+                   Pretend the device's time zone is this many minutes ahead of UTC";
+
+/// Takes `--now` and `--utc-offset` (anywhere on the line) out of the arguments.
+fn take_clock_options(args: Vec<String>) -> Result<Vec<String>, Failure> {
+    let mut rest = Vec::new();
+    let mut overrides = host::Overrides::default();
+    let mut offset_from_time = None;
+    let mut args = args.into_iter();
+    while let Some(arg) = args.next() {
+        let wants = |name: &str| Failure::Usage(format!("{name} needs a value."));
+        match arg.as_str() {
+            "--now" => {
+                let value = args.next().ok_or_else(|| wants("--now"))?;
+                let time = chrono::DateTime::parse_from_rfc3339(&value).map_err(|_| {
+                    Failure::Usage(format!(
+                        "\"{value}\" is not a time. Use RFC 3339, for example \
+                         2026-10-06T09:00:00+02:00."
+                    ))
+                })?;
+                overrides.unix_ms = Some(time.timestamp_millis());
+                offset_from_time = Some(time.offset().local_minus_utc() / 60);
+            }
+            "--utc-offset" => {
+                let value = args.next().ok_or_else(|| wants("--utc-offset"))?;
+                let minutes: i32 = value
+                    .parse()
+                    .ok()
+                    .filter(|m| (-1440..=1440).contains(m))
+                    .ok_or_else(|| {
+                        Failure::Usage(format!(
+                            "\"{value}\" is not a UTC offset in minutes, for example 120 or -300."
+                        ))
+                    })?;
+                overrides.utc_offset_minutes = Some(minutes);
+            }
+            _ => rest.push(arg),
+        }
+    }
+    if overrides.utc_offset_minutes.is_none() {
+        overrides.utc_offset_minutes = offset_from_time;
+    }
+    host::set_overrides(overrides);
+    Ok(rest)
+}
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    let args = match take_clock_options(args) {
+        Ok(args) => args,
+        Err(Failure::Usage(message)) => {
+            eprintln!("{message}\n\n{USAGE}");
+            return ExitCode::from(2);
+        }
+        Err(Failure::Core(message)) => {
+            eprintln!("{message}");
+            return ExitCode::FAILURE;
+        }
+    };
     match run(&args) {
         Ok(output) => {
             println!("{output}");
@@ -76,6 +142,12 @@ impl From<fc_core::template::RenderError> for Failure {
 
 impl From<fc_core::deck::DeckError> for Failure {
     fn from(error: fc_core::deck::DeckError) -> Self {
+        Self::Core(error.to_string())
+    }
+}
+
+impl From<fc_core::study::StudyError> for Failure {
+    fn from(error: fc_core::study::StudyError) -> Self {
         Self::Core(error.to_string())
     }
 }
@@ -222,6 +294,12 @@ fn run(args: &[String]) -> Result<String, Failure> {
                         .map(|card| card_name(&note_type, card))
                         .collect();
                     text.push_str(&format!("\n  Cards: {}", names.join(", ")));
+                    let ids: Vec<String> = collection
+                        .cards_of_note(note.id)?
+                        .iter()
+                        .map(|card| card.id.to_string())
+                        .collect();
+                    text.push_str(&format!("\n  Card IDs: {}", ids.join(", ")));
                     let tags = collection.note_tags(note.id)?;
                     if !tags.is_empty() {
                         text.push_str(&format!("\n  Tags: {}", tags.join(" ")));
@@ -456,6 +534,9 @@ fn run(args: &[String]) -> Result<String, Failure> {
             collection.close()?;
             Ok(text.trim_end().to_owned())
         }
+        [command, file, card, answer] if command == "answer" => study::answer(file, card, answer),
+        [command, file] if command == "undo" => study::undo(file),
+        [command, file, card] if command == "schedule" => study::schedule(file, card),
         [] => Err(Failure::Usage("No command given.".to_owned())),
         [command, ..]
             if matches!(
@@ -472,6 +553,9 @@ fn run(args: &[String]) -> Result<String, Failure> {
                     | "untag"
                     | "rename-tag"
                     | "render"
+                    | "answer"
+                    | "undo"
+                    | "schedule"
                     | "help"
             ) =>
         {

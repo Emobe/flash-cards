@@ -110,6 +110,7 @@ impl Collection {
 
     fn finish(mut conn: Connection, schema: Schema, host: Host) -> Result<Self, CollectionError> {
         state::identify(&mut conn, &host)?;
+        crate::study::check_cache(&conn)?;
         Ok(Self {
             conn,
             schema_version: latest(schema.migrations),
