@@ -8,7 +8,7 @@ use super::cloze;
 use super::error::{Side, TemplateProblem};
 use super::lex::Filter;
 use super::parse::{Node, Parsed, is_empty, parse};
-use crate::html::{escape, expand_sound, has_content, media_names, plain_text};
+use crate::html::{css_media_names, escape, expand_sound, has_content, media_names, plain_text};
 use crate::notetype::{NoteType, Template};
 
 /// A card ready for the card frame: the HTML of each side, and the media files the HTML names (to
@@ -19,8 +19,9 @@ pub struct RenderedCard {
     pub front: String,
     /// A complete HTML document: the note type's CSS, and the back of the card.
     pub back: String,
-    /// Names of media files either side refers to, in order, without repeats. Web addresses and
-    /// data URLs are not listed: the frame does not load them.
+    /// Names of media files either side refers to, in order, without repeats: first the `src` of
+    /// media tags and `[sound:]` (front, then back), then the CSS `url(...)` names of the note
+    /// type's CSS. Web addresses and data URLs are not listed: the frame does not load them.
     pub media: Vec<String>,
 }
 
@@ -155,7 +156,10 @@ pub(crate) fn render<'v>(
     let front_html = document(&note_type.css, &expand_sound(&front_body));
     let back_html = document(&note_type.css, &expand_sound(&back_body));
     let mut media = media_names(&front_html);
-    for name in media_names(&back_html) {
+    for name in media_names(&back_html)
+        .into_iter()
+        .chain(css_media_names(&note_type.css))
+    {
         if !media.contains(&name) {
             media.push(name);
         }

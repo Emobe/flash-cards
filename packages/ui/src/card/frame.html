@@ -26,14 +26,85 @@
     parentWindow.postMessage(message, "*");
   }
 
+  // <css-rewrite>
+  // Rewrites url(name), url('name') and url("name") in `css` to the URL `urlFor(name)` gives, for a
+  // name it knows. Everything else is copied as it is (the CSP blocks it). One pass, and a name is
+  // at most MAX_NAME characters, so hostile CSS cannot make it slow. The names are the ones the core
+  // lists from the note type's CSS, which reads them the same way (`html::css_media_names`).
+  var MAX_NAME = 200;
+  function rewriteCssUrls(css, urlFor) {
+    let out = "";
+    let i = 0;
+    const n = css.length;
+    while (i < n) {
+      const code = css.charCodeAt(i);
+      if ((code === 117 || code === 85) && css.slice(i, i + 4).toLowerCase() === "url(") {
+        let p = i + 4;
+        while (p < n && /\s/.test(css[p])) p++;
+        const quote = css[p];
+        let name = null;
+        let end = -1;
+        if (quote === '"' || quote === "'") {
+          const close = css.slice(p + 1, p + 2 + MAX_NAME).indexOf(quote);
+          if (close >= 0) {
+            name = css.slice(p + 1, p + 1 + close);
+            end = p + 1 + close + 1;
+            while (end < n && /\s/.test(css[end])) end++;
+            if (css[end] !== ")") name = null;
+          }
+        } else {
+          const paren = css.slice(p, p + 1 + MAX_NAME).indexOf(")");
+          if (paren >= 0) {
+            name = css.slice(p, p + paren).trim();
+            end = p + paren;
+          }
+        }
+        const url = name === null ? undefined : urlFor(name);
+        if (url !== undefined) {
+          out += `url("${url}")`;
+          i = end + 1;
+          continue;
+        }
+      }
+      out += css[i];
+      i++;
+    }
+    return out;
+  }
+  // </css-rewrite>
+
   function render(html, media) {
+    // One blob URL per supplied file, made inside this frame. Revoked with the frame.
+    var urls = new Map();
+    Object.keys(media).forEach((name) => {
+      if (media[name] instanceof Blob) urls.set(name, URL.createObjectURL(media[name]));
+    });
+    var urlFor = (name) => urls.get(name);
+
+    // For card scripts: the blob URL of a file the card was given, or null. A script can put it in
+    // the src of an element or in `new Audio(url)`. It cannot fetch it (the CSP has no connect-src).
+    // It only ever returns what the card was given, so a card that replaces it harms only itself.
+    Object.defineProperty(window, "fcMedia", {
+      value: Object.freeze({
+        url: (name) => {
+          var found = typeof name === "string" ? urls.get(name) : undefined;
+          return found === undefined ? null : found;
+        },
+      }),
+    });
+
     var parsed = new DOMParser().parseFromString(html, "text/html");
     // Media works by name: the card names a file, the app supplied its bytes as a Blob.
     parsed.querySelectorAll(MEDIA_ELEMENTS).forEach((element) => {
       var name = element.getAttribute("src");
-      if (name !== null && Object.hasOwn(media, name)) {
-        element.setAttribute("src", URL.createObjectURL(media[name]));
-      }
+      var url = name === null ? undefined : urlFor(name);
+      if (url !== undefined) element.setAttribute("src", url);
+    });
+    parsed.querySelectorAll("style").forEach((element) => {
+      element.textContent = rewriteCssUrls(element.textContent, urlFor);
+    });
+    parsed.querySelectorAll("[style]").forEach((element) => {
+      element.setAttribute("style", rewriteCssUrls(element.getAttribute("style"), urlFor));
     });
     var doctype = parsed.doctype ? `<!DOCTYPE ${parsed.doctype.name}>` : "";
     // Rewriting the document erases this script's listener, so no second message can arrive.

@@ -200,6 +200,7 @@ previews, and in the editor. No card HTML is ever inserted into the app's own DO
   3. Writes the result with `document.open/write/close`, so scripts run in order as in a normal page.
 
   CSS `url()` media and media referenced from scripts are Phase 1 (template rendering), not this step.
+  *(Amendment, step 1.10b: both are built. See "Build notes (step 1.10b)" at the end.)*
 - **Messages from the frame are untrusted.** The parent:
   - only listens to messages whose `source` is that frame's `contentWindow`;
   - accepts only `ready` and `height` (clamped to a sane range);
@@ -392,3 +393,82 @@ What was built is what the Decision describes. Differences and results:
   sandbox` on the `card` response is set but only checked by the unit test (the iframe `sandbox`
   attribute is what was tested), a main-frame reload on Android, and the real keyboard shortcut
   and focus behaviour inside a card (Phase 2).
+
+## Build notes (step 1.10b)
+
+Built to the plan Anthony approved in chat (no plan file). The CSP, the message shape (`{ html, media }`),
+`CardFrame`, `fc-native` and the web app are unchanged. Only `frame.html` changed in the trusted code.
+
+- **CSS `url()`.** After `DOMParser` parses the card, `rewriteCssUrls` rewrites `url(name)`, `url('name')`
+  and `url("name")` to `url("blob:...")` in every `<style>` element and every `style=""` attribute, for names
+  the app supplied. Anything else is copied as it is (the CSP blocks it). It is one linear pass, a name is
+  read at most 200 characters ahead, and a quoted name must be closed by `)`, so hostile CSS cannot make it
+  slow (a 1.5 MB string of `url(` and `url("` is a unit test). It follows the same reading as the core's
+  `html::css_media_names`. `@import`, CSS escapes and `url()` in comments are not handled (a name is only
+  letters, digits, `-`, `_` and `.`, so none of them can be a file name).
+- **Script API: `fcMedia.url(name)`.** A read-only, non-configurable property of `window`, defined before
+  the card is written. It returns the frame-local blob URL of a file the card was given, or `null` for
+  anything else (other names, `__proto__`, non-strings), and never throws. The same blob URLs are used for
+  `src` and CSS, so each file has one blob, revoked with the frame. It is used with `img.src`, `new Audio(url)`
+  and the like. A script **cannot read the bytes** (`fetch` and `XMLHttpRequest` of the blob are blocked,
+  there is no `connect-src`), so Web Audio's `decodeAudioData` on a media file does not work. A card that
+  tries to replace or delete `fcMedia` gets a `TypeError`, and could only harm itself anyway.
+- **Which names are supplied.** The core's `RenderedCard.media` now lists the `src` names (front, then back),
+  then the `url()` names of the note type's CSS, without repeats. A name used only in a field's own
+  `style=""` or `<style>`, or only inside script text, is not listed, so it is not supplied (the frame would
+  rewrite it if it were). That matches `check_media` (1.10), which does not count those places as use
+  either. So a script can only get URLs for files the card also names in a `src`, `[sound:]` or the note
+  type's CSS. Decided in chat to leave it; a `data-media="name"` convention is the way out if it matters
+  once the editor exists.
+- **Blob URLs are made for every supplied file**, not only for those found in a `src`. The parent only
+  supplies names the core listed, so the count is the same as before for cards without CSS media.
+- **Tests.** Rust: `render_card` lists CSS names after the HTML names, without repeats, skipping web and
+  `data:` URLs, and adds nothing for CSS without `url()` (2 tests, 69 in `template`). TS: `frame.test.ts`
+  cuts `rewriteCssUrls` out of `frame.html` between `// <css-rewrite>` markers and tests it (the three forms,
+  case and spaces, unknown names, `__proto__`, `constructor`, unterminated input, the speed case; 7 tests).
+  The rest of the frame needs a real sandboxed iframe and was checked in browsers.
+- **Re-run of the sandbox test (the temporary spike panel, now with a "Media card").** The 54-attempt
+  malicious card:
+
+  | Platform | Blocked | SUCCEEDED | Other | CSP violations | Alarm banners | After the card |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | Linux, built debug app (WebKitGTK) | 38 | 0 | 16 | 38 | none | core answers, page not reloaded |
+  | Android, Anthony's phone (debug APK) | 38 | 0 | 16 | 40 | none | core answers, page not reloaded |
+  | Web, headless Brave, `web:dev` | 38 | 0 | 16 | 19 | none | core answers, page not reloaded |
+  | Web, headless Brave, `web:build` + `web:preview` | 38 | 0 | 16 | 19 | none | core answers, page not reloaded |
+
+  These are the same numbers as step 0.6. The sample card (image, audio played to the end, script) and both
+  navigating cards ("This card tried to open another page and was stopped.") behave as in 0.6 on all three.
+  The Media card (a CSS background from a `<style>`, a `style=""` background, `fcMedia.url` for an image and
+  for audio played to the end, `fcMedia.url("not-given.png")` is `null`) works on all three, so `fcMedia`
+  survives `document.open/write/close` on WebKitGTK, Android's WebView and Chromium.
+- **New attacks on the new surface** (run in the card on web dev and web production, in headless Brave, not on
+  desktop or the phone): assigning, deleting and redefining `fcMedia`, and replacing `fcMedia.url`, all throw
+  `TypeError`; `fcMedia.url` with `__proto__`, `constructor`, `toString`, `hasOwnProperty`, `valueOf`, `""`,
+  a trailing space, other case, `../`, `undefined`, `null`, numbers, objects (also one with a `toString` that
+  returns a real name) and an array all give `null`; `fetch` and a synchronous `XMLHttpRequest` of the blob
+  URL are blocked. The blob URL is `blob:null/...` (the opaque origin).
+- **Timings** (mount to first `height`, one or a few runs, not a benchmark): Media card 17 ms on desktop and
+  60 ms on the phone; the sample card 34 ms median on desktop and about 64 ms on the phone. In line with 0.6.
+
+**Deviations from the plan:**
+
+- `rewriteCssUrls` uses `let` and `const` and a template string, not `var` like the rest of `frame.html`,
+  because the lint (Biome `noInnerDeclarations`, `useTemplate`) checks inline scripts too.
+- `frame.test.ts` reads `frame.html` with Vite's `?raw` import, so `packages/ui/src/raw.d.ts` (a module
+  declaration for `*?raw`) was added. The plan did not mention it. The package has no Node types, so the
+  first version (`node:fs`) failed the typecheck. No dependency was added.
+- The plan said a script's `fcMedia.url` would use the same blob URLs as the rewriting. It does, and it also
+  made blob URLs eager for all supplied names (see above), which the plan did not say.
+- Not done from the plan: the `@font-face` check with a scratch system font. No font file goes through the
+  spike's media loader (it serves only `sample.png` and `sample.wav`), so a font loading from a blob URL is
+  **not verified**. The rewriting of a `@font-face` `url()` is covered by the unit tests only.
+- The new attacks ran in headless Brave only, not in the desktop app or on the phone (the plan said all
+  three).
+- Verification detail, not a plan change: the built desktop app showed a blank window in screenshots at
+  first (the log had GBM buffer errors); it was run with `WEBKIT_DISABLE_DMABUF_RENDERER=1` for the checks.
+  This is a test-environment setting, and nothing in the repo changed. The panel was driven with `xdotool`
+  clicks, the phone with `adb input tap` inside the app (Anthony allowed it, the phone was not unlocked by
+  me, and it was already showing the app), and the web with a scratch DevTools script that is not committed.
+- Not verified: Windows, Firefox, Safari, a real font from a blob URL, new attacks on desktop and phone,
+  keyboard and focus behaviour in a card (Phase 2).

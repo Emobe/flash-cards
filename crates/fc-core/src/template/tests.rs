@@ -252,6 +252,35 @@ fn media_is_listed_from_both_sides_without_repeats() {
 }
 
 #[test]
+fn css_url_names_are_listed_after_the_html_names_without_repeats() {
+    let css = ".card { background: url(bg-1.png) }\n\
+               @font-face { font-family: F; src: url(\"f-2.woff2\") }\n\
+               .x { background: url('pies.png') url(https://example.com/a.png) url(data:image/png;base64,AA==) }";
+    let card = render_with(
+        css,
+        "<img src=\"pies.png\">{{Front}}",
+        "",
+        &[("Front", "x")],
+        0,
+    )
+    .unwrap();
+    assert_eq!(card.media, ["pies.png", "bg-1.png", "f-2.woff2"]);
+}
+
+#[test]
+fn css_without_url_adds_no_media() {
+    let card = render_with(
+        ".card { color: red }",
+        "{{Front}}",
+        "",
+        &[("Front", "x")],
+        0,
+    )
+    .unwrap();
+    assert!(card.media.is_empty());
+}
+
+#[test]
 fn a_sound_in_the_template_itself_counts() {
     let card = render_with("", "[sound:a.mp3]{{Front}}", "", &[("Front", "x")], 0).unwrap();
     assert_eq!(card.media, ["a.mp3"]);

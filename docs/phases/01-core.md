@@ -209,6 +209,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - `render_card`'s media list includes the names used in CSS `url()` (core: `html::css_media_names` exists since 1.10).
 - The 54-attempt malicious card from 0.6 still gets 0 successes on desktop, the phone and the web, and the sample card still works on all three.
 
+**Status:** done (2026-10-06), awaiting review. Built to the plan approved in chat; results, the script API (`fcMedia.url(name)`) and the deviations are in ADR 0005 (build notes, step 1.10b). `render_card`'s media list has the note type CSS `url()` names, `frame.html` rewrites `url()` in `<style>` and `style=""`. The 54-attempt card: 38 blocked, 0 SUCCEEDED, 16 other on desktop, the phone and the web (dev and production), same as 0.6; the sample card and the new Media card work on all three. A font from a blob URL is not verified.
+
 **Notes:** this changes the trusted `frame.html`, so it needs Anthony's close review and the sandbox test re-run. The card sandbox spike code (`CardSandboxSpike`, its cards file, `spikeCardMedia`, the sample media) goes when `fc-api` has a media method (3.1) or Phase 2 shows a real card, not here.
 
 ---

@@ -1,7 +1,7 @@
 import { CoreError } from "core-client";
 import { useEffect, useRef, useState } from "react";
 import { CardFrame } from "./card/CardFrame";
-import { maliciousCard, navigatingCard, sampleCard } from "./cardSandboxSpikeCards";
+import { maliciousCard, mediaCard, navigatingCard, sampleCard } from "./cardSandboxSpikeCards";
 import { useCore } from "./core";
 
 /** Names the demo cards use for their media. */
@@ -107,6 +107,9 @@ export function CardSandboxSpike() {
       <div className="row">
         <button type="button" onClick={() => show("Sample card", sampleCard(), MEDIA)}>
           Sample card
+        </button>
+        <button type="button" onClick={() => show("Media card", mediaCard(), MEDIA)}>
+          Media card
         </button>
         <button
           type="button"

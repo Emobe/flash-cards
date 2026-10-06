@@ -4,13 +4,15 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.10 Media (core): built on `step/1.10-media`, `cargo xtask check` passes, waiting for Anthony's review (ADR 0006 build notes, step 1.10, list the choices, timings and the deviations). 1.9 was reviewed and merged (PR #21). Next: merge it, then 1.10b (media in the card frame, a Sonnet build, new session).
+1.10b Media in the card frame (a Sonnet build): built on `step/1.10b-media-frame`, `cargo xtask check` passes, waiting for Anthony's close review (it changes the trusted `frame.html`). ADR 0005 build notes, step 1.10b, list the results and the deviations. 1.10 was reviewed and merged (PR #22).
 
 ## Branch
 
-`step/1.10-media` (from master after PR #21). Not pushed.
+`step/1.10b-media-frame` (from master after PR #22). Not pushed.
 
 ## Done
+
+- 1.10b Media in the card frame (ADR 0005 build notes, step 1.10b). `render_card`'s media list also has the CSS `url()` names of the note type CSS (core tests). `frame.html` rewrites `url()` in `<style>` elements and `style=""` attributes for supplied names, and gives scripts `fcMedia.url(name)` (a blob URL or null). `frame.test.ts` tests the rewriter (7 tests). A temporary "Media card" in the spike panel. The 54-attempt card on desktop (built debug app), the phone and the web (dev and production): 38 blocked, 0 SUCCEEDED, 16 other, no alarm, same as 0.6. Sample card, Media card and both navigating cards work on all three. New attacks on `fcMedia` ran on the web only. `cargo xtask check` passes. Not verified: a font from a blob URL, Windows, Firefox, Safari.
 
 - 1.10 Media, core part (ADR 0006 build notes, step 1.10). Migration v10: `media_file` (synced: `hash`, `size`, `deleted`; its ID is made from the hash) and `media_blob` (local, the bytes once per hash, in the collection file). `fc_core::media`: names `<stem>-<16 hex of the SHA-256>.<ext>`, add, read, `media_bytes` (checked against the hash), `media_references` (note fields, templates, CSS `url()`), `check_media` (unused, missing, without bytes), delete, restore, `delete_unused_media`, a deleted file that is still named reads as alive. `html::css_media_names`. `fc add-media`, `fc media`, `fc media-get`, `fc media-check`, `fc delete-unused-media`. 35 more core tests (547 in `fc-core`), 3 more CLI tests (32). `sha2` 0.10.9 is a direct dependency of `fc-core` (already in the lockfile). Verified on Linux (tests, `cargo xtask check` with the wasm build, CLI on a copy of the real desktop collection, which upgraded from 9 to 10). Timings (release): a 50 MB file adds in 85 ms and reads in 44 ms; with 10,000 files and 50,000 field values `check_media` takes 33 ms. Not run in a UI, a browser or the phone.
 
@@ -47,10 +49,14 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review and merge `step/1.10-media`.
-- Then a new session: `/step 1.10b` (media in the card frame, a Sonnet build, changes `frame.html`).
+- Anthony: review and merge `step/1.10b-media-frame` (close review of `frame.html`).
+- Next: see `docs/ROADMAP.md` (1.11 change tracking for sync is an Opus design session, `/adr 1.11`).
 
 ## Open items
+
+- 1.10b deviations from the plan are listed under "Deviations from the plan" in the ADR 0005 build notes, step 1.10b.
+- 1.10b choices for Anthony to confirm: scripts get `fcMedia.url(name)` and cannot read the bytes (no `fetch` of a blob); only names the core lists are supplied (note type CSS and `src`/`[sound:]`), so a name only in a field's `style=""` or in script text is not given.
+- 1.10b: the phone's storage showed version 10 (the 1.10 migration ran there). Media itself still has no UI or web method.
 
 - 1.10 deviations from the plan are listed under "Deviations from the plan" in the ADR 0006 build notes, step 1.10.
 - 1.10 choices for Anthony to confirm (details in the ADR 0006 build notes): the bytes live in the collection file (a larger file, whole-file reads); a name is `<stem>-<16 hex>.<ext>` and a name not in that format belongs to no file (so an imported name shows as missing until Phase 5 renames it); notes in the trash and removed templates still count as using a file; deleting keeps the bytes until an "Empty trash" exists; there is no size limit for one file.
