@@ -2,6 +2,7 @@
 //! terminal before any UI exists. Step 1.14 grows it into the full tool.
 
 mod host;
+mod search;
 mod stats;
 mod study;
 
@@ -59,6 +60,19 @@ Usage:
   fc optimise <file> [--preset <name>] [--apply]
                    Tune the scheduler from the review history of a preset's cards (the Default
                    preset if none is given). Prints the result, and stores it with --apply
+  fc search <file> <query> [--sort <key>[:desc]] [--notes] [--limit <n>] [--offset <n>] [--seed <n>]
+                   Find cards (or notes, with --notes). Examples: dog, deck:Polish is:due,
+                   front:k*t, rated:7:1, difficulty:>7, due:..0 (quote a query that has spaces).
+                   Join with spaces (and), or, - (not) and ( ). Sort keys: created, due, field, deck,
+                   note, difficulty, stability, lapses, reviews, random
+  fc searches <file>
+                   List the saved searches
+  fc save-search <file> <name> <query> [--sort <key>[:desc]] [--notes]
+                   Save a search under a name
+  fc run-search <file> <name> [--limit <n>] [--offset <n>]
+                   Run a saved search with its own sort
+  fc delete-search <file> <name>
+                   Delete a saved search
   fc help          Show this text
 
 Options for any command:
@@ -172,6 +186,12 @@ impl From<fc_core::deck::DeckError> for Failure {
 
 impl From<fc_core::study::StudyError> for Failure {
     fn from(error: fc_core::study::StudyError) -> Self {
+        Self::Core(error.to_string())
+    }
+}
+
+impl From<fc_core::search::SearchError> for Failure {
+    fn from(error: fc_core::search::SearchError) -> Self {
         Self::Core(error.to_string())
     }
 }
@@ -593,6 +613,24 @@ fn run(args: &[String]) -> Result<String, Failure> {
                 _ => stats::optimise(file, &options),
             }
         }
+        [command, file, rest @ ..]
+            if matches!(
+                command.as_str(),
+                "search" | "searches" | "save-search" | "run-search" | "delete-search"
+            ) =>
+        {
+            let (options, words) = search::Options::take(rest)?;
+            match (command.as_str(), words.as_slice()) {
+                ("search", [query]) => search::search(file, query, &options),
+                ("searches", []) => search::list(file),
+                ("save-search", [name, query]) => search::save(file, name, query, &options),
+                ("run-search", [name]) => search::run_saved(file, name, &options),
+                ("delete-search", [name]) => search::delete(file, name),
+                _ => Err(Failure::Usage(format!(
+                    "Wrong number of arguments for \"{command}\"."
+                ))),
+            }
+        }
         [command, file, card] if command == "schedule" => study::schedule(file, card),
         [command, file, rest @ ..] if command == "due" || command == "next" => {
             let (deck, extra) = take_deck_option(rest)?;
@@ -668,6 +706,11 @@ fn run(args: &[String]) -> Result<String, Failure> {
                     | "stats"
                     | "forecast"
                     | "optimise"
+                    | "search"
+                    | "searches"
+                    | "save-search"
+                    | "run-search"
+                    | "delete-search"
                     | "help"
             ) =>
         {
