@@ -9,12 +9,12 @@
 
 mod answer;
 #[cfg(test)]
-mod answer_tests;
+pub(crate) mod answer_tests;
 mod error;
 mod event;
 mod fold;
 #[cfg(test)]
-mod fold_tests;
+pub(crate) mod fold_tests;
 mod queue;
 #[cfg(test)]
 mod queue_tests;

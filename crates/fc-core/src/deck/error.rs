@@ -26,6 +26,8 @@ pub enum DeckError {
     Limit,
     /// Learning steps are at most 8 whole numbers of minutes, each 1 to 1440.
     Steps,
+    /// FSRS parameters are 17, 19 or 21 finite numbers, or empty for the defaults.
+    Parameters,
     Collection(CollectionError),
 }
 
@@ -59,6 +61,10 @@ impl fmt::Display for DeckError {
             Self::Steps => f.write_str(
                 "Learning steps are whole numbers of minutes from 1 to 1440, at most 8 of them, \
                  for example 1 10.",
+            ),
+            Self::Parameters => f.write_str(
+                "FSRS parameters are 21 numbers (17 or 19 from an older version also work). \
+                 Leave them empty to use the defaults.",
             ),
             Self::Collection(error) => error.fmt(f),
         }

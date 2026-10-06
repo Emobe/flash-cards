@@ -115,3 +115,15 @@ The spike methods `spikeSchedule` and `spikeOptimise` and the `SchedulingSpike` 
 - **Not verified:** Windows, Firefox and Safari, `simulate` and the time-series evaluation
   on wasm, optimiser quality on real review history (the data here is invented), and cancelling a
   long optimisation (`compute_parameters` has no cancel hook, only a progress state).
+
+## Build notes (step 1.8)
+
+The optimiser now runs on real events (ADR 0007 build notes, step 1.8). Two things about `fsrs`
+6.6.2 the spike did not show, because its made-up histories always had gaps of days:
+
+- `compute_parameters` panics on a training item whose reviews all fall on one day. Our wrapper
+  (`scheduling::training_items`) drops those items before calling it.
+- It returns the default parameters silently with fewer than 8 usable items, and only the first-interval
+  parameters under 64. We refuse under 64 with a message.
+
+Still not verified: `simulate` and the time-series evaluation on wasm (not used), a cancel hook.

@@ -2,6 +2,7 @@
 //! terminal before any UI exists. Step 1.14 grows it into the full tool.
 
 mod host;
+mod stats;
 mod study;
 
 use std::process::ExitCode;
@@ -49,6 +50,15 @@ Usage:
                    Keep cards out of the queue until tomorrow
   fc unbury <file> (<card ID>... | --deck <deck>)
                    Bring buried cards back today, or every buried card in a deck
+  fc history <file> <card ID>
+                   Print a card's reviews, oldest first (answers that were undone are left out)
+  fc stats <file> [--deck <deck>] [--days <n>]
+                   Answers per day, time spent and retention over the last n days (30)
+  fc forecast <file> [--deck <deck>] [--days <n>]
+                   Review cards due today, overdue and on each of the next n days (30)
+  fc optimise <file> [--preset <name>] [--apply]
+                   Tune the scheduler from the review history of a preset's cards (the Default
+                   preset if none is given). Prints the result, and stores it with --apply
   fc help          Show this text
 
 Options for any command:
@@ -567,6 +577,22 @@ fn run(args: &[String]) -> Result<String, Failure> {
         }
         [command, file, card, answer] if command == "answer" => study::answer(file, card, answer),
         [command, file] if command == "undo" => study::undo(file),
+        [command, file, card] if command == "history" => stats::history(file, card),
+        [command, file, rest @ ..]
+            if matches!(command.as_str(), "stats" | "forecast" | "optimise") =>
+        {
+            let (options, extra) = stats::Options::take(rest)?;
+            if let Some(extra) = extra.first() {
+                return Err(Failure::Usage(format!(
+                    "\"{command}\" does not take \"{extra}\"."
+                )));
+            }
+            match command.as_str() {
+                "stats" => stats::stats(file, &options),
+                "forecast" => stats::forecast(file, &options),
+                _ => stats::optimise(file, &options),
+            }
+        }
         [command, file, card] if command == "schedule" => study::schedule(file, card),
         [command, file, rest @ ..] if command == "due" || command == "next" => {
             let (deck, extra) = take_deck_option(rest)?;
@@ -638,6 +664,10 @@ fn run(args: &[String]) -> Result<String, Failure> {
                     | "unsuspend"
                     | "bury"
                     | "unbury"
+                    | "history"
+                    | "stats"
+                    | "forecast"
+                    | "optimise"
                     | "help"
             ) =>
         {

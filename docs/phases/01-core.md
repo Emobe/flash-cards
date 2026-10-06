@@ -160,6 +160,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Daily counts, retention, due forecast for the next 30 days.
 - FSRS parameter optimisation can run from history.
 
+**Status:** done (2026-10-06), awaiting review. Built to ADR 0007 (build notes, step 1.8), no migration and no new dependency. `fc_core::stats`: `card_history`, `daily_counts` (by study day and state, with time spent), `retention`, `due_forecast` (overdue, today and the next N days), `optimisation_data` / `optimise_preset` and `PresetChange.fsrs_parameters`. `fc history`, `fc stats`, `fc forecast`, `fc optimise [--apply]`. Found: `fsrs` panics on a training item with only same-day reviews, now filtered; training needs at least 64 items. Applying parameters does not recompute existing cards' memory (a later reschedule event). Not in any UI or the web API.
+
 ---
 
 ## 1.9 Search and filtering
