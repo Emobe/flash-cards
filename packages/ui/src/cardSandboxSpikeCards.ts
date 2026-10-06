@@ -49,6 +49,52 @@ export function sampleCard(): string {
 }
 
 /**
+ * A card that uses media from CSS `url()` and from a script (step 1.10b): a background image, a
+ * `style=""` background, and a button that gets a blob URL from `fcMedia.url` and plays it. Each
+ * line says what worked.
+ */
+export function mediaCard(): string {
+  return `<!doctype html><html><head><meta charset="utf-8">${STYLE}
+<style>
+  #bg { height: 72px; background: url(sample.png) repeat; border: 2px solid #8a6d00; }
+  #inline { height: 40px; border: 2px solid #8a6d00; }
+</style></head><body>
+<h2>Media card</h2>
+<div id="bg"></div>
+<div id="inline" style="background: url('sample.png') no-repeat"></div>
+<button id="play" type="button">Play with fcMedia</button>
+<img id="viaScript" width="32" height="32" alt="">
+<ul id="out"></ul>
+<script>
+(function () {
+  var out = document.getElementById("out");
+  function line(text) { var li = document.createElement("li"); li.textContent = text; out.appendChild(li); }
+  function bgState(id) {
+    var value = getComputedStyle(document.getElementById(id)).backgroundImage;
+    return value.indexOf("blob:") >= 0 ? "blob URL" : "NOT REWRITTEN (" + value + ")";
+  }
+  line("fcMedia: " + (typeof window.fcMedia === "object" && typeof window.fcMedia.url === "function" ? "present" : "MISSING"));
+  line("style element background: " + bgState("bg"));
+  line("style attribute background: " + bgState("inline"));
+  var png = window.fcMedia && window.fcMedia.url("sample.png");
+  var wav = window.fcMedia && window.fcMedia.url("sample.wav");
+  line("fcMedia.url(sample.png): " + (png && png.indexOf("blob:") === 0 ? "blob URL" : String(png)));
+  line("fcMedia.url(not-given.png): " + String(window.fcMedia && window.fcMedia.url("not-given.png")));
+  var img = document.getElementById("viaScript");
+  img.onload = function () { line("image from fcMedia: loaded " + img.naturalWidth + "x" + img.naturalHeight); };
+  img.onerror = function () { line("image from fcMedia: FAILED"); };
+  img.src = png;
+  document.getElementById("play").addEventListener("click", function () {
+    var audio = new Audio(wav);
+    audio.addEventListener("ended", function () { line("audio from fcMedia: played to the end"); });
+    audio.play().then(function () { line("audio from fcMedia: playing"); }, function (e) { line("audio from fcMedia: FAILED (" + e.name + ")"); });
+  });
+})();
+</script>
+</body></html>`;
+}
+
+/**
  * A card that tries to break out. Every attempt reports "blocked", "SUCCEEDED" or something in
  * between, inside the card. `appOrigin` is the main page's origin, which a real card would not know
  * but an attacker can guess.
