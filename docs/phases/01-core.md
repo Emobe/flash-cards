@@ -228,6 +228,17 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 **Review focus:** compare against the ADR line by line.
 
+**Status:** design accepted (2026-10-06), ready to build.
+- ADR 0008 (Proposed) covers:
+  - the change records;
+  - the merge, and what it recomputes;
+  - values that do not fit;
+  - unknown rows;
+  - the superseded-values log, postponed on review (the later edit wins and nothing else is kept);
+  - the shape of purge and per-entity `requires`.
+- The plan is `docs/plans/1.11-merge.md`: one PR, **1.11a** (merge, audit, edge-case tests,
+  `fc merge`). ADR 0008 is Accepted, with Anthony's answers under its "Decisions on review".
+
 ---
 
 ## 1.12 Extension points

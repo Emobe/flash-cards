@@ -4,11 +4,11 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.10b Media in the card frame (a Sonnet build): built on `step/1.10b-media-frame`, `cargo xtask check` passes, waiting for Anthony's close review (it changes the trusted `frame.html`). ADR 0005 build notes, step 1.10b, list the results and the deviations. 1.10 was reviewed and merged (PR #22).
+1.11 Change tracking for sync: ADR 0008 Accepted (2026-10-06) and `docs/plans/1.11-merge.md` written. Ready for the build session (`/step 1.11a`). Nothing is built. 1.10b was reviewed and merged (PR #23).
 
 ## Branch
 
-`step/1.10b-media-frame` (from master after PR #22). Not pushed.
+`step/1.11-merge` (from master after PR #23). Not pushed.
 
 ## Done
 
@@ -49,10 +49,14 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review and merge `step/1.10b-media-frame` (close review of `frame.html`).
-- Next: see `docs/ROADMAP.md` (1.11 change tracking for sync is an Opus design session, `/adr 1.11`).
+- Build 1.11a (`/step 1.11a`) from `docs/plans/1.11-merge.md`. ADR 0006 already points to ADR 0008 for the postponed superseded-values log.
 
 ## Open items
+
+- **Follow-up, postponed by Anthony:** keeping the losing text when the same field is edited on two devices before they sync (ADR 0006's superseded-values log). For now the later edit wins. ADR 0006's own rule for it would have missed about half those cases (ADR 0008 finding 1); ADR 0008 part 7 is the design to use when it is built. Revisit if edits go missing after syncs or people share one account.
+- **Per-entity `requires`** (ADR 0006 section 10) must ship in the first app version that syncs: before step 4.3 is released, not when a feature first writes it (ADR 0008 part 9).
+- **Purge ("Empty trash")** is designed in ADR 0008 part 8. It is built with the first trash screen, and no step builds one yet.
+- There is a git stash on master (`WIP on master: 0364c87`) that this session did not make. It was left alone.
 
 - 1.10b deviations from the plan are listed under "Deviations from the plan" in the ADR 0005 build notes, step 1.10b.
 - 1.10b choices for Anthony to confirm: scripts get `fcMedia.url(name)` and cannot read the bytes (no `fetch` of a blob); only names the core lists are supplied (note type CSS and `src`/`[sound:]`), so a name only in a field's `style=""` or in script text is not given.
