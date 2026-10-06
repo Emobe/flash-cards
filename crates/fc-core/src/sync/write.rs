@@ -63,7 +63,12 @@ impl WriteTx<'_> {
         self.hlc
     }
 
-    fn record(&mut self, entity: &str, id: Id, field: &str) -> Result<(), CollectionError> {
+    pub(super) fn record(
+        &mut self,
+        entity: &str,
+        id: Id,
+        field: &str,
+    ) -> Result<(), CollectionError> {
         let hlc = self.stamp();
         self.tx.execute(
             "INSERT INTO register_clock (entity_type, entity_id, field, hlc, device, pushed)

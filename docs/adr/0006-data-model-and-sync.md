@@ -1325,3 +1325,100 @@ it left to this step: where the bytes live and the name format.
 - Existing tests that assert the storage version were changed from 9 to 10 (`deck`, `note`, `tag`,
   `study`, `queue` and `search` tests, and the CLI `collection` test).
 - `STATUS.md` listed deleting the card sandbox spike under 1.10. It is deferred, as agreed in the plan.
+
+### Build notes, step 1.13a (backup, export and restore)
+
+Built to the plan approved in chat (there is no ADR and no plan file: the phase file schedules no
+design session, and this ADR's section 11 and ADR 0008 settle the semantics). The file format is
+documented in `docs/backup-format.md`. 1.13 was split: this part is the core, the format and the CLI;
+1.13b is the host wiring and the automatic backup.
+
+- **What a backup is.** A zip of `manifest.json`, `changes.jsonl` (the `Changes` of ADR 0008 as JSON
+  lines) and `media/<sha256>`. Not a copy of the SQLite file, so it survives migrations, holds one
+  deck as readily as the collection, and has one reader. `Collection::export_backup`, `restore_backup`,
+  `import_backup` and `read_manifest` in `fc_core::backup`. The core takes a `Read + Seek` or
+  `Write + Seek` the host opened (ADR 0003), so native uses a file and wasm a byte buffer.
+- **Restore is a diff, not a merge** (section 11, "A backup restored on a synced device"). A merge
+  ignores a backup, since every register in it is older. `Origin::Restore` in `sync/merge.rs`
+  compares values, not clocks, and writes a differing value again with a fresh stamp and `pushed = 0`.
+  Everything live that the backup has no register for goes to the trash (`deleted = 1`), and tags a
+  note in the backup did not have are taken off. Events are only added. The device ID is regenerated
+  first, as this section says. The whole write, including the media bytes, is one transaction, so a
+  damaged file leaves the collection as it was (tested for a bad line, a missing entry and media that
+  does not match its hash).
+- **Rules I chose, for Anthony to confirm:**
+  - A restore never trashes a built-in row that was never edited (its `deleted` clock is the seed's),
+    so a backup from an older version does not trash built-ins a newer version added.
+  - Settings (`collection_setting`) have no `deleted` register: a restore writes the ones in the
+    backup and leaves the others.
+  - A restore refuses a one-deck file (`IsADeck`): it would trash the rest of the collection.
+  - `import_backup` (`Origin::Import`) takes a value only when the file's clock is higher, writes it as
+    a new change, and trashes nothing, so importing a file twice does nothing the second time. It reads
+    deck files and whole backups.
+  - A deck export holds the deck's live subtree, the live cards in it, those cards' notes (with all
+    their field values and tags), the notes' note types (every field and template), the decks'
+    presets, the media named by those notes and note types, the `requirement` registers, and with
+    history the events of those cards and the parameter sets they name. A note with a card in another
+    deck comes with only the cards in the exported decks. Importing it into a collection reconciles
+    the note like any other, so the missing sibling card is created there.
+  - History is a switch: without it no card event and no parameter set is written, so every card reads
+    as new when the file is read back.
+  - Automatic backups (1.13b) will be settings for the interval and for how many to keep, with the
+    defaults Anthony approved: native only, on start if the last is over 24 hours old, keep 5.
+- **Events.** A restore or an import sends one `MergeApplied` (ADR 0009 said 1.13 needs no event). A
+  restore that only trashes things still sends it, because `registersApplied` counts the trashed
+  items. `docs/events.md` says so.
+- **Dependencies** (stated in `crates/fc-core/Cargo.toml`): `zip` 8.6.0 with only `deflate-flate2`
+  (pure Rust, no C, no encryption; brings `typed-path`), `serde_json` 1.0.151 (already in the lockfile
+  for `fc-api` and `fc-wasm`; no serde derive) and `flate2` 1.1.10 with `rust_backend`, which `zip`
+  leaves to its user (already in the lockfile through Tauri). Both targets build (`cargo xtask check`
+  includes the wasm build).
+- **Verified:**
+  - 23 new tests in `backup/tests.rs` (644 in `fc-core`, one a measurement that is ignored) and 3 in
+    `fc-cli/tests/backup.rs`. The tour of every writing operation (`run_the_tour`, shared with the
+    sync tests) is exported and restored into an empty collection, and the two states are equal
+    (digest without clocks), with the media bytes and the unknown feature.
+  - Restoring a collection's own backup writes nothing. Edits, a deletion, a tag change, a new note, a
+    new field and template after the backup are all put back. A new note and a new note type end in
+    the trash, and the trash brings them back. Reviews made since stay.
+  - Two devices: after a restore on A, B converges to the restored value although B had the newer edit,
+    and a note only B had stays on both.
+  - A deck export holds only its deck and children, its media (not another deck's), its events; an
+    import adds it, and a second import writes nothing. A hand-written file from the documentation is
+    read.
+  - Refused with the collection unchanged: not a zip, cut short, no manifest, not ours, a newer
+    format, a bad line, no `changes.jsonl`, media that does not match its name, a deck file given to
+    restore. A refused file sends no event.
+  - Unknown entities and fields in the collection survive a backup.
+  - Timings (Linux, release, 5,000 notes with 2,500 cards answered twice and 50 media files: 55,227
+    registers, 5,001 events, a 2.3 MB file): export 0.35 s, restore into an empty collection 1.1 s,
+    restore of the same state 0.27 s. A larger run (20,000 notes) was started and stopped because
+    building the collection through `add_note` and `answer` took over ten minutes. Linear scaling would
+    give about 3.5 s and 11 s at 50,000 notes, which is an estimate, not a measurement.
+  - `cargo xtask check` passes. The CLI works on files (tests run the real `fc` binary).
+- **Not verified:** the phone, the browser and wasm at runtime (the core builds for wasm, but nothing
+  calls it there until 1.13b), Windows, Firefox, Safari, memory use on a large collection (the whole
+  `Changes` is held in memory, media one file at a time), a restore on a collection that has synced with
+  a real server (Phase 4), a backup file from a different version (there is only one format version).
+- **Left for later steps:** the API methods and bindings, the native automatic backup and its settings,
+  the web export (1.13b); a backup before a migration (ADR 0003 left it to this step, and it needs the
+  host in 1.13b); streaming `changes.jsonl` instead of holding it in memory if a real collection needs
+  it; a register that has no clock is not in a file, so a restore cannot put it back to its default
+  (rare, in the format doc); a large fake collection for timing (1.14).
+
+**Deviations from the plan** (the plan was the chat reply of 2026-10-06):
+
+- The plan did not name `flate2` as a dependency. `zip` needs a backend chosen by its user, so it is a
+  direct dependency with `rust_backend` (already in the lockfile).
+- No ADR 0010 (the plan first said one was needed; you pointed out the roadmap schedules none, and
+  agreed to build notes here and the format doc instead).
+- `MergeApplied` is sent for a restore and an import. The plan said nothing about events, and ADR 0009
+  said 1.13 needs none. A UI that shows the collection must refresh after a restore.
+- The merge code was refactored (`merge` is now `apply_batch` and `finish_batch`, with `Origin`), so a
+  restore and an import share it. No behaviour of `merge` changed (the 82 sync tests pass unchanged).
+- Tests: `merge_tests` and `tour_tests` helpers were made `pub(crate)`, the tour was moved into
+  `run_the_tour` so the backup tests can reuse it, and one assertion in `collection/tests.rs` was
+  changed to `i64::from(APPLICATION_ID)` because `serde_json` makes `.into()` ambiguous there.
+- `fc backup-info` prints the creation time as Unix milliseconds, not a date.
+- The timing measurement uses 5,000 notes, not 50,000, for the reason above. The test is `#[ignore]`.
+- 1.13b, as agreed, takes the automatic backup, the API and the web.

@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use rusqlite::types::Value;
 use rusqlite::{Connection, OptionalExtension, params};
 
-use super::{APPEND_ONLY_TABLES, DYNAMIC_TABLES, Hlc};
+use super::{APPEND_ONLY_TABLES, DYNAMIC_TABLES, Hlc, SyncedTable};
 use crate::collection::{Collection, CollectionError};
 use crate::id::Id;
 
@@ -117,41 +117,7 @@ impl Collection {
         id: Id,
         field: &str,
     ) -> Result<Option<Value>, CollectionError> {
-        let table = self.schema.tables.iter().find(|t| t.entity == entity);
-        if let Some(table) = table.filter(|t| t.registers.contains(&field)) {
-            let sql = format!("SELECT \"{field}\" FROM \"{}\" WHERE id = ?1", table.table);
-            return Ok(self
-                .conn
-                .prepare_cached(&sql)?
-                .query_row([id], |row| row.get(0))
-                .optional()?);
-        }
-        for dynamic in DYNAMIC_TABLES.iter().filter(|d| d.entity == entity) {
-            let (name, o, k, v) = (dynamic.table, dynamic.owner, dynamic.key, dynamic.value);
-            let sql = format!("SELECT \"{v}\" FROM \"{name}\" WHERE \"{o}\" = ?1 AND \"{k}\" = ?2");
-            let found = if dynamic.text_key {
-                self.conn
-                    .prepare_cached(&sql)
-                    .and_then(|mut s| s.query_row(params![id, field], |row| row.get(0)).optional())
-            } else if let (Ok(key), Some(_)) = (field.parse::<Id>(), table) {
-                self.conn
-                    .prepare_cached(&sql)
-                    .and_then(|mut s| s.query_row(params![id, key], |row| row.get(0)).optional())
-            } else {
-                continue;
-            };
-            return match found {
-                Ok(value) => Ok(value),
-                // A smaller schema without the table: nothing to send.
-                Err(rusqlite::Error::SqliteFailure(_, Some(message)))
-                    if message.starts_with("no such table") =>
-                {
-                    Ok(None)
-                }
-                Err(error) => Err(error.into()),
-            };
-        }
-        Ok(None)
+        read_register(&self.conn, self.schema.tables, entity, id, field)
     }
 
     fn read_unknown_registers(&self, changes: &mut Changes) -> Result<(), CollectionError> {
@@ -266,6 +232,48 @@ impl Collection {
         }
         Ok(by_row)
     }
+}
+
+/// The stored value of a register, or `None` if there is no such row.
+pub(super) fn read_register(
+    conn: &Connection,
+    tables: &[SyncedTable],
+    entity: &str,
+    id: Id,
+    field: &str,
+) -> Result<Option<Value>, CollectionError> {
+    let table = tables.iter().find(|t| t.entity == entity);
+    if let Some(table) = table.filter(|t| t.registers.contains(&field)) {
+        let sql = format!("SELECT \"{field}\" FROM \"{}\" WHERE id = ?1", table.table);
+        return Ok(conn
+            .prepare_cached(&sql)?
+            .query_row([id], |row| row.get(0))
+            .optional()?);
+    }
+    for dynamic in DYNAMIC_TABLES.iter().filter(|d| d.entity == entity) {
+        let (name, o, k, v) = (dynamic.table, dynamic.owner, dynamic.key, dynamic.value);
+        let sql = format!("SELECT \"{v}\" FROM \"{name}\" WHERE \"{o}\" = ?1 AND \"{k}\" = ?2");
+        let found = if dynamic.text_key {
+            conn.prepare_cached(&sql)
+                .and_then(|mut s| s.query_row(params![id, field], |row| row.get(0)).optional())
+        } else if let (Ok(key), Some(_)) = (field.parse::<Id>(), table) {
+            conn.prepare_cached(&sql)
+                .and_then(|mut s| s.query_row(params![id, key], |row| row.get(0)).optional())
+        } else {
+            continue;
+        };
+        return match found {
+            Ok(value) => Ok(value),
+            // A smaller schema without the table: nothing to send.
+            Err(rusqlite::Error::SqliteFailure(_, Some(message)))
+                if message.starts_with("no such table") =>
+            {
+                Ok(None)
+            }
+            Err(error) => Err(error.into()),
+        };
+    }
+    Ok(None)
 }
 
 pub(super) fn table_exists(conn: &Connection, name: &str) -> rusqlite::Result<bool> {

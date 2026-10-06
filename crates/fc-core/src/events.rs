@@ -70,7 +70,8 @@ pub enum Event {
         reason: EndReason,
         summary: SessionSummary,
     },
-    /// A batch from another collection was merged. One event for the whole batch: the UI refetches.
+    /// A batch from another collection was merged, or a backup file was restored or imported (step
+    /// 1.13a). One event for the whole batch: the UI refetches.
     MergeApplied {
         registers_applied: u32,
         rows_added: u32,

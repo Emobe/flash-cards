@@ -17,13 +17,13 @@ use crate::study::answer_tests::{DAY, DAY0, HOUR, MINUTE};
 
 // ---- Helpers ----
 
-pub(super) struct Dev {
+pub(crate) struct Dev {
     pub c: Collection,
     pub clock: Arc<ManualClock>,
 }
 
 impl Dev {
-    pub(super) fn new(n: u8, now: i64) -> Self {
+    pub(crate) fn new(n: u8, now: i64) -> Self {
         let clock = Arc::new(ManualClock::new(now));
         let host = Host {
             clock: clock.clone(),
@@ -34,24 +34,24 @@ impl Dev {
     }
 }
 
-pub(super) const START: i64 = DAY0 + 9 * HOUR;
+pub(crate) const START: i64 = DAY0 + 9 * HOUR;
 
 /// Two devices whose IDs come from a fixed sequence, so a tie between equal clocks always breaks the
 /// same way.
-pub(super) fn pair() -> (Dev, Dev) {
+pub(crate) fn pair() -> (Dev, Dev) {
     crate::id::seeded::seed(7);
     (Dev::new(1, START), Dev::new(2, START))
 }
 
 /// `a` and `b` give each other everything they have, once each way.
-pub(super) fn sync(a: &Dev, b: &Dev) -> (MergeReport, MergeReport) {
+pub(crate) fn sync(a: &Dev, b: &Dev) -> (MergeReport, MergeReport) {
     let into_b = b.c.merge(&a.c.changes(Selection::All).unwrap()).unwrap();
     let into_a = a.c.merge(&b.c.changes(Selection::All).unwrap()).unwrap();
     (into_a, into_b)
 }
 
 /// Syncs until nothing changes any more (reconcile writes can need a second round).
-pub(super) fn settle(devs: &[&Dev]) {
+pub(crate) fn settle(devs: &[&Dev]) {
     for _ in 0..6 {
         let before: Vec<String> = devs.iter().map(|d| digest(&d.c)).collect();
         for a in devs {
@@ -92,7 +92,7 @@ fn dump(c: &Collection, sql: &str) -> String {
 
 /// Everything two converged collections must share: every synced table, the clocks `(hlc, device)`,
 /// the events, the schedule cache, and what the reading APIs return.
-pub(super) fn digest(c: &Collection) -> String {
+pub(crate) fn digest(c: &Collection) -> String {
     let mut out = String::new();
     for table in c.schema.tables {
         out += &format!("## {}\n", table.table);
@@ -150,7 +150,7 @@ pub(super) fn digest(c: &Collection) -> String {
 
 /// Compares two digests and shows the first line that differs.
 #[track_caller]
-pub(super) fn assert_same(left: &str, right: &str, what: &str) {
+pub(crate) fn assert_same(left: &str, right: &str, what: &str) {
     if left == right {
         return;
     }
@@ -171,13 +171,13 @@ pub(super) fn assert_same(left: &str, right: &str, what: &str) {
     );
 }
 
-pub(super) fn basic_fields(c: &Collection) -> (Id, Id) {
+pub(crate) fn basic_fields(c: &Collection) -> (Id, Id) {
     let note_type = c.note_type(builtin::basic()).unwrap().unwrap();
     (note_type.fields[0].id, note_type.fields[1].id)
 }
 
 /// A Basic note. Returns the note and its card.
-pub(super) fn add(c: &Collection, front: &str, back: &str) -> (Id, Id) {
+pub(crate) fn add(c: &Collection, front: &str, back: &str) -> (Id, Id) {
     let (f, b) = basic_fields(c);
     let added = c
         .add_note(builtin::basic(), &[(f, front), (b, back)])
@@ -185,20 +185,20 @@ pub(super) fn add(c: &Collection, front: &str, back: &str) -> (Id, Id) {
     (added.id, added.cards[0])
 }
 
-pub(super) fn front(c: &Collection, note: Id) -> String {
+pub(crate) fn front(c: &Collection, note: Id) -> String {
     c.note(note).unwrap().unwrap().fields[0].value.clone()
 }
 
-pub(super) fn back(c: &Collection, note: Id) -> String {
+pub(crate) fn back(c: &Collection, note: Id) -> String {
     c.note(note).unwrap().unwrap().fields[1].value.clone()
 }
 
-pub(super) fn edit_front(c: &Collection, note: Id, value: &str) {
+pub(crate) fn edit_front(c: &Collection, note: Id, value: &str) {
     let (f, _) = basic_fields(c);
     c.set_note_fields(note, &[(f, value)]).unwrap();
 }
 
-pub(super) fn edit_back(c: &Collection, note: Id, value: &str) {
+pub(crate) fn edit_back(c: &Collection, note: Id, value: &str) {
     let (_, b) = basic_fields(c);
     c.set_note_fields(note, &[(b, value)]).unwrap();
 }

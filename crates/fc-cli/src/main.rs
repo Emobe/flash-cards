@@ -1,6 +1,7 @@
 //! Developer CLI. It drives `fc-core` directly, so every step of Phase 1 can be tried from a
 //! terminal before any UI exists. Step 1.14 grows it into the full tool.
 
+mod backup;
 mod host;
 mod media;
 mod merge;
@@ -88,6 +89,18 @@ Usage:
   fc merge <from> <into>
                    Give every change in the file <from> to the file <into>, and print what the
                    merge did. <from> is not changed. Run it both ways to bring two files together
+  fc export <file> <backup> [--deck <deck>] [--no-history]
+                   Write a backup file (a zip, see docs/backup-format.md) of the whole collection,
+                   or of one deck with its sub-decks, notes, note types and media. Review history
+                   is included unless --no-history is given. Never overwrites a file
+  fc restore <file> <backup>
+                   Make the collection match a whole backup. Values that differ are written again as
+                   new changes, what the backup does not have goes to the trash, and reviews made
+                   since are kept
+  fc import <file> <backup>
+                   Add what a backup (a deck, or a whole one) holds, and keep what the collection has
+  fc backup-info <backup>
+                   Say what a backup file holds, without opening any collection
   fc help          Show this text
 
 Options for any command:
@@ -611,6 +624,29 @@ fn run(args: &[String]) -> Result<String, Failure> {
             Ok(text.trim_end().to_owned())
         }
         [command, from, into] if command == "merge" => merge::merge(from, into),
+        [command, file, backup, rest @ ..] if command == "export" => {
+            let mut deck = None;
+            let mut history = true;
+            let mut rest = rest.iter();
+            while let Some(option) = rest.next() {
+                match option.as_str() {
+                    "--no-history" => history = false,
+                    "--deck" => {
+                        deck =
+                            Some(rest.next().ok_or_else(|| {
+                                Failure::Usage("--deck needs a deck.".to_owned())
+                            })?);
+                    }
+                    other => {
+                        return Err(Failure::Usage(format!("Unknown option \"{other}\".")));
+                    }
+                }
+            }
+            backup::export(file, backup, deck.map(String::as_str), history)
+        }
+        [command, file, backup] if command == "restore" => backup::restore(file, backup),
+        [command, file, backup] if command == "import" => backup::import(file, backup),
+        [command, backup] if command == "backup-info" => backup::info(backup),
         [command, file, path] if command == "add-media" => media::add(file, path),
         [command, file] if command == "media" => media::list(file),
         [command, file, name, out] if command == "media-get" => media::get(file, name, out),
@@ -733,6 +769,10 @@ fn run(args: &[String]) -> Result<String, Failure> {
                     | "run-search"
                     | "delete-search"
                     | "merge"
+                    | "export"
+                    | "restore"
+                    | "import"
+                    | "backup-info"
                     | "help"
             ) =>
         {

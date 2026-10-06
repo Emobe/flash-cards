@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use rusqlite::types::Value;
 use rusqlite::{Connection, params, params_from_iter};
 
-use super::changes::{Changes, Clock, RegisterChange, RowChange, table_exists};
+use super::changes::{Changes, Clock, RegisterChange, RowChange, read_register, table_exists};
 use super::registry::{AppendOnlyTable, DynamicTable};
 use super::unknown::{UnknownRegister, store_unknown};
 use super::write::read_clock;
@@ -124,7 +124,7 @@ fn kind_of(declared: &str) -> Kind {
 /// What this build can apply, read once per merge: the tables of its schema that this database has,
 /// and the declared type of every column.
 pub(crate) struct Targets {
-    synced: Vec<SyncedTable>,
+    pub(super) synced: Vec<SyncedTable>,
     dynamic: Vec<DynamicTable>,
     append_only: Vec<AppendOnlyTable>,
     columns: HashMap<(&'static str, String), Column>,
@@ -138,7 +138,7 @@ enum Target<'a> {
 }
 
 impl Targets {
-    fn load(conn: &Connection, schema: Schema) -> Result<Self, CollectionError> {
+    pub(super) fn load(conn: &Connection, schema: Schema) -> Result<Self, CollectionError> {
         let mut targets = Self {
             synced: schema.tables.to_vec(),
             dynamic: Vec::new(),
@@ -203,6 +203,20 @@ impl Targets {
     }
 }
 
+/// Where a batch comes from, which decides how its registers are compared and stamped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Origin {
+    /// Another collection (a merge, and later a sync): the higher clock wins and the batch's clock is
+    /// kept, already pushed.
+    Remote,
+    /// A file read in (one deck from a backup file): the higher clock wins, but what is taken is a
+    /// new local write, so a sync pushes it.
+    Import,
+    /// A restored backup (ADR 0006, section 11): a value that differs from the current one is
+    /// written again as a new local write, whatever the clocks say.
+    Restore,
+}
+
 /// How one register of a batch was handled.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Outcome {
@@ -236,6 +250,7 @@ impl WriteTx<'_> {
         &mut self,
         targets: &Targets,
         change: &RegisterChange,
+        origin: Origin,
     ) -> Result<Outcome, CollectionError> {
         let (sql, column_table, column, key) = match targets.classify(&change.entity, &change.field)
         {
@@ -287,49 +302,74 @@ impl WriteTx<'_> {
         {
             return Ok(Outcome::Rejected(reason));
         }
-        let local = read_clock(
-            self.local(),
-            &change.entity,
-            change.entity_id,
-            &change.field,
-        )?;
-        if local.is_some_and(|local| {
-            Clock {
-                hlc: local.hlc,
-                device: local.device,
-            } >= change.clock
-        }) {
-            return Ok(Outcome::Ignored);
-        }
-        let mut write = self.local().prepare_cached(&sql)?;
-        match key {
-            None => write.execute(params![change.entity_id, change.value])?,
-            Some(key) => write.execute(params![change.entity_id, change.value, key])?,
-        };
-        self.local()
-            .prepare_cached(
-                "INSERT INTO register_clock (entity_type, entity_id, field, hlc, device, pushed)
-                 VALUES (?1, ?2, ?3, ?4, ?5, 1)
-                 ON CONFLICT (entity_type, entity_id, field)
-                 DO UPDATE SET hlc = excluded.hlc, device = excluded.device, pushed = 1",
-            )?
-            .execute(params![
-                change.entity,
+        if origin == Origin::Restore {
+            let current = read_register(
+                self.local(),
+                &targets.synced,
+                &change.entity,
                 change.entity_id,
-                change.field,
-                change.clock.hlc.to_stored(),
-                change.clock.device
-            ])?;
+                &change.field,
+            )?;
+            // A value that was never set reads as empty text in a dynamic table.
+            let same = match &current {
+                Some(value) => *value == change.value,
+                None => matches!(&change.value, Value::Text(text) if text.is_empty()),
+            };
+            if same {
+                return Ok(Outcome::Ignored);
+            }
+        } else {
+            let local = read_clock(
+                self.local(),
+                &change.entity,
+                change.entity_id,
+                &change.field,
+            )?;
+            if local.is_some_and(|local| {
+                Clock {
+                    hlc: local.hlc,
+                    device: local.device,
+                } >= change.clock
+            }) {
+                return Ok(Outcome::Ignored);
+            }
+        }
+        {
+            let mut write = self.local().prepare_cached(&sql)?;
+            match key {
+                None => write.execute(params![change.entity_id, change.value])?,
+                Some(key) => write.execute(params![change.entity_id, change.value, key])?,
+            };
+        }
+        if origin == Origin::Remote {
+            self.local()
+                .prepare_cached(
+                    "INSERT INTO register_clock (entity_type, entity_id, field, hlc, device, pushed)
+                     VALUES (?1, ?2, ?3, ?4, ?5, 1)
+                     ON CONFLICT (entity_type, entity_id, field)
+                     DO UPDATE SET hlc = excluded.hlc, device = excluded.device, pushed = 1",
+                )?
+                .execute(params![
+                    change.entity,
+                    change.entity_id,
+                    change.field,
+                    change.clock.hlc.to_stored(),
+                    change.clock.device
+                ])?;
+        } else {
+            self.record(&change.entity, change.entity_id, &change.field)?;
+        }
         Ok(Outcome::Applied)
     }
 
-    /// Applies one remote append-only row: it is inserted if its ID is new, and never listed as
-    /// unpushed. Columns this build does not know are kept in `unknown_row_value`, and so is every
+    /// Applies one append-only row: it is inserted if its ID is new, and listed as unpushed only
+    /// when it does not come from another collection. Columns this build does not know are kept in `unknown_row_value`, and so is every
     /// column of an entity type it does not know.
     pub(crate) fn apply_row(
         &mut self,
         targets: &Targets,
         change: &RowChange,
+        origin: Origin,
     ) -> Result<RowOutcome, CollectionError> {
         let Some(table) = targets
             .append_only
@@ -380,6 +420,13 @@ impl WriteTx<'_> {
             ),
             params_from_iter(args),
         )?;
+        if added == 1 && origin != Origin::Remote {
+            // Read in from a file: the server has not seen it.
+            self.local().execute(
+                "INSERT OR IGNORE INTO unpushed_row (entity_type, row_id) VALUES (?1, ?2)",
+                params![change.entity, change.id],
+            )?;
+        }
         let kept = self.keep_columns(&change.entity, change.id, &extra)?;
         Ok(if added == 1 && kept == RowOutcome::Unknown {
             RowOutcome::AddedWithUnknown
@@ -417,7 +464,7 @@ impl WriteTx<'_> {
 
 /// What the registers and rows of a batch changed, for the derived state.
 #[derive(Default)]
-struct Touched {
+pub(super) struct Touched {
     notes: BTreeSet<Id>,
     note_types: BTreeSet<Id>,
     /// `(table, id)` of changed note type fields and templates, whose note type is read after the
@@ -435,65 +482,89 @@ impl Collection {
     pub fn merge(&self, changes: &Changes) -> Result<MergeReport, CollectionError> {
         let targets = Targets::load(&self.conn, self.schema)?;
         self.write(|w| {
-            let mut report = MergeReport::default();
-            let mut touched = Touched::default();
             // The clock first: whatever the reconcile writes below is stamped after everything
             // received, including registers that lose.
             if let Some(highest) = changes.registers.iter().map(|r| r.clock.hlc).max() {
                 w.hlc = w.hlc.observe(highest);
             }
-            for change in &changes.registers {
-                match w.apply_register(&targets, change)? {
-                    Outcome::Applied => {
-                        report.registers_applied += 1;
-                        touch_register(&mut touched, change);
-                    }
-                    Outcome::Ignored => report.registers_ignored += 1,
-                    Outcome::Unknown => report.unknown_registers += 1,
-                    Outcome::Rejected(reason) => report.rejected.push(Rejected {
-                        entity: change.entity.clone(),
-                        id: change.entity_id,
-                        field: Some(change.field.clone()),
-                        reason,
-                    }),
-                }
-            }
-            for change in &changes.rows {
-                match w.apply_row(&targets, change)? {
-                    RowOutcome::Added => {
-                        report.rows_added += 1;
-                        touch_row(&mut touched, change);
-                    }
-                    RowOutcome::AddedWithUnknown => {
-                        report.rows_added += 1;
-                        report.unknown_rows += 1;
-                        touch_row(&mut touched, change);
-                    }
-                    RowOutcome::Present => {}
-                    RowOutcome::Unknown => report.unknown_rows += 1,
-                    RowOutcome::Rejected(reason) => report.rejected.push(Rejected {
-                        entity: change.entity.clone(),
-                        id: change.id,
-                        field: None,
-                        reason,
-                    }),
-                }
-            }
-            self.reconcile_after_merge(w, &touched, &mut report)?;
-            self.rebuild_after_merge(w, &touched, &mut report)?;
-            let kept = report.unknown_registers + report.unknown_rows;
-            if report.registers_applied + report.rows_added + kept > 0 {
-                w.emit(Event::MergeApplied {
-                    registers_applied: count(report.registers_applied),
-                    rows_added: count(report.rows_added),
-                    unknown_kept: count(kept),
-                    notes_reconciled: count(report.notes_reconciled),
-                    cards_rebuilt: count(report.cards_rebuilt),
-                    rejected: count(report.rejected.len()),
-                });
-            }
+            let (mut report, touched) = self.apply_batch(w, &targets, changes, Origin::Remote)?;
+            self.finish_batch(w, &touched, &mut report)?;
             Ok(report)
         })
+    }
+
+    /// Applies every register and row of a batch, and reports what it did. The derived state is
+    /// brought in line afterwards by `finish_batch`.
+    pub(super) fn apply_batch(
+        &self,
+        w: &mut WriteTx<'_>,
+        targets: &Targets,
+        changes: &Changes,
+        origin: Origin,
+    ) -> Result<(MergeReport, Touched), CollectionError> {
+        let mut report = MergeReport::default();
+        let mut touched = Touched::default();
+        for change in &changes.registers {
+            match w.apply_register(targets, change, origin)? {
+                Outcome::Applied => {
+                    report.registers_applied += 1;
+                    touch_register(&mut touched, change);
+                }
+                Outcome::Ignored => report.registers_ignored += 1,
+                Outcome::Unknown => report.unknown_registers += 1,
+                Outcome::Rejected(reason) => report.rejected.push(Rejected {
+                    entity: change.entity.clone(),
+                    id: change.entity_id,
+                    field: Some(change.field.clone()),
+                    reason,
+                }),
+            }
+        }
+        for change in &changes.rows {
+            match w.apply_row(targets, change, origin)? {
+                RowOutcome::Added => {
+                    report.rows_added += 1;
+                    touch_row(&mut touched, change);
+                }
+                RowOutcome::AddedWithUnknown => {
+                    report.rows_added += 1;
+                    report.unknown_rows += 1;
+                    touch_row(&mut touched, change);
+                }
+                RowOutcome::Present => {}
+                RowOutcome::Unknown => report.unknown_rows += 1,
+                RowOutcome::Rejected(reason) => report.rejected.push(Rejected {
+                    entity: change.entity.clone(),
+                    id: change.id,
+                    field: None,
+                    reason,
+                }),
+            }
+        }
+        Ok((report, touched))
+    }
+
+    /// The derived state of a batch, and the event.
+    pub(super) fn finish_batch(
+        &self,
+        w: &mut WriteTx<'_>,
+        touched: &Touched,
+        report: &mut MergeReport,
+    ) -> Result<(), CollectionError> {
+        self.reconcile_after_merge(w, touched, report)?;
+        self.rebuild_after_merge(w, touched, report)?;
+        let kept = report.unknown_registers + report.unknown_rows;
+        if report.registers_applied + report.rows_added + kept > 0 {
+            w.emit(Event::MergeApplied {
+                registers_applied: count(report.registers_applied),
+                rows_added: count(report.rows_added),
+                unknown_kept: count(kept),
+                notes_reconciled: count(report.notes_reconciled),
+                cards_rebuilt: count(report.cards_rebuilt),
+                rejected: count(report.rejected.len()),
+            });
+        }
+        Ok(())
     }
 
     /// Cards of notes (ADR 0008, part 5): every live note whose fields the batch changed, and every
@@ -593,25 +664,25 @@ impl Collection {
     }
 }
 
-fn touch_register(touched: &mut Touched, change: &RegisterChange) {
-    match change.entity.as_str() {
+pub(super) fn touch_register(touched: &mut Touched, change: &RegisterChange) {
+    touch_entity(touched, &change.entity, change.entity_id);
+}
+
+pub(super) fn touch_entity(touched: &mut Touched, entity: &str, id: Id) {
+    match entity {
         "note" => {
-            touched.notes.insert(change.entity_id);
+            touched.notes.insert(id);
         }
         "note_type" => {
-            touched.note_types.insert(change.entity_id);
+            touched.note_types.insert(id);
         }
-        "note_type_field" => touched
-            .note_type_children
-            .push(("note_type_field", change.entity_id)),
-        "template" => touched
-            .note_type_children
-            .push(("template", change.entity_id)),
+        "note_type_field" => touched.note_type_children.push(("note_type_field", id)),
+        "template" => touched.note_type_children.push(("template", id)),
         _ => {}
     }
 }
 
-fn touch_row(touched: &mut Touched, change: &RowChange) {
+pub(super) fn touch_row(touched: &mut Touched, change: &RowChange) {
     if change.entity == CARD_EVENT.entity {
         let card = change
             .columns

@@ -4,19 +4,25 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.12 Extension points: built, awaiting Anthony's review. Branch `step/1.12-extension-points`. Built to ADR 0009 (Accepted) and `docs/plans/1.12-extension-points.md`. Results, what was not verified and the deviations list are in ADR 0009, "Build notes (step 1.12)". Public surface: `docs/events.md`.
+1.13a Backup, export and restore (core, format, CLI): built, awaiting Anthony's review. Branch `step/1.13a-backup-export`. Built to the plan approved in chat (no ADR). Results, the rules to confirm, what was not verified and the deviations list are in ADR 0006, "Build notes, step 1.13a". The format is in `docs/backup-format.md`. 1.13 is split: 1.13b is not started.
 
-Verified: `cargo xtask check` passes (wasm build, bindings, TypeScript). 621 tests in `fc-core` (28 new), 29 in `fc-api`, 21 in `fc-native`. `fc` on a copy of the desktop collection works (version 11). The desktop app (`bun run dev`) starts, loads the page and opens the collection with no error. The web page (`bun run web:dev`) served and loaded in headless Brave with no console error, but the DOM dump came back empty, so that the wasm core started was not confirmed by looking at the page.
+Verified: `cargo xtask check` passes (wasm build included). 644 tests in `fc-core` (23 new, one ignored measurement), 3 new in `fc-cli`. The tour of every writing operation exports and restores into an empty collection with equal state. Timings (release, 5,000 notes, 55,227 registers, 5,001 events, a 2.3 MB file): export 0.35 s, restore into empty 1.1 s, restore of the same state 0.27 s.
 
-Not verified: the phone, Windows, Firefox, Safari, panic behaviour of listeners on wasm and Android. No API method can cause a real event yet, so the hosts are covered by their tests and by starting cleanly.
+Not verified: the phone, the browser and wasm at runtime, Windows, Firefox, Safari, memory use on a large collection, a restore after a real sync (Phase 4), 50,000 notes (the run with 20,000 took too long to build).
 
-1.11a Merge: built, awaiting Anthony's review. Branch `step/1.11a-merge`. Results, findings and the deviations list are in ADR 0008, "Build notes (step 1.11a)" (deviations: the list at the end of those notes). Not verified: the phone, the web, Windows, merge speed on the phone or in wasm.
+Rules for Anthony to confirm (details in the ADR notes): a restore trashes what the backup lacks and never touches unedited built-ins or settings; a deck file cannot be restored, only imported; an import takes only newer values; a deck export keeps only the cards in the exported decks.
+
+Remaining for 1.13b: API methods and bindings in `fc-api`, `fc-native` (paths, not bytes) and `fc-wasm` (bytes), the native automatic backup (on start when the last is over 24 hours old, keep the last 5, both as settings), web export, a backup before a migration.
+
+Merged: 1.12 Extension points (PR #27, ADR 0009) and 1.11a Merge (PR #25, ADR 0008). Their "not verified" lists are kept below under Done.
 
 ## Branch
 
-`step/1.12-extension-points`. Not pushed since PR #26.
+`step/1.13a-backup-export`, from `master`. Not pushed.
 
 ## Done
+
+- 1.13a Backup, export and restore (ADR 0006 build notes, step 1.13a). `fc_core::backup`: a zip of a manifest, `changes.jsonl` and media by hash; `export_backup` (collection or one deck, history optional), `restore_backup` (a diff written as new changes with a new device ID, what the backup lacks goes to the trash, events only added), `import_backup` (newer values only), `read_manifest`. `Origin` (Remote, Import, Restore) in `sync/merge.rs`; `sync/restore.rs`. CLI `fc export | restore | import | backup-info`. New dependencies `zip` 8.6.0, `serde_json` 1.0.151, `flate2` 1.1.10 (backend) in `fc-core`. Format: `docs/backup-format.md`. Deviations: the list at the end of the ADR notes.
 
 - 1.11a Merge (ADR 0008 build notes, step 1.11a). Migration v11 (`unknown_row_value`). `Collection::changes(All | Unpushed)` and `Collection::merge` with the type check, the reconcile of changed notes and the schedule rebuild; `adopt_unknown` for later migrations; `fc merge <from> <into>`. 44 more core tests (593 in `fc-core`), 2 more CLI tests: every row of ADR 0006 section 11 that needs no server, a tour of every writing operation (a new collection built from `changes(All)` has the same digest), a 2,000-operation convergence test of three collections, the "older app" test and a version-10 upgrade. Found and fixed: a new device would have brought back cards that went to the trash with their deck (the merge now treats a deleted deck as dead when reconciling; a change to the text of ADR 0008 part 5). A new device merges 50,000 notes in 3.4 s on Linux (release). `cargo xtask check` passes. Not verified: the phone, the web, Windows, merge speed on the phone or in wasm.
 
