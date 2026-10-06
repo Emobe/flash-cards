@@ -4,17 +4,19 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.12 Extension points: built, awaiting Anthony's review. Branch `step/1.12-extension-points`. Built to ADR 0009 (Accepted) and `docs/plans/1.12-extension-points.md`. Results, what was not verified and the deviations list are in ADR 0009, "Build notes (step 1.12)". Public surface: `docs/events.md`.
+1.13a Backup, export and restore: **in progress**. Branch `step/1.13a-backup-export`. Plan approved in chat (no ADR: the phase file schedules none, and ADR 0006 section 11 and ADR 0008 settle the semantics). 1.13 is split in two as agreed: 1.13a is the core, the format doc and the CLI; 1.13b is the host wiring (API methods and bindings, native auto-backup, web export).
 
-Verified: `cargo xtask check` passes (wasm build, bindings, TypeScript). 621 tests in `fc-core` (28 new), 29 in `fc-api`, 21 in `fc-native`. `fc` on a copy of the desktop collection works (version 11). The desktop app (`bun run dev`) starts, loads the page and opens the collection with no error. The web page (`bun run web:dev`) served and loaded in headless Brave with no console error, but the DOM dump came back empty, so that the wasm core started was not confirmed by looking at the page.
+Done so far (commit `Step 1.13a: core`): `fc_core::backup` (`export_backup`, `restore_backup`, `import_backup`, `read_manifest`), `sync/restore.rs` (restore as a diff written as new changes, what the backup lacks goes to the trash), `Origin` in `sync/merge.rs` (Remote, Import, Restore). New dependencies `zip` 8.6.0 (and its `typed-path`), `serde_json` 1.0.151 and `flate2` 1.1.10 (already in the lockfile) in `fc-core`. 21 new tests in `backup/tests.rs`, 642 in `fc-core` pass, clippy clean.
 
-Not verified: the phone, Windows, Firefox, Safari, panic behaviour of listeners on wasm and Android. No API method can cause a real event yet, so the hosts are covered by their tests and by starting cleanly.
+Remaining for 1.13a: `docs/backup-format.md`, CLI (`fc export`, `fc restore`, `fc import`, `fc backup-info`), CLI tests, build notes with the deviations list in ADR 0006 (step 1.13a), `docs/events.md` note (a restore and an import emit `MergeApplied`), phase file and this file, `cargo xtask check`, a measurement on a large collection.
 
-1.11a Merge: built, awaiting Anthony's review. Branch `step/1.11a-merge`. Results, findings and the deviations list are in ADR 0008, "Build notes (step 1.11a)" (deviations: the list at the end of those notes). Not verified: the phone, the web, Windows, merge speed on the phone or in wasm.
+Remaining for 1.13b: API methods and bindings in `fc-api`, `fc-native` (paths, not bytes) and `fc-wasm` (bytes), the native automatic backup (on start when the last is over 24 hours old, keep the last 5, both as settings), web export.
+
+Merged: 1.12 Extension points (PR #27, ADR 0009) and 1.11a Merge (PR #25, ADR 0008). Their "not verified" lists are kept below under Done.
 
 ## Branch
 
-`step/1.12-extension-points`. Not pushed since PR #26.
+`step/1.13a-backup-export`, from `master`. Not pushed.
 
 ## Done
 

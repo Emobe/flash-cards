@@ -20,6 +20,7 @@ mod hlc;
 mod merge;
 mod registry;
 mod requires;
+mod restore;
 pub(crate) mod state;
 mod unknown;
 mod write;
@@ -32,6 +33,7 @@ pub use registry::{
     SyncedTable, install_append_only_guard, install_dynamic_guard, install_guard,
 };
 pub use requires::SUPPORTED_FEATURES;
+pub(crate) use restore::FileMode;
 pub use unknown::UnknownRegister;
 #[cfg(test)]
 pub(crate) use unknown::adopt_unknown;
@@ -44,8 +46,8 @@ pub(crate) use registry::check_schema;
 #[cfg(test)]
 mod merge_events_tests;
 #[cfg(test)]
-mod merge_tests;
+pub(crate) mod merge_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
-mod tour_tests;
+pub(crate) mod tour_tests;

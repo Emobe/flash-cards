@@ -90,9 +90,8 @@ fn check_invariants(c: &Collection) {
 
 // ---- The tour ----
 
-#[test]
-fn the_tour_of_every_writing_operation_reproduces_in_an_empty_collection() {
-    let (a, _) = pair();
+/// Every writing operation once, on `a`. Shared with the backup tests.
+pub(crate) fn run_the_tour(a: &Dev) {
     let c = &a.c;
     let step = |n: i64| a.clock.advance(n * MINUTE);
 
@@ -233,6 +232,13 @@ fn the_tour_of_every_writing_operation_reproduces_in_an_empty_collection() {
 
     // Other.
     c.require_feature("future-thing").unwrap();
+}
+
+#[test]
+fn the_tour_of_every_writing_operation_reproduces_in_an_empty_collection() {
+    let (a, _) = pair();
+    let c = &a.c;
+    run_the_tour(&a);
 
     check_invariants(c);
     let fresh = Dev::new(2, START);

@@ -119,7 +119,10 @@ fn a_created_collection_can_be_closed_and_reopened() {
     let reopened = Collection::open(db.path(), host()).unwrap();
     assert_eq!(reopened.info().unwrap(), info);
     reopened.close().unwrap();
-    assert_eq!(pragma(db.path(), "application_id"), APPLICATION_ID.into());
+    assert_eq!(
+        pragma(db.path(), "application_id"),
+        i64::from(APPLICATION_ID)
+    );
 }
 
 #[test]
