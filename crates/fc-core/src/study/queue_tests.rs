@@ -419,18 +419,14 @@ fn reviews_come_by_due_day_and_new_cards_are_spread_among_them() {
     add(&c, &clock, default_deck(), 2);
 
     let mut order = Vec::new();
-    loop {
-        match c.next_card(default_deck()).unwrap() {
-            Next::Card {
-                card,
-                state: state @ (CardState::New | CardState::Review),
-                ..
-            } => {
-                order.push(state);
-                good(&c, card);
-            }
-            _ => break,
-        }
+    while let Next::Card {
+        card,
+        state: state @ (CardState::New | CardState::Review),
+        ..
+    } = c.next_card(default_deck()).unwrap()
+    {
+        order.push(state);
+        good(&c, card);
     }
     use CardState::{New, Review};
     // Eight cards: the two new ones sit at 1/4 and 3/4 of the way through the six reviews, and a

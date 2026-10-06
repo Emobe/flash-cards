@@ -356,7 +356,7 @@ impl Queues {
             }
         }
         for list in &mut self.fresh {
-            list.sort_by(|a, b| fresh_order(a, b));
+            list.sort_by(fresh_order);
         }
         for list in &mut self.reviews {
             list.sort_by_key(|r| (r.due_day, r.card));
