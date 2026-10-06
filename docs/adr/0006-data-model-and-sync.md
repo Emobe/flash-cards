@@ -1094,8 +1094,9 @@ dependency feature (`rusqlite` `functions`, see below), no new crate.
     (`front:`) still match whole. Untagged notes are `-tag:*`.
   - A card with no deck register is in the Default deck, as everywhere else.
   - `is:learning` includes relearning. `is:due` is a review card whose due day is today or earlier, or
-    a learning card whose due time has passed (a learning card due later today is not "due"). It does
-    not leave out suspended or buried cards: write `-is:suspended`.
+    a learning card whose due time has passed (a learning card due later today is not "due"). It
+    leaves out suspended and buried cards (Anthony's decision on review: a card someone suspended is
+    not due), which `is:suspended` and `is:buried` still find.
   - `is:buried` is burying through today, which is what `bury_cards` writes (found by a test: the first
     version compared with "after today" and found nothing).
   - Days are study days (the day-start hour applies) in the device's time zone now. A review card is
@@ -1204,7 +1205,7 @@ dependency feature (`rusqlite` `functions`, see below), no new crate.
   text. Its result is the same, and the existing tests pass unchanged.
 - `rusqlite` got the `functions` feature on the wasm target too, not only native (it is a feature of
   the crate we use, so `Cargo.lock` has no new package).
-- After Anthony's review of the first build: accents are ignored, names match any part, and `deckonly:` looks at the
+- After Anthony's review of the first build: `is:due` leaves out suspended and buried cards, accents are ignored, names match any part, and `deckonly:` looks at the
   deck's own name. `fc_equals` became `fc_has` (a tag has the text inside it), and `card:` with a number no longer also
   looks at template names. The timings above are from before this change and were not repeated (text without
   accents takes the old path unchanged).

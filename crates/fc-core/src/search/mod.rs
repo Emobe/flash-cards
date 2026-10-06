@@ -14,7 +14,7 @@
 //! | `deck:Polish`, `deckonly:Polish` | are in a deck with this in its path (and so in the decks inside it), or in a deck with this in its own name and not in what is inside it |
 //! | `tag:verbs` | are on a note with a tag with this in its name (`-tag:*` is untagged) |
 //! | `note:Basic`, `card:2`, `card:Reverse` | are of a note type with this in its name, the second template, or a template with this in its name |
-//! | `is:new`, `is:learning`, `is:review`, `is:due`, `is:suspended`, `is:buried` | are in that state |
+//! | `is:new`, `is:learning`, `is:review`, `is:due`, `is:suspended`, `is:buried` | are in that state (`is:due` leaves out suspended and buried cards) |
 //! | `due:0`, `due:-3..0`, `due:..0` | are due on those days, counted from today (0) |
 //! | `added:7`, `added:2026-09-01..2026-09-30` | were added in the last 7 days, or on those dates |
 //! | `rated:7`, `rated:7:1`, `introduced:30` | were answered in the last 7 days (with Again), or first answered in the last 30 |

@@ -326,9 +326,11 @@ fn is_sql(is: Is, ctx: &Context<'_>, params: &mut Params) -> String {
         Is::Due => {
             let today = params.arg(ctx.today);
             let now = params.arg(ctx.now_ms);
+            let today_again = params.arg(ctx.today);
             format!(
-                "COALESCE((s.state = 2 AND s.due_day <= {today}) \
-                 OR (s.state IN (1, 3) AND s.due_ms <= {now}), 0)"
+                "COALESCE(((s.state = 2 AND s.due_day <= {today}) \
+                 OR (s.state IN (1, 3) AND s.due_ms <= {now})) \
+                 AND c.suspended = 0 AND c.buried_until < {today_again}, 0)"
             )
         }
         Is::Suspended => "c.suspended <> 0".to_owned(),

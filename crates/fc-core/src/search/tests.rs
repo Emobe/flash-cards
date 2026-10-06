@@ -539,6 +539,30 @@ fn due_cards_are_the_overdue_and_today_in_every_state() {
 }
 
 #[test]
+fn due_leaves_out_suspended_and_buried_cards() {
+    let f = fixture();
+    f.clock.advance(3 * DAY);
+    assert_eq!(titles(&f.c, "is:due"), ["kot", "pies"]);
+    f.c.suspend_cards(&[f.pies.1]).unwrap();
+    assert_eq!(titles(&f.c, "is:due"), ["kot"]);
+    f.c.bury_cards(&[f.kot.1]).unwrap();
+    assert!(titles(&f.c, "is:due").is_empty());
+    assert_eq!(
+        titles(&f.c, "is:suspended or is:buried"),
+        ["kot", "pies"],
+        "still found"
+    );
+    f.c.unsuspend_cards(&[f.pies.1]).unwrap();
+    assert_eq!(titles(&f.c, "is:due"), ["pies"]);
+    f.clock.advance(DAY);
+    assert_eq!(
+        titles(&f.c, "is:due"),
+        ["kot", "pies"],
+        "burying lasts until tomorrow"
+    );
+}
+
+#[test]
 fn suspended_and_buried_cards() {
     let f = fixture();
     f.c.suspend_cards(&[f.pies.1]).unwrap();
