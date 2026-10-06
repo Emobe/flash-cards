@@ -17,7 +17,7 @@ use std::time::Instant;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use fc_api::{ApiError, Core, Notice, OpContext};
+use fc_api::{ApiError, Core, Notice, OpContext, forward_events};
 use tauri::ipc::{Channel, Response};
 use tauri::webview::PageLoadEvent;
 use tauri::{Manager, State, Webview};
@@ -147,9 +147,13 @@ fn open_collection(app: &tauri::App) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let core = Arc::new(Core::new());
+    let hub = Arc::new(Hub::default());
+    // Core events (a merge, a background sync) reach the webview even with no call in progress.
+    forward_events(&core, hub.clone());
     tauri::Builder::default()
-        .manage(Arc::new(Core::new()))
-        .manage(Arc::new(Hub::default()))
+        .manage(core)
+        .manage(hub)
         .manage(Arc::new(Operations::default()))
         .manage(Arc::new(Gate::default()))
         .setup(|app| {

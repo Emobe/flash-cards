@@ -142,7 +142,7 @@ test("events reach listeners until they unsubscribe", async () => {
   const transport = createFakeTransport({});
   const client = new CoreClient(transport);
   const seen: string[] = [];
-  const stop = client.onEvent((e) => seen.push(e.message));
+  const stop = client.onEvent((e) => seen.push(e.kind === "debug" ? e.message : e.kind));
   transport.emit({ kind: "debug", message: "one" });
   stop();
   transport.emit({ kind: "debug", message: "two" });

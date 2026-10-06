@@ -4,10 +4,13 @@
 #![forbid(unsafe_code)]
 #![cfg(target_arch = "wasm32")]
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::sync::Arc;
 
-use fc_api::{ApiError, Clock, Core, EventSink, Host, Id, Notice, OpContext, Reading, dispatch};
+use fc_api::{
+    ApiError, Clock, Core, EventSink, Host, Id, Notice, OpContext, Reading, dispatch,
+    forward_events,
+};
 use js_sys::{Date, Function, Object, Reflect, Uint8Array};
 use sqlite_wasm_rs::WasmOsCallback;
 use sqlite_wasm_vfs::sahpool::{OpfsSAHPoolCfg, install};
@@ -15,6 +18,7 @@ use wasm_bindgen::prelude::*;
 
 thread_local! {
     static CORE: Core = Core::new();
+    static FORWARDING: Cell<bool> = const { Cell::new(false) };
     static ON_NOTICE: RefCell<Option<Function>> = const { RefCell::new(None) };
 }
 
@@ -40,6 +44,11 @@ impl EventSink for JsSink {
 #[wasm_bindgen]
 pub fn init(on_notice: Function) {
     ON_NOTICE.with(|callback| *callback.borrow_mut() = Some(on_notice));
+    // Core events reach the page even with no call in progress. Once per instance, so a second
+    // `init` does not send every event twice.
+    if !FORWARDING.replace(true) {
+        CORE.with(|core| forward_events(core, Arc::new(JsSink)));
+    }
     std::panic::set_hook(Box::new(|info| {
         console_error(&info.to_string());
     }));

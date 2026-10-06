@@ -19,7 +19,10 @@ pub use error::{ApiError, ErrorKind};
 pub use fc_core::Core;
 pub use fc_core::clock::{Clock, Host, Reading};
 pub use fc_core::id::Id;
-pub use notice::{CoreEvent, EventSink, Notice, NullSink, Progress};
+pub use notice::{
+    CoreEvent, EventRating, EventSink, Notice, NullSink, Progress, SessionEndReason,
+    SessionSummary, forward_events,
+};
 
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;

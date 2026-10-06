@@ -17,12 +17,13 @@ Done (committed; `cargo test -p fc-core` passes, 621 tests, 28 of them new for 1
 
 - Core tests: `events_tests.rs` (20), `study/session_tests.rs` (7), and the new `sync/merge_events_tests.rs` (5; the merge helpers are `pub(super)` to `sync`, so the merge and cross-device tests live there).
 
+- `fc-api`: `CoreEvent` variants (hand-written DTOs), `EventRating`, `SessionEndReason`, `SessionSummary`, exhaustive `From<&Event>` (checked: a new core variant fails to compile), `forward_events`, `notice_tests.rs` (JSON shape per variant, forwarding, no field text), bindings regenerated. Two existing TS tests narrow `e.kind === "debug"` before reading `message`.
+- Hosts: `forward_events` in `apps/native/src-tauri/src/lib.rs` and in `fc-wasm` `init` (once per instance, guarded by a `FORWARDING` flag); a hub test in `hub.rs`.
+- `cargo xtask check` passes.
+
 Remaining, in order:
-1. (done) Core tests.
-2. `fc-api`: `CoreEvent` variants, rating and end-reason string unions, exhaustive `From<&Event>`, `forward_events`, JSON-shape tests, `cargo xtask bindings`.
-3. Hosts: `forward_events` in `apps/native/src-tauri/src/lib.rs` and `crates/fc-wasm/src/lib.rs` `init`; a hub test.
-4. Docs: `docs/events.md`, link in `docs/README.md`, ADR 0009 build notes with the deviations list, phase file Status line.
-5. `cargo xtask check`, `fc` on a copy of the desktop collection, desktop app and web page start without errors. Then the PR report.
+1. Docs: `docs/events.md`, link in `docs/README.md`, ADR 0009 build notes with the deviations list, phase file Status line.
+2. `fc` on a copy of the desktop collection, desktop app and web page start without errors. Then the PR report.
 
 1.11a Merge: built, awaiting Anthony's review. Branch `step/1.11a-merge`. Results, findings and the deviations list are in ADR 0008, "Build notes (step 1.11a)" (deviations: the list at the end of those notes). Not verified: the phone, the web, Windows, merge speed on the phone or in wasm.
 

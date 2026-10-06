@@ -143,7 +143,7 @@ test("subscribing registers a channel before the next call, and notices reach on
   });
   const client = new CoreClient(createTauriTransport());
   const events: string[] = [];
-  client.onEvent((e) => events.push(e.message));
+  client.onEvent((e) => events.push(e.kind === "debug" ? e.message : e.kind));
   const seen: number[] = [];
   await client.call("debugSlow", { steps: 2, stepMs: 0 }, { onProgress: (p) => seen.push(p.done) });
   expect(state.commands.slice(0, 2)).toEqual(["subscribe", "call"]);
