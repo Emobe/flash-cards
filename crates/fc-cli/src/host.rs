@@ -2,11 +2,26 @@
 //! collection (ADR 0006, sections 1 and 2).
 
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use chrono::{Local, Offset};
 use fc_core::clock::{Clock, Host, Reading};
 use fc_core::id::Id;
+
+/// A time and offset given on the command line (`--now`, `--utc-offset`), so a person can step
+/// through days by hand. Each invocation sees the same fixed time.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Overrides {
+    pub unix_ms: Option<i64>,
+    pub utc_offset_minutes: Option<i32>,
+}
+
+static OVERRIDES: OnceLock<Overrides> = OnceLock::new();
+
+/// Called once, before any collection is opened.
+pub fn set_overrides(overrides: Overrides) {
+    let _ = OVERRIDES.set(overrides);
+}
 
 #[derive(Debug)]
 struct SystemClock;
@@ -14,9 +29,12 @@ struct SystemClock;
 impl Clock for SystemClock {
     fn now(&self) -> Reading {
         let now = Local::now();
+        let overrides = OVERRIDES.get().copied().unwrap_or_default();
         Reading {
-            unix_ms: now.timestamp_millis(),
-            utc_offset_minutes: now.offset().fix().local_minus_utc() / 60,
+            unix_ms: overrides.unix_ms.unwrap_or_else(|| now.timestamp_millis()),
+            utc_offset_minutes: overrides
+                .utc_offset_minutes
+                .unwrap_or_else(|| now.offset().fix().local_minus_utc() / 60),
         }
     }
 }

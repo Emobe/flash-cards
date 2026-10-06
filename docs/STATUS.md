@@ -17,7 +17,7 @@ Kept current by every session. A new session reads this first.
 - [x] 3. `study::answer` (events, parameter set, cache in one write), `card_schedule`, `card_events`; tests in `study/answer_tests.rs` (inputs recorded, steps, day boundary across offsets, DST, west travel, clock set back).
 - [x] 4. Fold (`study/fold.rs`), `rebuild_schedule`, `schedule_cache_version` in `meta` checked on open; tests in `study/fold_tests.rs`. Deviation: an event records both step lists (`1 10|10`), not only the one that applied.
 - [x] 5. `undo_answer` (a void event, refused with `LaterAnswer` when the card has a later answer; `study/undo_tests.rs`). `cargo xtask check` passes.
-- [ ] 6. CLI: `fc answer`, `fc undo`, `fc schedule`, `--now`, `--utc-offset`.
+- [x] 6. CLI: `fc answer`, `fc undo`, `fc schedule`, global `--now` (the offset in the time is used unless `--utc-offset` is given), `fc notes` prints card IDs; `crates/fc-cli/tests/study.rs`. Run on a copy of the real desktop collection (it was at storage version 2, so 2 to 7 in one go).
 - [ ] 7. Docs (ADR 0007 build notes, phase file), full `cargo xtask check`, real-collection run, report.
 
 Deviations so far: `card_event` has an extra `day` column (the study day, written with the event, so recomputing never depends on a start hour that changed later). `WriteTx::insert_row` is generic instead of `insert_event` / `insert_parameter_set`.
