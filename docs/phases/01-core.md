@@ -179,7 +179,7 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 **Review focus:** is the query syntax something a normal person could use, with the UI also offering filters as buttons?
 
-**Status:** done (2026-10-06), awaiting review. Built to the plan approved in chat; the syntax, rules, timings and deviations are in ADR 0006 (build notes, step 1.9). `fc_core::search`: a query language (text, `field:`, `deck:`, `tag:`, `note:`, `card:`, `is:`, `due:`, `added:`, `rated:`, `introduced:`, `difficulty:`, `stability:`, `lapses:`, `reviews:`, with `or`, `-` and brackets), ten sorts, paging, notes or cards, saved searches (migration v9, a synced table), Unicode-aware matching through SQL functions (`rusqlite` `functions` feature). `fc search`, `fc searches`, `fc save-search`, `fc run-search`, `fc delete-search`. At 50,000 cards most queries take 40 to 160 ms, a text word about 290 ms. Not in any UI or the web API (3.1).
+**Status:** done (2026-10-06), reviewed and merged (PR #21). Built to the plan approved in chat; the syntax, rules, timings and deviations are in ADR 0006 (build notes, step 1.9). `fc_core::search`: a query language (text, `field:`, `deck:`, `tag:`, `note:`, `card:`, `is:`, `due:`, `added:`, `rated:`, `introduced:`, `difficulty:`, `stability:`, `lapses:`, `reviews:`, with `or`, `-` and brackets), ten sorts, paging, notes or cards, saved searches (migration v9, a synced table), Unicode-aware matching through SQL functions (`rusqlite` `functions` feature). `fc search`, `fc searches`, `fc save-search`, `fc run-search`, `fc delete-search`. At 50,000 cards most queries take 40 to 160 ms, a text word about 290 ms. Not in any UI or the web API (3.1).
 
 ---
 
