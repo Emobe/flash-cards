@@ -83,6 +83,7 @@ impl Collection {
                     ("name", text(&name)),
                     ("parent", parent_blob(parent)),
                     ("options_preset", blob(default_preset())),
+                    ("limits_include_subdecks", flag(true)),
                     ("deleted", flag(false)),
                 ],
             )?;
@@ -99,6 +100,18 @@ impl Collection {
             return Ok(());
         }
         Ok(self.write(|w| w.set(DECK.entity, id, "name", text(&name)))?)
+    }
+
+    /// Sets whether a deck's daily limits count the cards in its sub-decks too (ADR 0007, part 3).
+    /// Off, the limits count only the cards directly in it, so a deck used as a category does not
+    /// cap the decks inside it.
+    pub fn set_deck_limits_include_subdecks(&self, id: Id, on: bool) -> Result<(), DeckError> {
+        let tree = Tree::load(&self.conn)?;
+        let row = tree.live(id).ok_or(DeckError::NotFound)?;
+        if row.limits_include_subdecks == on {
+            return Ok(());
+        }
+        Ok(self.write(|w| w.set(DECK.entity, id, "limits_include_subdecks", flag(on)))?)
     }
 
     /// Moves a deck, with everything inside it, to the top level (`None`) or inside another live

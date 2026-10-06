@@ -145,7 +145,7 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 **Review focus:** this is the heart of the app. Read the tests.
 
-**Status:** design done (2026-10-06): ADR 0007 Accepted and `docs/plans/1.7-study-queues.md`. Built as two PRs, both Sonnet builds. **1.7a built** (2026-10-06, awaiting review): answering, card events, the schedule cache and its fold, the day boundary, undo, `fc answer`, `fc undo`, `fc schedule` (ADR 0007 build notes, step 1.7a). **1.7b next**: queues, limits, suspend and bury, the simulated test.
+**Status:** done (2026-10-06), awaiting review. ADR 0007 Accepted and `docs/plans/1.7-study-queues.md`, built as two PRs. **1.7a** (merged, PR #18): answering, card events, the schedule cache and its fold, the day boundary, undo, `fc answer`, `fc undo`, `fc schedule`. **1.7b** (migration v8): `fc_core::study` queue (`study_counts`, `deck_counts`, `next_card`) with limits over nested decks, siblings, order and spreading; suspend, bury and unbury; `fc due`, `fc next`, `fc suspend`, `fc unsuspend`, `fc bury`, `fc unbury`; the pinned 30-day simulation, also run in other time zones and across a daylight saving change. ADR 0007 build notes list the choices. Not in any UI or the web API.
 
 ---
 

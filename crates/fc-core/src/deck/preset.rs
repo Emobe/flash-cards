@@ -31,6 +31,7 @@ pub struct PresetChange {
     pub learning_steps: Option<Vec<u32>>,
     pub relearning_steps: Option<Vec<u32>>,
     pub desired_retention: Option<f64>,
+    pub space_siblings: Option<bool>,
 }
 
 /// A preset is deleted if its register says so and no live deck still uses it. A deck given the
@@ -128,7 +129,8 @@ fn load(conn: &Connection, tree: &Tree) -> Result<Vec<Stored>, DeckError> {
     }
     let mut statement = conn.prepare(&format!(
         "SELECT p.id, p.name, p.new_per_day, p.reviews_per_day, p.learning_steps,
-                p.desired_retention, p.deleted, {}, p.relearning_steps, p.fsrs_parameters
+                p.desired_retention, p.deleted, {}, p.relearning_steps, p.fsrs_parameters,
+                p.space_siblings
          FROM options_preset p",
         effectively_deleted()
     ))?;
@@ -150,6 +152,7 @@ fn load(conn: &Connection, tree: &Tree) -> Result<Vec<Stored>, DeckError> {
                         retention.clamp(MIN_RETENTION, MAX_RETENTION)
                     },
                     fsrs_parameters: parse_parameters(&row.get::<_, String>(9)?),
+                    space_siblings: row.get::<_, i64>(10)? != 0,
                     decks: users.get(&id).copied().unwrap_or(0),
                     deleted: row.get::<_, i64>(7)? != 0,
                 },
@@ -159,6 +162,17 @@ fn load(conn: &Connection, tree: &Tree) -> Result<Vec<Stored>, DeckError> {
         .collect::<Result<Vec<_>, _>>()?;
     found.sort_by_cached_key(|s| (s.preset.name.to_lowercase(), s.preset.id));
     Ok(found)
+}
+
+/// Every preset by ID, read against a deck tree that is already loaded.
+pub(crate) fn presets_by_id(
+    conn: &Connection,
+    tree: &Tree,
+) -> Result<HashMap<Id, Preset>, DeckError> {
+    Ok(load(conn, tree)?
+        .into_iter()
+        .map(|stored| (stored.preset.id, stored.preset))
+        .collect())
 }
 
 impl Collection {
@@ -252,6 +266,7 @@ impl Collection {
                     ("desired_retention", Value::Real(DEFAULT_DESIRED_RETENTION)),
                     ("relearning_steps", text(DEFAULT_RELEARNING_STEPS)),
                     ("fsrs_parameters", text("")),
+                    ("space_siblings", flag(true)),
                     ("deleted", flag(false)),
                 ],
             )?;
@@ -342,6 +357,12 @@ impl Collection {
                     "desired_retention",
                     Value::Real(retention),
                 )?;
+            }
+            if let Some(on) = change
+                .space_siblings
+                .filter(|on| *on != current.space_siblings)
+            {
+                w.set(PRESET.entity, id, "space_siblings", flag(on))?;
             }
             Ok(())
         })?)

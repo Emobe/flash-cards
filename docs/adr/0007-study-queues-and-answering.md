@@ -418,3 +418,76 @@ costs a one-off wait on open, longer on the phone and in the browser (not measur
 changed, the phone migrates when the APK next runs), Windows, Firefox, Safari, timings on the phone
 and the web, merging events from two collections (1.11 writes the real merge; the tests insert remote
 events directly), answering a suspended or buried card (those registers come in 1.7b).
+
+## Build notes (step 1.7b)
+
+Queues, limits, siblings, suspend and bury, and the simulated month, built to parts 3, 4, 5 and 11.
+Migration v8. Where the build differs from the text above, or settles something it left open:
+
+- **Registers** (migration 8, column defaults, no row rewritten): `card.suspended`, `card.buried_until`,
+  `deck.limits_include_subdecks` (on), `options_preset.space_siblings` (on). The seeded Default deck and
+  preset got lowest-clock rows for their new register, as in migration 7. `PresetChange.space_siblings`,
+  `Deck.limits_include_subdecks` and `set_deck_limits_include_subdecks`.
+- **Counts (approved in the plan).** `learning` counts every learning or relearning card due before the
+  end of today's study day, so a deck list shows what is left today. `new` and `review` are the cards the
+  queue would show: a card held back by the sibling rule or cut by a limit is not counted.
+- **`Waiting`** is for a learning card due later today (past the 20-minute learn-ahead). One due after
+  the study day ends is not waited for: the queue says `Done`.
+- **Limits.** For a card in deck X, a deck A counts it if A is X, or A is above X and has
+  `limits_include_subdecks` on. A deck above that has the switch on still counts X past a deck between
+  them that has it off. Limits are applied in card order, separately for new and review cards, over the
+  whole path to the top deck whichever deck is being studied. A card whose deck row is missing reads as
+  in the Default deck.
+- **Spreading new cards among reviews** is stateless: the next review is at position
+  `(done + 1/2) / total` of the day's reviews, the next new card likewise, and the earlier position goes
+  first (a review on a tie). Totals include what was done today in the deck being studied, so the choice
+  does not change as cards are answered. With 6 reviews and 2 new cards the order is R R N R R R N R.
+- **Done today** reads today's non-voided `review` events (by the `day` column added in 1.7a) for cards
+  that still exist, by the card's current deck. Siblings use the same rows.
+- **Bury** hides a card while today is at or before `buried_until`. `unbury_cards` writes only cards that
+  are buried now, `unbury_deck` does the same for a deck and what is inside it. Only cards that change are
+  written by suspend, unsuspend and bury.
+- **Test-only seeded IDs** (`id::seeded`, `#[cfg(test)]`): `Id::generate` can draw its random bits from a
+  fixed sequence on the calling thread. The fuzz is chosen from an event's ID, so without it the pinned
+  30-day table would change on every run. Nothing outside tests can reach it.
+- **CLI.** `fc due [--deck]`, `fc next [--deck]` (the Default deck if none is given, like `add-note`; it
+  does not answer), `fc suspend`, `fc unsuspend`, `fc bury`, `fc unbury` with card IDs, and
+  `fc unbury --deck <deck>`, which the plan did not list.
+- **Existing tests changed** only where the schema moved: version 7 became 8 in four upgrade tests and
+  the CLI info test. The tag upgrade test now writes its note by hand, because the note API reads the
+  new deck column and an old layout does not have it.
+
+**The simulated month** (`study/simulation_tests.rs`): 200 Basic notes, half in `Polish` and half in
+`Polish::Food`, the Default preset (20 new, 200 reviews, steps `1 10`, retention 0.90), studying `Polish`
+every morning until the queue says `Done`, with ratings fixed by card number and answer number (85% Good,
+10% Again, 3% Hard, 2% Easy). The table of 30 days is pinned (new, learning and review cards waiting in
+the morning, then new cards started, reviews done and learning answers). Checked alongside: never more
+than 20 new or 200 reviews a day, every card started by day 10, no review shown before its due day, the
+cache after the month equals a rebuild from the events. The same table comes out at UTC offsets −720,
+−300, +330 and +840, across a daylight saving change in each direction, and with the day starting at 4 am
+with sessions at 03:30 and at 22:00. A session never needs `Waiting` here (the 20-minute learn-ahead is
+longer than the steps), so `Waiting` is tested on its own. A second test studies after two months away: 120
+overdue reviews, 30 offered a day.
+
+**Timing** (Linux, release, a throwaway test, not kept): 50,000 cards in 301 decks, 25,000 of them due
+reviews and the rest new: `deck_counts` for every deck 130 ms, `next_card` 120 ms, `study_counts` for one
+deck 120 ms, all on an in-memory database. Answering one card (1.7a's code) takes 39 ms at that size,
+because it reads the deck tree, which counts every card. The step 1.7 findings measured the SQL part
+alone (38 ms). The phone and the web will be slower; Phase 2 measures the real study screen, and
+option C of part 5 (a queue kept in memory on top of this) is the answer if it is too slow.
+
+**Verified.**
+
+- Linux: 53 new tests in `fc-core` (47 queue tests, 5 simulation tests, the v7 upgrade; 423 in total)
+  and 5 new CLI tests (22 across files). A mutation check: making ancestor decks never limit a card
+  fails 8 tests, including the pinned month; making siblings never held fails 4.
+- The CLI on a copy of the real desktop collection (it holds no cards): opened and upgraded to storage
+  version 8, then three notes added and `due`, `next`, `suspend`, `unsuspend`, `answer`, `bury`,
+  `unbury --deck` and a `--now` a long way ahead all gave what the tests expect.
+- `cargo xtask check` passes, including the wasm build.
+
+**Not verified:** the phone and the browser (the web API has no study methods and no UI changed; the
+phone migrates to 8 the next time the APK runs), Windows, Firefox, Safari, timings on the phone and the
+web, merging suspend and bury from two collections (1.11; the tests write the other device's registers
+and events directly), limits when two devices study the same day (ADR 0006 section 11 already allows
+going over).

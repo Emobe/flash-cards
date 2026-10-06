@@ -4,13 +4,15 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.7a Answering and the schedule: built on `step/1.7a-answering` (6 commits plus this docs one), `cargo xtask check` passes, waiting for Anthony's review (ADR 0007 build notes, step 1.7a, lists the deviations). Next: merge it, then a new Sonnet session runs `/step 1.7b` (queues, limits, suspend and bury, the simulated multi-day test; plan in `docs/plans/1.7-study-queues.md`).
+1.7b Queues: built on `step/1.7b-queues`, `cargo xtask check` passes, waiting for Anthony's review (ADR 0007 build notes, step 1.7b, list the choices). Next: merge it. Then step 1.8 (review history and basic stats, a Sonnet build, `/step 1.8`) in a new session.
 
 ## Branch
 
-`step/1.7a-answering` (from master after PR #16). Not pushed.
+`step/1.7b-queues` (from master after PR #18). Not pushed.
 
 ## Done
+
+- 1.7b Queues (ADR 0007 build notes, step 1.7b). Migration v8: `card.suspended`, `card.buried_until`, `deck.limits_include_subdecks`, `options_preset.space_siblings`. `fc_core::study`: `study_counts`, `deck_counts`, `next_card` (counts, the card, the four previews, `Waiting`, `Done`), limits over the whole deck path with the per-deck switch, siblings held until tomorrow, learning first, new cards spread among reviews, the 20-minute learn-ahead; `suspend_cards`, `unsuspend_cards`, `bury_cards`, `unbury_cards`, `unbury_deck`. `fc due`, `fc next`, `fc suspend`, `fc unsuspend`, `fc bury`, `fc unbury`. 53 more core tests (423 in `fc-core`), 5 more CLI tests. The simulated month (200 notes, two nested decks) is pinned and gives the same table at other UTC offsets, across a daylight saving change and with another start hour. Verified on Linux (tests, CLI on a copy of the real desktop collection, which has no cards). At 50,000 cards (301 decks, release): `deck_counts` 130 ms, `next_card` 120 ms, answering one card 39 ms. Not run in a UI, a browser or the phone (nothing there changed).
 
 - 1.7a Answering and the schedule (ADR 0007 build notes, step 1.7a). Migration v7: preset registers `relearning_steps` and `fsrs_parameters`, `collection_setting` (`day_start_hour`), append-only `card_event` and `fsrs_parameter_set` (a third synced table kind with guard triggers, `WriteTx::insert_row`), local `card_schedule` and `unpushed_row`. `fc_core::scheduling`: `study_day`, the state machine (`scheduling/machine.rs`), fuzz, parameter set IDs. `fc_core::study`: `answer`, `undo_answer` (a void event), `card_schedule`, `card_events`, the fold and `rebuild_schedule` (cache version checked on open). `fc answer`, `fc undo`, `fc schedule`, `--now`, `--utc-offset`. 81 more core tests (370 in `fc-core`), 4 more CLI tests (17). Verified on Linux (tests, CLI on a copy of the real desktop collection, v2 to v7). Rebuild of 1,000,000 events: 1.7 s on Linux. Not run in a UI, a browser or the phone (nothing there changed).
 
@@ -39,11 +41,16 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review and merge `step/1.7a-answering`.
-- Then a new session with Sonnet: `/step 1.7b`.
+- Anthony: review and merge `step/1.7b-queues`.
+- Then a new session with Sonnet: `/step 1.8`.
 
 ## Open items
 
+- 1.7b choices for Anthony to confirm (details in the ADR 0007 build notes): `learning` in the counts is every learning card due before the end of today; a card held by the sibling rule or a limit is not counted; `Waiting` only for a learning card due later today (otherwise `Done`); `fc next` studies the Default deck unless `--deck` is given; new cards are spread among reviews by position in the day (R R N R R R N R for 6 reviews and 2 new).
+- 1.7b not verified: the phone and the browser (the phone migrates to 8 the next time the APK runs), Windows, Firefox, Safari, timings on the phone and the web, merging suspend and bury from two collections (1.11).
+- 1.7b finding: answering one card reads the deck tree, which counts every card: 39 ms at 50,000 cards on Linux. `next_card` is 120 ms there. Phase 2 measures the study screen on the phone; if slow, keep the queue in memory on top (ADR 0007 part 5, option C) and count cards per deck without a full scan.
+- 1.7b leaves for later steps: history, stats and the optimiser writing `fsrs_parameters` (1.8); `is:due`, `is:suspended`, `deck:` search (1.9); set due date, reset and reschedule events (Phase 3, 1.14); the merge calling the fold (1.11); a study screen and web API methods (Phase 2).
+- No new dependencies in 1.7b.
 - 1.7a deviations for Anthony to confirm (details in the ADR 0007 build notes): `card_event` has a `day` column; `steps` records both step lists (`1 10|10`); the namespaces of the setting and parameter set IDs are 16-byte names (`fc-setting-ids-1`, `fc-fsrs-params-1`); `WriteTx::insert_row` is one generic write path for append-only rows. Rules to confirm: Hard repeats the step (no averaging), Again on a new card with no learning steps graduates (at least 1 day), fuzz applies to reviews as well as graduations.
 - 1.7a not verified: the phone and the browser (the phone migrates to 7 the next time the APK runs), Windows, Firefox, Safari, timings on the phone and the web (the one-off rebuild when the fold changes: 1.7 s for 1,000,000 events on Linux), merging events from two collections (1.11).
 - 1.7a leaves for later steps: suspend, bury, limits, queues, counts and the simulated test (1.7b); history, stats and the optimiser writing `fsrs_parameters` (1.8); `is:due` and similar search (1.9); set due date, reset and reschedule events (Phase 3, 1.14); the merge calling the fold for touched cards (1.11).

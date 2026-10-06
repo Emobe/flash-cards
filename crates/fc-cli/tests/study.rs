@@ -213,3 +213,176 @@ fn explains_what_went_wrong() {
     let wrong = fc(&["answer", file.path()]);
     assert!(err(&wrong).contains("Wrong number of arguments for \"answer\"."));
 }
+
+/// A collection with two decks and cards: two in Default, one in Polish and one in Polish::Food.
+fn with_decks(file: &TempFile) -> Vec<String> {
+    out(&fc(&["new", file.path()]));
+    out(&fc(&["add-deck", file.path(), "Polish"]));
+    out(&fc(&["add-deck", file.path(), "Polish::Food"]));
+    for (deck, front) in [
+        ("Default", "a"),
+        ("Default", "b"),
+        ("Polish", "c"),
+        ("Polish::Food", "d"),
+    ] {
+        out(&fc(&[
+            "add-note",
+            file.path(),
+            "Basic",
+            "--deck",
+            deck,
+            &format!("Front={front}"),
+            "Back=x",
+        ]));
+    }
+    out(&fc(&["notes", file.path()]))
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("Card IDs: "))
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn shows_what_is_left_to_study_in_each_deck_and_in_one_deck() {
+    let file = TempFile::new("due");
+    with_decks(&file);
+    let all = out(&fc(&["due", file.path()]));
+    assert!(
+        all.contains("Default: new 2, learning 0, review 0"),
+        "{all}"
+    );
+    assert!(all.contains("Polish: new 2, learning 0, review 0"), "{all}");
+    assert!(all.contains("  Food: new 1, learning 0, review 0"), "{all}");
+    let one = out(&fc(&["due", file.path(), "--deck", "polish::food"]));
+    assert!(one.contains("Food: new 1"), "{one}");
+    assert!(!one.contains("Default"), "{one}");
+    assert!(err(&fc(&["due", file.path(), "--deck", "Nope"])).contains("No deck called"));
+}
+
+#[test]
+fn shows_the_next_card_with_what_each_answer_does_and_changes_nothing() {
+    let file = TempFile::new("next");
+    with_decks(&file);
+    let now = ["--now", "2026-10-06T09:00:00+00:00"];
+    let first = out(&fc(&[&["next", file.path()][..], &now].concat()));
+    assert!(
+        first.contains("Left in Default: new 2, learning 0, review 0"),
+        "{first}"
+    );
+    assert!(first.contains("(New)"), "{first}");
+    assert!(
+        first.contains("Again: 1 minute, Hard: 1 minute, Good: 10 minutes, Easy: "),
+        "{first}"
+    );
+    // Asking again gives the same card: nothing was answered.
+    assert_eq!(
+        out(&fc(&[&["next", file.path()][..], &now].concat())),
+        first
+    );
+    let polish = out(&fc(
+        &[&["next", file.path(), "--deck", "Polish"][..], &now].concat()
+    ));
+    assert!(polish.contains("in Polish"), "{polish}");
+}
+
+#[test]
+fn answering_changes_what_next_shows_and_a_deck_with_nothing_left_is_done() {
+    let file = TempFile::new("done");
+    let cards = with_decks(&file);
+    let at = |time: &str, command: &[&str]| out(&fc(&[command, &["--now", time]].concat()));
+    // The Default deck holds cards[0] and cards[1] (the listing order is not the creation order, so
+    // go by the card the queue offers).
+    for _ in 0..2 {
+        let next = at("2026-10-06T09:00:00+00:00", &["next", file.path()]);
+        let card = next
+            .lines()
+            .find_map(|l| l.strip_prefix("Next: card "))
+            .and_then(|l| l.split(' ').next())
+            .unwrap()
+            .to_owned();
+        assert!(cards.contains(&card), "{next}");
+        out(&fc(&[
+            "answer",
+            file.path(),
+            &card,
+            "again",
+            "--now",
+            "2026-10-06T09:00:00+00:00",
+        ]));
+    }
+    // Both are learning, a minute away: shown early, within twenty minutes.
+    let next = at("2026-10-06T09:00:00+00:00", &["next", file.path()]);
+    assert!(next.contains("(Learning)"), "{next}");
+    // Tomorrow they are due again.
+    let tomorrow = at(
+        "2026-10-07T09:00:00+00:00",
+        &["due", file.path(), "--deck", "Default"],
+    );
+    assert!(
+        tomorrow.contains("Default: new 0, learning 2, review 0"),
+        "{tomorrow}"
+    );
+    // A deck with nothing in it is done.
+    out(&fc(&["add-deck", file.path(), "Empty"]));
+    let empty = out(&fc(&["next", file.path(), "--deck", "Empty"]));
+    assert!(empty.contains("Done for today."), "{empty}");
+}
+
+#[test]
+fn suspends_and_buries_cards_and_brings_them_back() {
+    let file = TempFile::new("hide");
+    let cards = with_decks(&file);
+    let now = ["--now", "2026-10-06T09:00:00+00:00"];
+    let run = |args: &[&str]| out(&fc(&[args, &now].concat()));
+    let suspended = run(&["suspend", file.path(), &cards[0], &cards[1]]);
+    assert!(suspended.contains("Suspended 2 cards."), "{suspended}");
+    assert!(run(&["due", file.path()]).contains("Default: new 0"));
+    assert!(run(&["unsuspend", file.path(), &cards[0]]).contains("Unsuspended 1 card."));
+    assert!(run(&["due", file.path()]).contains("Default: new 1"));
+
+    assert!(
+        run(&["bury", file.path(), &cards[2], &cards[3]])
+            .contains("Buried 2 cards until tomorrow.")
+    );
+    assert!(run(&["due", file.path(), "--deck", "Polish"]).contains("Polish: new 0"));
+    // Tomorrow they are back without anything being written.
+    let tomorrow = out(&fc(&[
+        "due",
+        file.path(),
+        "--deck",
+        "Polish",
+        "--now",
+        "2026-10-07T09:00:00+00:00",
+    ]));
+    assert!(tomorrow.contains("Polish: new 2"), "{tomorrow}");
+    // Unburying today, one card or a whole deck.
+    run(&["unbury", file.path(), &cards[2]]);
+    assert!(run(&["due", file.path(), "--deck", "Polish"]).contains("Polish: new 1"));
+    let by_deck = run(&["unbury", file.path(), "--deck", "Polish"]);
+    assert!(
+        by_deck.contains("Unburied the cards in Polish."),
+        "{by_deck}"
+    );
+    assert!(run(&["due", file.path(), "--deck", "Polish"]).contains("Polish: new 2"));
+}
+
+#[test]
+fn explains_wrong_arguments_for_the_queue_commands() {
+    let file = TempFile::new("queue-errors");
+    let cards = with_decks(&file);
+    assert!(err(&fc(&["suspend", file.path()])).contains("needs card IDs"));
+    assert!(err(&fc(&["suspend", file.path(), "nonsense"])).contains("is not a card ID"));
+    assert!(
+        err(&fc(&["suspend", file.path(), "--deck", "Polish"]))
+            .contains("takes card IDs, not --deck")
+    );
+    assert!(err(&fc(&["unbury", file.path()])).contains("card IDs or --deck"));
+    assert!(
+        err(&fc(&["unbury", file.path(), &cards[0], "--deck", "Polish"]))
+            .contains("card IDs or --deck")
+    );
+    assert!(err(&fc(&["due", file.path(), "extra"])).contains("does not take"));
+    assert!(err(&fc(&["next", file.path(), "--deck"])).contains("--deck needs a deck"));
+    let missing = "00000000-0000-7000-8000-000000000000";
+    assert!(err(&fc(&["bury", file.path(), missing])).contains("no longer exists"));
+}

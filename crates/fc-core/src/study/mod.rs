@@ -15,8 +15,14 @@ mod event;
 mod fold;
 #[cfg(test)]
 mod fold_tests;
+mod queue;
+#[cfg(test)]
+mod queue_tests;
 mod schedule;
 mod settings;
+#[cfg(test)]
+mod simulation_tests;
+mod suspend;
 #[cfg(test)]
 mod tests;
 mod undo;
@@ -29,6 +35,7 @@ use crate::sync::{AppendOnlyTable, SyncedTable};
 pub use answer::Answered;
 pub use error::StudyError;
 pub use event::{CardEvent, EventKind};
+pub use queue::{Counts, DeckCounts, LEARN_AHEAD_MS, Next};
 pub use schedule::CardSchedule;
 pub use undo::Undone;
 
