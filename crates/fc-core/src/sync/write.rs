@@ -29,7 +29,7 @@ pub struct WriteTx<'c> {
     host: &'c Host,
     tables: &'c [SyncedTable],
     device: Id,
-    hlc: Hlc,
+    pub(super) hlc: Hlc,
 }
 
 fn problem(message: String) -> CollectionError {

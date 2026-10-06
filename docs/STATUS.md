@@ -4,11 +4,22 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.11 Change tracking for sync: ADR 0008 Accepted (2026-10-06) and `docs/plans/1.11-merge.md` written. Ready for the build session (`/step 1.11a`). Nothing is built. 1.10b was reviewed and merged (PR #23).
+1.11a Merge, in progress on `step/1.11a-merge` (plan: `docs/plans/1.11-merge.md`, design: ADR 0008, Accepted).
 
 ## Branch
 
-`step/1.11-merge` (from master after PR #23). Not pushed.
+`step/1.11a-merge` (from master after PR #24). Not pushed.
+
+## Built so far in 1.11a
+
+- Migration v11 (`unknown_row_value`), `sync/changes.rs` (`Changes`, `changes(All | Unpushed)`), `sync/merge.rs` (`Collection::merge`, type check, reconcile and schedule rebuild after a merge, `MergeReport`), `reconcile_notes` in `note/generate.rs`.
+- `sync/merge_tests.rs`: the scenario tests of ADR 0006 section 11 (all rows except the "older app" test), changes reading, rejected values. `cargo xtask check` passes.
+
+## Still to do in 1.11a
+
+- `adopt_unknown`, the "older app" test, the tour test, the convergence test, the version-10 upgrade test.
+- `fc merge` and its CLI test, the measurement at 50,000 notes.
+- ADR 0008 build notes with a deviations list, phase file status, final PR report.
 
 ## Done
 
@@ -46,10 +57,6 @@ Kept current by every session. A new session reads this first.
 - 0.4 Web client spike: core runs in wasm in a worker, SQLite persists in OPFS across reload and restart, cancel by worker restart (about 2 s), panic recovery. Reviewed and merged (PR #5).
 - 0.5 Scheduling spike: `fsrs` 6.6.2 chosen (ADR 0004). Intervals 2, 11, 46, 163, 497 on desktop, native and wasm. Optimiser works on wasm (66 ms for 2,000 cards). Phone: same intervals, optimiser 77 ms for 200 cards. Reviewed and merged (PR #6).
 - 0.3 UI-to-core bridge. 0.3a (call path, PR #3) and 0.3b (notices, progress, cancellation, events and attachments, PR #4) reviewed by Anthony and merged. Verified on desktop and the phone. Attachment round trip 1 MB: 40 ms desktop, 75 ms phone. 5 MB: 181 ms desktop, 250 ms phone.
-
-## Remaining in this step
-
-- Build 1.11a (`/step 1.11a`) from `docs/plans/1.11-merge.md`. ADR 0006 already points to ADR 0008 for the postponed superseded-values log.
 
 ## Open items
 

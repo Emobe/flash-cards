@@ -68,6 +68,10 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         version: 10,
         apply: v10,
     },
+    Migration {
+        version: 11,
+        apply: v11,
+    },
 ];
 
 /// The newest version in `migrations`.
@@ -506,6 +510,22 @@ fn v10(tx: &Transaction) -> rusqlite::Result<()> {
             table: "media_file",
             registers: &[],
         },
+    )
+}
+
+/// Version 11 (step 1.11a): `unknown_row_value`, the local store for the columns of an append-only
+/// row that this build does not know, and for every column of a row of an entity type it does not
+/// know (ADR 0008, part 6). `changes(All)` puts them back, so a row is relayed unchanged. It is
+/// never synced as a table of its own.
+fn v11(tx: &Transaction) -> rusqlite::Result<()> {
+    tx.execute_batch(
+        "CREATE TABLE unknown_row_value (
+            entity_type TEXT NOT NULL,
+            row_id BLOB NOT NULL,
+            column TEXT NOT NULL,
+            value,
+            PRIMARY KEY (entity_type, row_id, column)
+        ) WITHOUT ROWID;",
     )
 }
 

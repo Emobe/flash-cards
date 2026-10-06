@@ -3,7 +3,7 @@
 //! older app cannot overwrite them. After an upgrade, a migration applies what was stored.
 
 use rusqlite::types::Value;
-use rusqlite::{Transaction, TransactionBehavior, params};
+use rusqlite::{Connection, Transaction, TransactionBehavior, params};
 
 use super::{Hlc, state};
 use crate::collection::{Collection, CollectionError};
@@ -19,6 +19,31 @@ pub struct UnknownRegister {
     pub value: Value,
     pub hlc: Hlc,
     pub device: Id,
+}
+
+/// The one rule for keeping an unknown register: the higher `(hlc, device)` wins, so applying the
+/// same changes in any order, or twice, gives the same result. Returns whether the stored value
+/// changed. The merge and `store_unknown_register` both use it.
+pub(super) fn store_unknown(
+    conn: &Connection,
+    register: &UnknownRegister,
+) -> rusqlite::Result<bool> {
+    let changed = conn.execute(
+        "INSERT INTO unknown_register (entity_type, entity_id, field, value, hlc, device)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+         ON CONFLICT (entity_type, entity_id, field) DO UPDATE
+         SET value = excluded.value, hlc = excluded.hlc, device = excluded.device
+         WHERE (excluded.hlc, excluded.device) > (hlc, device)",
+        params![
+            register.entity_type,
+            register.entity_id,
+            register.field,
+            register.value,
+            register.hlc.to_stored(),
+            register.device
+        ],
+    )?;
+    Ok(changed == 1)
 }
 
 impl Collection {
@@ -60,25 +85,11 @@ impl Collection {
             )));
         }
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
-        let changed = tx.execute(
-            "INSERT INTO unknown_register (entity_type, entity_id, field, value, hlc, device)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-             ON CONFLICT (entity_type, entity_id, field) DO UPDATE
-             SET value = excluded.value, hlc = excluded.hlc, device = excluded.device
-             WHERE (excluded.hlc, excluded.device) > (hlc, device)",
-            params![
-                register.entity_type,
-                register.entity_id,
-                register.field,
-                register.value,
-                register.hlc.to_stored(),
-                register.device
-            ],
-        )?;
+        let changed = store_unknown(&tx, register)?;
         let last = state::hlc_last(&tx)?.observe(register.hlc);
         state::set_hlc_last(&tx, last)?;
         tx.commit()?;
-        Ok(changed == 1)
+        Ok(changed)
     }
 
     /// The unknown registers stored for one entity.
