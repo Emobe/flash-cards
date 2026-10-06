@@ -327,3 +327,94 @@ Anthony, 2026-10-06:
    at `10` minutes (part 1). Step 1.5's 20 new and 200 reviews a day, steps `1 10` and retention 0.90
    stay.
 5. **Two PRs**, 1.7a then 1.7b, as in `docs/plans/1.7-study-queues.md`.
+
+## Build notes (step 1.7a)
+
+Answering and the schedule, built to this ADR (parts 1, 2, 6 to 10, and the preset and setting
+registers). Queues, limits, suspend and bury and the simulated multi-day test are step 1.7b, so
+parts 3, 4, 5 and 11 are not built yet. Where the build differs from the text above:
+
+- **`card_event` has a `day` column**, the study day of the event, worked out when it is written from
+  its time, its UTC offset and the start hour at that moment. Part 6 lists the columns without it. It
+  is there because recomputing an event during the fold (part 9) needs the days between two events,
+  and without the column that would read the start hour setting as it is now, which another device can
+  have changed since. It is also what 1.7b's "done today" will read. Indexed.
+- **`steps` records both lists**, learning then relearning, `1 10|10`. Part 6 says "the step list that
+  applied". A concurrent event is recomputed from whatever state the card is in when the fold reaches
+  it, which can differ from the state it was answered in (Easy on a learning card, folded after another
+  device graduated the card), so the one list that applied is not always the one needed.
+- **Namespaces are 16 bytes**, so the IDs are `UUIDv5("fc-setting-ids-1", key)` and
+  `UUIDv5("fc-fsrs-params-1", the 84 bytes)`, not the longer names written in parts 6 and 8. They are
+  part of the sync format now. The ID of the default parameter set is
+  `77e38a6d-65b2-5412-9163-cb372a98777b`, pinned in a test and worked out separately with SHA-1
+  outside the crate.
+- **One generic write path for append-only rows**, `WriteTx::insert_row(entity, id, columns)`
+  (insert or ignore, listed in the local `unpushed_row` table when new), in place of `insert_event` and
+  `insert_parameter_set`. The registry has the third table kind, `AppendOnlyTable`, with guard triggers:
+  INSERT needs the write path and UPDATE and DELETE are always refused (checked with raw SQL inside and
+  outside the write path, and by `check_schema`). `WriteTx::local()` (crate only) gives the transaction's
+  connection for the local `card_schedule`, so answering updates the cache in the same transaction.
+- **Indexes** on `card_event`: `(card, time_ms)`, `(time_ms)`, `(day)` and a partial one on `target`
+  (undo looks for a review without a void).
+- **`fsrs_parameters` is read only.** `Preset.fsrs_parameters` is empty for the defaults, or 21 numbers
+  (17 and 19 are filled by `fsrs::check_and_fill_parameters`, public in `fsrs` 6.6.2); a stored value
+  that does not parse reads as empty. `PresetChange` has `relearning_steps` only. The Default preset
+  got clock rows for the two new registers in migration 7 (lowest clock, already pushed), because every
+  register of every row has a clock.
+
+Choices the ADR left open:
+
+- **The state machine** is in `scheduling/machine.rs`, a pure function of the card, the elapsed days,
+  the rating, both step lists, the scheduler and the event ID. Hard repeats the step (it does not
+  average two steps). With empty learning steps every answer on a new card graduates, Again too, with
+  that rating's FSRS interval (at least 1 day). A card on a step the preset no longer has is on the last
+  step. Fuzz is applied to every interval in days, reviews included, never to a step in minutes.
+- **Event time**: `max(now, time of the card's last applied event + 1 ms)`, and the event's `day` comes
+  from that time. A void is timed the same way, so it never sorts before what it voids.
+- **The fold** (`study/fold.rs`): a review that builds on the last applied event takes its recorded
+  result; one that does not is recomputed from the card at that point with its own rating, time, day
+  and recorded inputs. If that is impossible (a parameter set this device does not have), the recorded
+  result is applied, so a review is never lost from the card. An unknown kind counts only where it
+  builds on the last event, and is kept otherwise. Voids and the reviews they target are left out. A
+  void's `previous` is the card's last applied event, so a review after an undo builds on what came
+  before the voided one.
+- **Undo** voids the newest non-voided review written by this device. It is refused with `LaterAnswer`
+  when the card has any other non-voided answer after it in the fold's order, or one that was built
+  directly on it (a clock that ran behind on another device). Nothing to undo is `Ok(None)`. Undo works
+  for a card deleted since.
+- **The cache** is rebuilt when `meta.schedule_cache_version` differs from the build's (now 1), on open,
+  and by `rebuild_schedule`. It streams one card's events at a time.
+- **CLI.** `fc answer`, `fc undo`, `fc schedule`, and `--now <RFC 3339 time>` and `--utc-offset
+  <minutes>` for any command (the offset in `--now` is used unless `--utc-offset` is given). `fc notes`
+  prints card IDs.
+
+**Timing** (Linux, release, a throwaway test, not kept): `rebuild_schedule` over 50,000 cards with 20
+events each (1,000,000 events) takes 1.7 s when every event builds on the one before, and 2.2 s when
+every event has to be recomputed. Most of it is reading the rows. A version bump of the fold therefore
+costs a one-off wait on open, longer on the phone and in the browser (not measured).
+
+**Verified.**
+
+- Linux: 81 new core tests (370 in `fc-core`) and 4 new CLI tests (17). The state machine has every
+  cell of the part 1 table, empty steps, a card on a removed step, graduation never under 1 day, the
+  maximum interval, and five Good answers from new with steps `1 10` (10 minutes, then 2, 11, 46 and 163
+  days, which are the intervals of step 0.5, with the first one matching finding 1). Fuzz: the range for
+  several intervals, every day in the range reached, the same ID gives the same day, none under 3 days,
+  and an even spread. The day boundary: start hours 0, 4 and 23, offsets −720 and +840, an answer just
+  before and just after the boundary, a DST change in the middle of a run, travelling west, and changing
+  the start hour. Events: every input and result recorded, immutable (raw UPDATE and DELETE refused
+  inside and outside the write path), time never before the previous event's, equal parameter set IDs
+  in two collections. The fold: a rebuild equals the cache that 900 random answers built (with offset
+  changes and lapses), a concurrent pair is recomputed, insertion order does not matter, unknown kinds,
+  a missing parameter set, a damaged cache and a version bump on open. Undo: state, due, memory and the
+  lapse count back, repeated undo, refused after a later answer (also with an earlier time but built on
+  it), a remote answer that was itself voided, a void is stored, a review after an undo. Upgrade from a
+  real version-6 layout. A mutation check (the fold trusting every recorded result) fails two fold tests.
+- The CLI on a copy of the real desktop collection (it was still at storage version 2, so it went from
+  2 to 7 in one transaction): three answers, an undo, and raw SQL on an event refused.
+- `cargo xtask check` passes, including the wasm build.
+
+**Not verified:** the phone and the browser (the web API has no study methods, nothing in a UI
+changed, the phone migrates when the APK next runs), Windows, Firefox, Safari, timings on the phone
+and the web, merging events from two collections (1.11 writes the real merge; the tests insert remote
+events directly), answering a suspended or buried card (those registers come in 1.7b).

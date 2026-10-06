@@ -145,7 +145,7 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 **Review focus:** this is the heart of the app. Read the tests.
 
-**Status:** design done (2026-10-06): ADR 0007 Accepted and `docs/plans/1.7-study-queues.md`. Built as two PRs, 1.7a (answering, events, the day boundary, undo) and 1.7b (queues, limits, suspend and bury, the simulated test), both Sonnet builds.
+**Status:** design done (2026-10-06): ADR 0007 Accepted and `docs/plans/1.7-study-queues.md`. Built as two PRs, both Sonnet builds. **1.7a built** (2026-10-06, awaiting review): answering, card events, the schedule cache and its fold, the day boundary, undo, `fc answer`, `fc undo`, `fc schedule` (ADR 0007 build notes, step 1.7a). **1.7b next**: queues, limits, suspend and bury, the simulated test.
 
 ---
 
