@@ -4,8 +4,9 @@
 use chrono::{DateTime, FixedOffset, NaiveDate, SecondsFormat, TimeDelta};
 use fc_core::collection::Collection;
 use fc_core::id::Id;
-use fc_core::scheduling::{CardState, Rating, study_day};
+use fc_core::scheduling::{CardState, Due, Rating, study_day};
 use fc_core::study::{CardEvent, EventKind};
+use fc_core::study::{Counts, Next};
 
 use super::{Failure, host, plural};
 
@@ -66,13 +67,17 @@ fn date(day: i64) -> String {
         .map_or_else(|| "?".to_owned(), |date| date.to_string())
 }
 
-/// How long until a moment, as the person would say it.
-fn in_minutes(minutes: i64) -> String {
-    let span = |m: i64| match m {
+/// A length of time, as the person would say it.
+fn span(minutes: i64) -> String {
+    match minutes {
         m if m < 120 => plural(m as usize, "minute"),
         m if m < 2 * 24 * 60 => plural((m / 60) as usize, "hour"),
         m => plural((m / (24 * 60)) as usize, "day"),
-    };
+    }
+}
+
+/// How long until a moment, as the person would say it.
+fn in_minutes(minutes: i64) -> String {
     if minutes < 0 {
         format!("{} ago", span(-minutes))
     } else {
@@ -223,6 +228,146 @@ pub fn schedule(file: &str, card: &str) -> Result<String, Failure> {
     for event in &events {
         text.push_str(&format!("\n  {}", describe_event(event)));
     }
+    open.collection.close()?;
+    Ok(text)
+}
+
+fn counts_text(counts: Counts) -> String {
+    format!(
+        "new {}, learning {}, review {}",
+        counts.new, counts.learning, counts.review
+    )
+}
+
+/// What an answer would do, for the answer buttons.
+fn preview_text(due: Due) -> String {
+    match due {
+        Due::Minutes(minutes) => span(i64::from(minutes)),
+        Due::Days(days) => plural(days as usize, "day"),
+    }
+}
+
+/// `fc due`: what is left to study in each deck, or in one deck.
+pub fn due_counts(file: &str, deck: Option<&str>) -> Result<String, Failure> {
+    let open = open(file)?;
+    let collection = &open.collection;
+    let only = deck
+        .map(|path| super::find_deck(collection, path))
+        .transpose()?;
+    let counts = collection.deck_counts()?;
+    let mut text = String::from("Left to study today:\n");
+    for listed in collection.decks()? {
+        if only.as_ref().is_some_and(|d| d.id != listed.id) {
+            continue;
+        }
+        let found = counts
+            .iter()
+            .find(|c| c.deck == listed.id)
+            .map_or_else(Counts::default, |c| c.counts);
+        text.push_str(&format!(
+            "\n{}{}: {}",
+            "  ".repeat(if only.is_some() { 0 } else { listed.depth }),
+            listed.display_name,
+            counts_text(found)
+        ));
+    }
+    open.collection.close()?;
+    Ok(text)
+}
+
+/// `fc next`: the card to study next in a deck, and what each answer would do. It does not answer.
+pub fn next(file: &str, deck: Option<&str>) -> Result<String, Failure> {
+    let open = open(file)?;
+    let collection = &open.collection;
+    let deck = match deck {
+        Some(path) => super::find_deck(collection, path)?,
+        None => super::find_deck(collection, "Default")?,
+    };
+    let text = match collection.next_card(deck.id)? {
+        Next::Card {
+            card,
+            deck: card_deck,
+            state,
+            previews,
+            counts,
+        } => {
+            let at = collection
+                .decks()?
+                .into_iter()
+                .find(|d| d.id == card_deck)
+                .map_or_else(|| "?".to_owned(), |d| d.path);
+            format!(
+                "Left in {}: {}\nNext: card {card} in {at} ({})\nAgain: {}, Hard: {}, Good: {}, \
+                 Easy: {}",
+                deck.path,
+                counts_text(counts),
+                state_name(state),
+                preview_text(previews[0]),
+                preview_text(previews[1]),
+                preview_text(previews[2]),
+                preview_text(previews[3]),
+            )
+        }
+        Next::Waiting { until_ms, counts } => format!(
+            "Left in {}: {}\nNothing is due now. The next learning card is due {} ({}).",
+            deck.path,
+            counts_text(counts),
+            time(until_ms, open.now.utc_offset_minutes),
+            in_minutes((until_ms - open.now.unix_ms).div_euclid(60_000)),
+        ),
+        Next::Done { counts } => format!(
+            "Left in {}: {}\nDone for today.",
+            deck.path,
+            counts_text(counts)
+        ),
+    };
+    open.collection.close()?;
+    Ok(text)
+}
+
+pub enum Hide {
+    Suspend,
+    Unsuspend,
+    Bury,
+    Unbury,
+}
+
+/// `fc suspend`, `fc unsuspend`, `fc bury` and `fc unbury` for cards, and `fc unbury --deck`.
+pub fn hide(
+    file: &str,
+    what: Hide,
+    cards: &[String],
+    deck: Option<&str>,
+) -> Result<String, Failure> {
+    let ids = cards
+        .iter()
+        .map(|card| card_id(card))
+        .collect::<Result<Vec<_>, _>>()?;
+    let open = open(file)?;
+    let collection = &open.collection;
+    let text = match (what, deck) {
+        (Hide::Unbury, Some(path)) => {
+            let deck = super::find_deck(collection, path)?;
+            collection.unbury_deck(deck.id)?;
+            format!("Unburied the cards in {}.", deck.path)
+        }
+        (Hide::Suspend, _) => {
+            collection.suspend_cards(&ids)?;
+            format!("Suspended {}.", plural(ids.len(), "card"))
+        }
+        (Hide::Unsuspend, _) => {
+            collection.unsuspend_cards(&ids)?;
+            format!("Unsuspended {}.", plural(ids.len(), "card"))
+        }
+        (Hide::Bury, _) => {
+            collection.bury_cards(&ids)?;
+            format!("Buried {} until tomorrow.", plural(ids.len(), "card"))
+        }
+        (Hide::Unbury, None) => {
+            collection.unbury_cards(&ids)?;
+            format!("Unburied {}.", plural(ids.len(), "card"))
+        }
+    };
     open.collection.close()?;
     Ok(text)
 }

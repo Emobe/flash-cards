@@ -35,6 +35,20 @@ Usage:
   fc undo <file>   Take back the last answer made on this device
   fc schedule <file> <card ID>
                    Print a card's state, due date, memory and every answer so far
+  fc due <file> [--deck <deck>]
+                   Show how many new, learning and review cards are left to study today, in each
+                   deck or in one deck (with the decks inside it)
+  fc next <file> [--deck <deck>]
+                   Show the card to study next (the Default deck if none is given) and when each
+                   answer would bring it back. Does not answer it
+  fc suspend <file> <card ID>...
+                   Keep cards out of the queue until they are unsuspended
+  fc unsuspend <file> <card ID>...
+                   Put suspended cards back in the queue
+  fc bury <file> <card ID>...
+                   Keep cards out of the queue until tomorrow
+  fc unbury <file> (<card ID>... | --deck <deck>)
+                   Bring buried cards back today, or every buried card in a deck
   fc help          Show this text
 
 Options for any command:
@@ -222,6 +236,23 @@ fn open(file: &str) -> Result<Collection, Failure> {
 fn note_id(text: &str) -> Result<fc_core::id::Id, Failure> {
     text.parse()
         .map_err(|_| Failure::Usage(format!("\"{text}\" is not a note ID.")))
+}
+
+/// Takes `--deck <deck>` out of the arguments, and gives back the rest.
+fn take_deck_option(args: &[String]) -> Result<(Option<String>, Vec<String>), Failure> {
+    let mut rest = args.to_vec();
+    let deck = match rest.iter().position(|a| a == "--deck") {
+        Some(at) => {
+            let path = rest
+                .get(at + 1)
+                .ok_or_else(|| Failure::Usage("--deck needs a deck.".to_owned()))?
+                .clone();
+            rest.drain(at..=at + 1);
+            Some(path)
+        }
+        None => None,
+    };
+    Ok((deck, rest))
 }
 
 fn plural(count: usize, word: &str) -> String {
@@ -537,6 +568,51 @@ fn run(args: &[String]) -> Result<String, Failure> {
         [command, file, card, answer] if command == "answer" => study::answer(file, card, answer),
         [command, file] if command == "undo" => study::undo(file),
         [command, file, card] if command == "schedule" => study::schedule(file, card),
+        [command, file, rest @ ..] if command == "due" || command == "next" => {
+            let (deck, extra) = take_deck_option(rest)?;
+            if !extra.is_empty() {
+                return Err(Failure::Usage(format!(
+                    "\"{}\" does not take \"{}\".",
+                    command, extra[0]
+                )));
+            }
+            if command == "due" {
+                study::due_counts(file, deck.as_deref())
+            } else {
+                study::next(file, deck.as_deref())
+            }
+        }
+        [command, file, rest @ ..]
+            if matches!(
+                command.as_str(),
+                "suspend" | "unsuspend" | "bury" | "unbury"
+            ) =>
+        {
+            let (deck, cards) = take_deck_option(rest)?;
+            let what = match command.as_str() {
+                "suspend" => study::Hide::Suspend,
+                "unsuspend" => study::Hide::Unsuspend,
+                "bury" => study::Hide::Bury,
+                _ => study::Hide::Unbury,
+            };
+            let unbury = matches!(what, study::Hide::Unbury);
+            if deck.is_some() && !unbury {
+                return Err(Failure::Usage(format!(
+                    "\"{command}\" takes card IDs, not --deck."
+                )));
+            }
+            if deck.is_some() == !cards.is_empty() {
+                return Err(Failure::Usage(format!(
+                    "\"{command}\" needs {}.",
+                    if unbury {
+                        "card IDs or --deck <deck>, one of them"
+                    } else {
+                        "card IDs"
+                    }
+                )));
+            }
+            study::hide(file, what, &cards, deck.as_deref())
+        }
         [] => Err(Failure::Usage("No command given.".to_owned())),
         [command, ..]
             if matches!(
@@ -556,6 +632,12 @@ fn run(args: &[String]) -> Result<String, Failure> {
                     | "answer"
                     | "undo"
                     | "schedule"
+                    | "due"
+                    | "next"
+                    | "suspend"
+                    | "unsuspend"
+                    | "bury"
+                    | "unbury"
                     | "help"
             ) =>
         {
