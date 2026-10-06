@@ -353,3 +353,45 @@ fn a_collection_open_elsewhere_is_in_use() {
     first.conn.execute_batch("ROLLBACK").unwrap();
     Collection::open(db.path(), host()).unwrap();
 }
+
+#[test]
+fn pending_migration_reports_an_older_file_and_writes_nothing() {
+    let db = TempDb::new();
+    Collection::create_with(db.path(), V1, host())
+        .unwrap()
+        .close()
+        .unwrap();
+    let before = std::fs::read(&db.0).unwrap();
+    assert_eq!(
+        Collection::pending_migration(db.path()).unwrap(),
+        Some(PendingMigration {
+            from: 1,
+            to: latest(MIGRATIONS)
+        })
+    );
+    assert_eq!(std::fs::read(&db.0).unwrap(), before);
+    assert!(!db.journal().exists());
+}
+
+#[test]
+fn pending_migration_is_none_when_there_is_nothing_to_migrate() {
+    let db = TempDb::new();
+    // No file, a current collection, a newer one and a file that is not ours.
+    assert_eq!(Collection::pending_migration(db.path()).unwrap(), None);
+    Collection::create(db.path(), host())
+        .unwrap()
+        .close()
+        .unwrap();
+    assert_eq!(Collection::pending_migration(db.path()).unwrap(), None);
+    Connection::open(db.path())
+        .unwrap()
+        .pragma_update(None, "user_version", 99)
+        .unwrap();
+    assert_eq!(Collection::pending_migration(db.path()).unwrap(), None);
+    let other = TempDb::new();
+    Connection::open(other.path())
+        .unwrap()
+        .execute_batch("CREATE TABLE notes (body TEXT)")
+        .unwrap();
+    assert_eq!(Collection::pending_migration(other.path()).unwrap(), None);
+}

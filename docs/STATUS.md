@@ -4,21 +4,17 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.13a Backup, export and restore (core, format, CLI): built, awaiting Anthony's review. Branch `step/1.13a-backup-export`. Built to the plan approved in chat (no ADR). Results, the rules to confirm, what was not verified and the deviations list are in ADR 0006, "Build notes, step 1.13a". The format is in `docs/backup-format.md`. 1.13 is split: 1.13b is not started.
+1.13b Backup, export and restore (API, native automatic backup, web export): in progress on branch `step/1.13b-backup-api` (plan approved in chat, no ADR; build notes will go in ADR 0006 "Build notes, step 1.13b"). 1.13a is merged (PR #28).
 
-Verified: `cargo xtask check` passes (wasm build included). 644 tests in `fc-core` (23 new, one ignored measurement), 3 new in `fc-cli`. The tour of every writing operation exports and restores into an empty collection with equal state. Timings (release, 5,000 notes, 55,227 registers, 5,001 events, a 2.3 MB file): export 0.35 s, restore into empty 1.1 s, restore of the same state 0.27 s.
+Done so far (commit 1): `fc_core::backup` settings in local `meta` (`backup_settings`, `set_backup_settings`, `set_backup_error`), `Collection::pending_migration(location)`, new `BackupError` variants (`BadSettings`, `Exists`, `NoFile`). `fc-api`: bytes methods `exportBackup`, `restoreBackup`, `importBackup`, `readBackupInfo`; native-only path methods `exportBackupToFile`, `restoreBackupFromFile`, `importBackupFromFile`, `readBackupFileInfo` (a new `native:` list in the method macro, compiled out of wasm); `getBackupSettings`, `setBackupSettings`; `fc_api::autobackup` (`run_if_due`, `copy_before_migration`, tested with a manual clock and temp folders). Bindings regenerated.
 
-Not verified: the phone, the browser and wasm at runtime, Windows, Firefox, Safari, memory use on a large collection, a restore after a real sync (Phase 4), 50,000 notes (the run with 20,000 took too long to build).
+Remaining: call `copy_before_migration` and `run_if_due` from `apps/native/src-tauri` (startup, background thread), web export and restore in the spike panel, desktop launch check, headless Brave check, ADR 0006 build notes with the deviations list, phase file, final STATUS.
 
-Rules for Anthony to confirm (details in the ADR notes): a restore trashes what the backup lacks and never touches unedited built-ins or settings; a deck file cannot be restored, only imported; an import takes only newer values; a deck export keeps only the cards in the exported decks.
-
-Remaining for 1.13b: API methods and bindings in `fc-api`, `fc-native` (paths, not bytes) and `fc-wasm` (bytes), the native automatic backup (on start when the last is over 24 hours old, keep the last 5, both as settings), web export, a backup before a migration.
-
-Merged: 1.12 Extension points (PR #27, ADR 0009) and 1.11a Merge (PR #25, ADR 0008). Their "not verified" lists are kept below under Done.
+Decisions agreed in the plan: settings are local (not synced); the copy before a migration is a raw file copy (newest 2 kept, separate from the keep-5 count); `listBackups`, `backupNow` and Android content URIs wait for 2.6; backups run even for an empty collection.
 
 ## Branch
 
-`step/1.13a-backup-export`, from `master`. Not pushed.
+`step/1.13b-backup-api`, from `master`. Not pushed.
 
 ## Done
 

@@ -978,3 +978,65 @@ fn a_refused_file_sends_no_event() {
     assert!(a.c.restore_backup(Cursor::new(b"nope".as_slice())).is_err());
     assert!(rec.take().is_empty());
 }
+
+#[test]
+fn backup_settings_default_round_trip_and_validate() {
+    let dev = Dev::new(1, START);
+    let c = &dev.c;
+    let defaults = BackupSettings {
+        interval_hours: DEFAULT_INTERVAL_HOURS,
+        keep: DEFAULT_KEEP,
+        last_error: None,
+    };
+    assert_eq!(c.backup_settings().unwrap(), defaults);
+
+    c.set_backup_settings(0, 3).unwrap();
+    c.set_backup_error(Some("The disk is full.")).unwrap();
+    assert_eq!(
+        c.backup_settings().unwrap(),
+        BackupSettings {
+            interval_hours: 0,
+            keep: 3,
+            last_error: Some("The disk is full.".to_owned())
+        }
+    );
+    c.set_backup_error(None).unwrap();
+    assert_eq!(c.backup_settings().unwrap().last_error, None);
+
+    for (hours, keep) in [(24, 0), (24, MAX_KEEP + 1), (MAX_INTERVAL_HOURS + 1, 5)] {
+        assert_eq!(
+            c.set_backup_settings(hours, keep).unwrap_err(),
+            BackupError::BadSettings
+        );
+    }
+    // A refused change leaves the old values.
+    assert_eq!(c.backup_settings().unwrap().keep, 3);
+}
+
+#[test]
+fn a_stored_setting_that_makes_no_sense_reads_as_the_default() {
+    let dev = Dev::new(1, START);
+    dev.c
+        .conn
+        .execute_batch(
+            "INSERT INTO meta (key, value) VALUES ('backup_keep', '0'), ('backup_interval_hours', 'x')",
+        )
+        .unwrap();
+    let settings = dev.c.backup_settings().unwrap();
+    assert_eq!(settings.keep, DEFAULT_KEEP);
+    assert_eq!(settings.interval_hours, DEFAULT_INTERVAL_HOURS);
+}
+
+#[test]
+fn settings_are_local_to_the_device() {
+    // Not in a backup, and a restore does not touch them.
+    let a = Dev::new(1, START);
+    a.c.set_backup_settings(48, 9).unwrap();
+    let mut file = Cursor::new(Vec::new());
+    a.c.export_backup(&mut file, &ExportOptions::default())
+        .unwrap();
+    let b = Dev::new(2, START);
+    b.c.restore_backup(Cursor::new(file.into_inner())).unwrap();
+    assert_eq!(b.c.backup_settings().unwrap().keep, DEFAULT_KEEP);
+    assert_eq!(a.c.backup_settings().unwrap().keep, 9);
+}

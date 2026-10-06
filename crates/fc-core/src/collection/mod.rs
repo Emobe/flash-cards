@@ -55,6 +55,13 @@ pub struct CollectionInfo {
     pub unsupported_features: Vec<String>,
 }
 
+/// A migration `open` would run: the file is at version `from`, the newest is `to`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PendingMigration {
+    pub from: u32,
+    pub to: u32,
+}
+
 /// An open collection. Dropping it closes it, but `close` reports a failure to do so.
 #[derive(Debug)]
 pub struct Collection {
@@ -83,6 +90,23 @@ impl Collection {
     /// If it was last opened by another installation (a copied file), it gets a new device ID.
     pub fn open(location: &str, host: Host) -> Result<Self, CollectionError> {
         Self::open_with(location, CURRENT, host)
+    }
+
+    /// Whether opening the collection at `location` would migrate it, and from and to which
+    /// version. Writes nothing, so a host can copy the file first. `None` when nothing is there,
+    /// the file is up to date, or it is not ours or too new (`open` reports those).
+    pub fn pending_migration(location: &str) -> Result<Option<PendingMigration>, CollectionError> {
+        let conn = match connect(location, false) {
+            Ok(conn) => conn,
+            Err(CollectionError::NotFound) => return Ok(None),
+            Err(error) => return Err(error),
+        };
+        let to = latest(MIGRATIONS);
+        Ok(match read_state(&conn) {
+            Ok(State::Collection(from)) if from < to => Some(PendingMigration { from, to }),
+            Ok(_) | Err(CollectionError::NotACollection) => None,
+            Err(error) => return Err(error),
+        })
     }
 
     /// Opens the collection at `location`, creating it if nothing is there yet.

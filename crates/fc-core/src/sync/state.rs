@@ -11,12 +11,12 @@ const HLC_LAST: &str = "hlc_last";
 const DEVICE_ID: &str = "device_id";
 const INSTALLATION_ID: &str = "installation_id";
 
-fn get(conn: &Connection, key: &str) -> rusqlite::Result<Option<String>> {
+pub(crate) fn get(conn: &Connection, key: &str) -> rusqlite::Result<Option<String>> {
     conn.query_row("SELECT value FROM meta WHERE key = ?1", [key], |r| r.get(0))
         .optional()
 }
 
-fn set(conn: &Connection, key: &str, value: &str) -> rusqlite::Result<()> {
+pub(crate) fn set(conn: &Connection, key: &str, value: &str) -> rusqlite::Result<()> {
     conn.execute(
         "INSERT INTO meta (key, value) VALUES (?1, ?2)
          ON CONFLICT (key) DO UPDATE SET value = excluded.value",

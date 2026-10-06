@@ -16,6 +16,7 @@ mod export;
 mod format;
 mod read;
 mod select;
+mod settings;
 #[cfg(test)]
 mod tests;
 
@@ -23,6 +24,9 @@ use crate::id::Id;
 
 pub use error::BackupError;
 pub use read::{RestoreReport, read_manifest};
+pub use settings::{
+    BackupSettings, DEFAULT_INTERVAL_HOURS, DEFAULT_KEEP, MAX_INTERVAL_HOURS, MAX_KEEP,
+};
 
 /// The newest format this build writes and reads. A file with a higher number is refused.
 pub const FORMAT_VERSION: u32 = 1;
