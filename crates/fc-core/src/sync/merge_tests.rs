@@ -646,6 +646,33 @@ fn an_integer_fits_a_real_column_and_nothing_else_does() {
     };
     assert!(integer.check(&Value::Real(1.5)).is_err());
     assert!(integer.check(&Value::Null).is_ok());
+    assert!(
+        column.check(&Value::Real(f64::NAN)).is_err(),
+        "SQLite would store NULL"
+    );
+}
+
+#[test]
+fn a_row_with_a_column_twice_is_rejected_not_a_failed_merge() {
+    let (a, b) = pair();
+    let (_, card) = add(&a.c, "x", "y");
+    crate::study::answer_tests::good(&a.c, card);
+    let mut event =
+        a.c.changes(Selection::All)
+            .unwrap()
+            .rows
+            .into_iter()
+            .find(|r| r.entity == "card_event")
+            .unwrap();
+    event.columns.push(event.columns[0].clone());
+    let report =
+        b.c.merge(&Changes {
+            registers: vec![],
+            rows: vec![event],
+        })
+        .unwrap();
+    assert_eq!(report.rejected.len(), 1);
+    assert!(report.rejected[0].reason.contains("twice"));
 }
 
 // ---- Rows of ADR 0006, section 11 ----
@@ -1429,4 +1456,45 @@ fn a_new_device_does_not_bring_back_cards_that_went_to_the_trash_with_their_deck
             assert!(d.c.cards_of_note(*note).unwrap().is_empty());
         }
     }
+}
+
+#[test]
+fn a_version_10_collection_upgrades_and_can_merge() {
+    use crate::collection::{MIGRATIONS, Schema};
+    let v10 = Schema {
+        migrations: &MIGRATIONS[..10],
+        tables: SYNCED_TABLES,
+    };
+    let path = std::env::temp_dir().join(format!("fc-merge-v10-{}.db", std::process::id()));
+    let _ = std::fs::remove_file(&path);
+    let location = path.to_str().unwrap();
+    let clock = Arc::new(ManualClock::new(START));
+    let host = Host {
+        clock: clock.clone(),
+        installation_id: Id::from_bytes([1; 16]),
+    };
+    let old = Collection::create_with(location, v10, host.clone()).unwrap();
+    let (note, card) = add(&old, "kot", "cat");
+    crate::study::answer_tests::good(&old, card);
+    old.close().unwrap();
+
+    let upgraded = Collection::open(location, host).unwrap();
+    assert_eq!(upgraded.info().unwrap().schema_version, 11);
+    check_schema(&upgraded.conn, SYNCED_TABLES).unwrap();
+    assert_eq!(front(&upgraded, note), "kot");
+    // It gives its changes to a new collection and takes theirs.
+    let other = Dev::new(2, START);
+    other
+        .c
+        .merge(&upgraded.changes(Selection::All).unwrap())
+        .unwrap();
+    assert_eq!(digest(&other.c), digest(&upgraded));
+    other.clock.advance(HOUR);
+    edit_front(&other.c, note, "pies");
+    upgraded
+        .merge(&other.c.changes(Selection::All).unwrap())
+        .unwrap();
+    assert_eq!(front(&upgraded, note), "pies");
+    upgraded.close().unwrap();
+    let _ = std::fs::remove_file(&path);
 }

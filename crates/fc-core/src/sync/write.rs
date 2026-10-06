@@ -337,18 +337,18 @@ pub(super) fn read_clock(
     id: Id,
     field: &str,
 ) -> Result<Option<RegisterClock>, CollectionError> {
-    let found = conn.query_row(
-        "SELECT hlc, device, pushed FROM register_clock
-         WHERE entity_type = ?1 AND entity_id = ?2 AND field = ?3",
-        params![entity, id, field],
-        |row| {
+    let found = conn
+        .prepare_cached(
+            "SELECT hlc, device, pushed FROM register_clock
+             WHERE entity_type = ?1 AND entity_id = ?2 AND field = ?3",
+        )?
+        .query_row(params![entity, id, field], |row| {
             Ok(RegisterClock {
                 hlc: Hlc::from_stored(row.get(0)?),
                 device: row.get(1)?,
                 pushed: row.get::<_, i64>(2)? != 0,
             })
-        },
-    );
+        });
     match found {
         Ok(clock) => Ok(Some(clock)),
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),

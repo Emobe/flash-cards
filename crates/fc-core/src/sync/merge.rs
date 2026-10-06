@@ -76,6 +76,10 @@ impl Column {
                     Ok(())
                 };
             }
+            // SQLite stores NaN as NULL, which a column that cannot be empty would then refuse.
+            (Value::Real(x), _) if x.is_nan() => {
+                return Err("not a number (NaN)".to_owned());
+            }
             (_, Kind::Any)
             | (Value::Integer(_), Kind::Integer | Kind::Real)
             | (Value::Real(_), Kind::Real)
@@ -296,27 +300,25 @@ impl WriteTx<'_> {
         }) {
             return Ok(Outcome::Ignored);
         }
+        let mut write = self.local().prepare_cached(&sql)?;
         match key {
-            None => self
-                .local()
-                .execute(&sql, params![change.entity_id, change.value])?,
-            Some(key) => self
-                .local()
-                .execute(&sql, params![change.entity_id, change.value, key])?,
+            None => write.execute(params![change.entity_id, change.value])?,
+            Some(key) => write.execute(params![change.entity_id, change.value, key])?,
         };
-        self.local().execute(
-            "INSERT INTO register_clock (entity_type, entity_id, field, hlc, device, pushed)
-             VALUES (?1, ?2, ?3, ?4, ?5, 1)
-             ON CONFLICT (entity_type, entity_id, field)
-             DO UPDATE SET hlc = excluded.hlc, device = excluded.device, pushed = 1",
-            params![
+        self.local()
+            .prepare_cached(
+                "INSERT INTO register_clock (entity_type, entity_id, field, hlc, device, pushed)
+                 VALUES (?1, ?2, ?3, ?4, ?5, 1)
+                 ON CONFLICT (entity_type, entity_id, field)
+                 DO UPDATE SET hlc = excluded.hlc, device = excluded.device, pushed = 1",
+            )?
+            .execute(params![
                 change.entity,
                 change.entity_id,
                 change.field,
                 change.clock.hlc.to_stored(),
                 change.clock.device
-            ],
-        )?;
+            ])?;
         Ok(Outcome::Applied)
     }
 
@@ -340,6 +342,13 @@ impl WriteTx<'_> {
             .iter()
             .cloned()
             .partition(|(name, _)| table.columns.contains(&name.as_str()));
+        for (i, (name, _)) in known.iter().enumerate() {
+            if known[..i].iter().any(|(other, _)| other == name) {
+                return Ok(RowOutcome::Rejected(format!(
+                    "column `{name}` is given twice"
+                )));
+            }
+        }
         for column in table.columns {
             let given = known.iter().find(|(name, _)| name == column);
             let Some(rule) = targets.column(table.table, column) else {

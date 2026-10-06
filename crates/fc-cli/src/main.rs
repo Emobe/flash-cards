@@ -3,6 +3,7 @@
 
 mod host;
 mod media;
+mod merge;
 mod search;
 mod stats;
 mod study;
@@ -84,6 +85,9 @@ Usage:
                    Run a saved search with its own sort
   fc delete-search <file> <name>
                    Delete a saved search
+  fc merge <from> <into>
+                   Give every change in the file <from> to the file <into>, and print what the
+                   merge did. <from> is not changed. Run it both ways to bring two files together
   fc help          Show this text
 
 Options for any command:
@@ -606,6 +610,7 @@ fn run(args: &[String]) -> Result<String, Failure> {
             collection.close()?;
             Ok(text.trim_end().to_owned())
         }
+        [command, from, into] if command == "merge" => merge::merge(from, into),
         [command, file, path] if command == "add-media" => media::add(file, path),
         [command, file] if command == "media" => media::list(file),
         [command, file, name, out] if command == "media-get" => media::get(file, name, out),
@@ -727,6 +732,7 @@ fn run(args: &[String]) -> Result<String, Failure> {
                     | "save-search"
                     | "run-search"
                     | "delete-search"
+                    | "merge"
                     | "help"
             ) =>
         {
