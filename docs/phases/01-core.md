@@ -264,6 +264,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Restore from backup.
 - Format documented in `docs/`.
 
+**Status:** split in two as agreed in chat. **1.13a** (core, format doc, CLI) built, awaiting review: `fc_core::backup`, `docs/backup-format.md`, `fc export | restore | import | backup-info`. Built to the plan approved in chat (no ADR); results and the deviations list are in ADR 0006, "Build notes, step 1.13a". **1.13b** (not started): API methods and bindings, the native automatic backup (settings: interval and number kept), web export.
+
 ---
 
 ## 1.14 Developer CLI

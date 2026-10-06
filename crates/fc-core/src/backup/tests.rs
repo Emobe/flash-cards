@@ -884,17 +884,19 @@ fn a_field_and_a_template_added_after_the_backup_are_removed_by_a_restore() {
     );
 }
 
-/// Timings for the notes in `docs`: `cargo test --release -p fc-core --lib backup::tests::timing --
+/// Timings for the build notes of step 1.13a (ADR 0006): `cargo test --release -p fc-core --lib backup::tests::timing --
 /// --ignored --nocapture`.
 #[test]
 #[ignore = "a measurement, not a check"]
+// The core's rule against reading the system clock is about the collection, not a stopwatch.
+#[allow(clippy::disallowed_types)]
 fn timing_of_a_large_collection() {
     use std::time::Instant;
     let (a, _) = pair();
     let (f, b) = crate::sync::merge_tests::basic_fields(&a.c);
     let started = Instant::now();
     let mut cards = Vec::new();
-    for n in 0..20_000 {
+    for n in 0..5_000 {
         let front =
             format!("front {n} <b>with</b> some html and words to make it a realistic size");
         let added =
@@ -905,13 +907,13 @@ fn timing_of_a_large_collection() {
             .unwrap();
         cards.push(added.cards[0]);
     }
-    for card in cards.iter().take(10_000) {
+    for card in cards.iter().take(2_500) {
         a.clock.advance(MINUTE);
         a.c.answer(*card, Rating::Good, 3_000).unwrap();
         a.clock.advance(MINUTE);
         a.c.answer(*card, Rating::Good, 3_000).unwrap();
     }
-    for n in 0..200 {
+    for n in 0..50 {
         a.c.add_media(
             "pic.png",
             format!("media bytes {n}").repeat(2_000).as_bytes(),
