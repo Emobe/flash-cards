@@ -4,26 +4,11 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.12 Extension points: build in progress on branch `step/1.12-extension-points` (fast-forwarded to master after PR #26). Built to ADR 0009 and `docs/plans/1.12-extension-points.md`. Continue with `/step 1.12`.
+1.12 Extension points: built, awaiting Anthony's review. Branch `step/1.12-extension-points`. Built to ADR 0009 (Accepted) and `docs/plans/1.12-extension-points.md`. Results, what was not verified and the deviations list are in ADR 0009, "Build notes (step 1.12)". Public surface: `docs/events.md`.
 
-Done (committed; `cargo test -p fc-core` passes, 621 tests, 28 of them new for 1.12):
-- `fc_core::events`: `Event` (not `#[non_exhaustive]`), `Listener`, `Listeners` (`deliver` skips an empty batch, copies the list out of its mutex, `catch_unwind` per listener), `count` (saturate to `u32`).
-- `Collection`: `listeners`, `session: RefCell<Option<OpenSession>>`, `listen`, crate-only `set_listeners` and `emit_now`, a compile-time `Send` check; `close` ends the open session as `Closed`.
-- `WriteTx::emit` (crate-only); `Collection::write` delivers after `commit()`.
-- `Core`: `listeners`, `listen`; `open_collection` hands them to the new collection and ends the old collection's session as `Closed` under the lock; `close_collection` now closes under the lock.
-- Emits in `add_note_to_deck`, `set_note_fields` (only if a field changed or a card was added or removed), `delete_note`, `restore_note`, `answer` (with the open session), `undo_answer`, `merge` (one `MergeApplied` when applied + rows + unknown kept > 0).
-- `study/session.rs`: `start_study_session`, `end_study_session`, `EndReason`, `SessionSummary`, crate-only `open_session_id` and `end_open_session` (ends with no event if the summary query fails).
-- Deviation so far: `StudyError::NotFound` reads "That card or deck no longer exists." (a missing deck now reaches it from `start_study_session`); `fc-cli/tests/study.rs` updated.
+Verified: `cargo xtask check` passes (wasm build, bindings, TypeScript). 621 tests in `fc-core` (28 new), 29 in `fc-api`, 21 in `fc-native`. `fc` on a copy of the desktop collection works (version 11). The desktop app (`bun run dev`) starts, loads the page and opens the collection with no error. The web page (`bun run web:dev`) served and loaded in headless Brave with no console error, but the DOM dump came back empty, so that the wasm core started was not confirmed by looking at the page.
 
-- Core tests: `events_tests.rs` (20), `study/session_tests.rs` (7), and the new `sync/merge_events_tests.rs` (5; the merge helpers are `pub(super)` to `sync`, so the merge and cross-device tests live there).
-
-- `fc-api`: `CoreEvent` variants (hand-written DTOs), `EventRating`, `SessionEndReason`, `SessionSummary`, exhaustive `From<&Event>` (checked: a new core variant fails to compile), `forward_events`, `notice_tests.rs` (JSON shape per variant, forwarding, no field text), bindings regenerated. Two existing TS tests narrow `e.kind === "debug"` before reading `message`.
-- Hosts: `forward_events` in `apps/native/src-tauri/src/lib.rs` and in `fc-wasm` `init` (once per instance, guarded by a `FORWARDING` flag); a hub test in `hub.rs`.
-- `cargo xtask check` passes.
-
-Remaining, in order:
-1. Docs: `docs/events.md`, link in `docs/README.md`, ADR 0009 build notes with the deviations list, phase file Status line.
-2. `fc` on a copy of the desktop collection, desktop app and web page start without errors. Then the PR report.
+Not verified: the phone, Windows, Firefox, Safari, panic behaviour of listeners on wasm and Android. No API method can cause a real event yet, so the hosts are covered by their tests and by starting cleanly.
 
 1.11a Merge: built, awaiting Anthony's review. Branch `step/1.11a-merge`. Results, findings and the deviations list are in ADR 0008, "Build notes (step 1.11a)" (deviations: the list at the end of those notes). Not verified: the phone, the web, Windows, merge speed on the phone or in wasm.
 

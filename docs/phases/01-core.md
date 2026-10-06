@@ -249,7 +249,7 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Events for at least: note added, edited, deleted; card answered; study session started and ended; sync completed (stub).
 - Documented as a public surface, separate from internals.
 
-**Status:** designed in ADR 0009 (Accepted 2026-10-06), with study sessions built in this step (option S1). Build plan: `docs/plans/1.12-extension-points.md`. Not built yet.
+**Status:** built (awaiting review), to ADR 0009 (Accepted 2026-10-06), with study sessions built in this step (option S1). Build plan: `docs/plans/1.12-extension-points.md`. Results and the deviations list: ADR 0009 "Build notes (step 1.12)". Public surface: `docs/events.md`.
 
 ---
 
