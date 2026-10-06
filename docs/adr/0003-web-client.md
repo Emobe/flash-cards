@@ -347,8 +347,8 @@ left open.
   leaves the collection as it was (tested). The version is read before anything is written, so a
   collection from a newer app is refused with an "update the app" message and is not modified
   (tested: byte-identical, no journal file). A file that is not one of our collections is refused
-  the same way. There is no backup before a migration: the transaction covers failure, and backups
-  are step 1.13.
+  the same way. There is no backup before a migration in the core: the transaction covers failure.
+  The native host copies the file first (step 1.13b, ADR 0006 build notes).
 - **Journal mode.** The default rollback journal on every target. The web VFS has no WAL, and
   finding 7 relies on the rollback journal undoing an interrupted transaction.
 - **Locking, ADR 0002's open question.** One connection behind a mutex in `Core`, so a call that

@@ -1422,3 +1422,114 @@ documented in `docs/backup-format.md`. 1.13 was split: this part is the core, th
 - `fc backup-info` prints the creation time as Unix milliseconds, not a date.
 - The timing measurement uses 5,000 notes, not 50,000, for the reason above. The test is `#[ignore]`.
 - 1.13b, as agreed, takes the automatic backup, the API and the web.
+
+### Build notes, step 1.13b (backup API, automatic backup, web export)
+
+Built to the plan approved in chat (no ADR, as for 1.13a). The decisions Anthony confirmed in that
+plan: settings are local to the device, the copy before a migration is a raw file copy, and
+`listBackups`, `backupNow` and Android content URIs wait for step 2.6.
+
+- **Methods** (`fc-api/src/backup.rs`, bindings regenerated). Bytes, on every host and the only ones
+  the web has: `exportBackup {deck, history}` (the zip is the reply attachment), `restoreBackup`,
+  `importBackup`, `readBackupInfo` (the zip is the request attachment). Files, native only:
+  `exportBackupToFile`, `restoreBackupFromFile`, `importBackupFromFile`, `readBackupFileInfo`, which
+  take a path so a large collection never passes through the UI (ADR 0002, "What does not go through
+  `call`"). Both families do the same work in the core and the export is byte-identical (tested).
+  `getBackupSettings` and `setBackupSettings` for the automatic backup. A restore or import sends
+  `MergeApplied` through the usual forwarding (tested).
+- **A new `native:` list in the `methods!` macro.** Methods in it are compiled out of wasm, so a wasm
+  build that is sent one answers `unknownMethod`. The generated TypeScript `Methods` map is made on a
+  native build, so it lists them, and the web client's types do not stop a call to one.
+- **Settings are in `meta`**, so they are local (not synced, not in a backup, not touched by a
+  restore, tested). `interval_hours` (default 24, 0 is off, at most a year), `keep` (default 5, 1 to
+  100) and `last_error`. A stored value that makes no sense reads as the default.
+- **Automatic backup** (`fc_api::autobackup::run_if_due`, native only, used by `apps/native` in a
+  background thread right after the collection opens): when the newest `backup-*.fcbackup` in
+  `<app data>/backups/` is older than the interval, or there is none, it writes
+  `backup-YYYY-MM-DD-HHMMSS.fcbackup` (local time, whole collection, with history) and deletes the
+  oldest beyond `keep`. How old the newest is comes from the `created` time in its manifest, not
+  from its name or its file time, so copying the folder does not change it. A damaged newest file or
+  one dated in the future counts as no backup. Only files that match the name pattern are listed or
+  deleted. A failure is returned, saved as `last_error` and leaves the older backups alone. A success
+  clears it. Files are written through `<name>.partial` and renamed, so a crash leaves no file that
+  looks like a backup, and an existing file is never replaced.
+- **Copy before a migration** (`copy_before_migration`, called by `apps/native` before it opens the
+  collection). `Collection::pending_migration(location)` reads the schema version of the file with
+  a short connection that writes nothing. If opening would migrate, the file is copied to
+  `backups/before-update-v<from>-to-v<to>-<stamp>.db` and the newest two are kept. It is a raw copy,
+  not a `.fcbackup`: the export reads the newest schema, so it cannot run on a file that has not
+  been migrated yet. The new app opens the copy and migrates it again. If the copy fails, the
+  migration still runs (it is one transaction that leaves the old collection when it fails, ADR 0003)
+  and the failure is saved as `last_error` after the start-up backup, so the settings screen can show
+  it.
+- **Web.** No change to the worker or the transport: an attachment goes both ways already. A
+  temporary panel in `apps/web` (`BackupPanel`, next to the spike panel) exports with and without
+  history, and restores and imports a chosen file. Restore asks for confirmation first and shows the
+  file's date. The settings screen in step 2.6 replaces it. Found and fixed while testing it: the
+  web transport transfers the attachment's buffer to the worker, so a `Uint8Array` cannot be sent in
+  a second call. The panel sends a copy for `readBackupInfo`.
+- **Verified:**
+  - Core: 3 tests for the settings, 2 for `pending_migration` (an older file is reported and not
+    changed; no file, a current one, a newer one and a file that is not ours give `None`).
+  - API: 9 tests through `dispatch` (bytes round trip into another collection and a second restore
+    that writes nothing, a deck file refused by restore and accepted by import twice, every refusal
+    with its kind and message and the collection unchanged, a cancelled call, the settings and their
+    limits, the event, no collection open, and for the file methods the round trip, no overwrite, no
+    partial file left after a failure, a missing and a junk file). 9 tests of `autobackup` with a
+    manual clock and temp folders (the file name from a time, first start and a second soon after, the
+    interval and 0, keeping the newest few and leaving foreign files alone, a damaged or future newest
+    file, a failure that is recorded and then cleared, the copy before a migration and its limit of
+    two).
+  - Desktop (Linux, the debug app, with `XDG_DATA_HOME` and `XDG_CONFIG_HOME` pointed at a throwaway
+    folder so the real collection was not touched): the first start wrote
+    `backup-2026-10-07-003800.fcbackup`, the second start said `NotDue` and wrote nothing, and with
+    the throwaway collection's version set back by one the app copied it to
+    `before-update-v10-to-v11-*.db` before it tried to open it (the file is byte-identical to the
+    collection afterwards). That migration then failed as a hand-edited version number would
+    (`CREATE TABLE` on a table that exists) and left the file as it was, which is also what the
+    transaction promises.
+  - Web (headless Brave 143 on Linux, debug wasm from `bun run web:dev`, a throwaway profile, driven
+    over the DevTools protocol): export of the empty collection downloads a file (77 registers);
+    importing a CLI backup with two notes writes 27 and a second import writes 0; after a reload the
+    export has the notes (104 registers) and `fc restore` of that downloaded file into a new
+    collection shows both notes; restoring the CLI backup again writes 0; restoring the older empty
+    export moves 5 things to the trash (the deck, 2 notes and 2 cards); a junk file gives the
+    readable "not a flash card backup" error and changes nothing.
+  - `cargo xtask check` passes (wasm build included).
+- **Not verified:** the phone (the same code runs on Android, but no screen shows it and the
+  backups folder is private to the app; the APK was not built or installed), Windows, Firefox,
+  Safari, the release wasm build in a browser, a migration that succeeds on the desktop app (the
+  copy was shown with a migration that could not run, and the copy-then-migrate order is the same
+  code), restore or import on the web with a large file (the file is held in memory about twice,
+  once in JS and once in wasm), how long the start-up backup holds the collection on a large one
+  (the export holds the one connection, so calls wait: about 3.5 s at 50,000 notes by the 1.13a
+  extrapolation, not measured here), any restore after a real sync (Phase 4).
+- **Left for later steps:** `listBackups` and `backupNow` and a way to choose the folder (2.6),
+  restore from the list in the UI (2.6), Android content URIs for the file methods (Phase 2 or 5),
+  progress and cancel for export, restore and import (the core functions take no context, so a call
+  can only be cancelled before it starts), deleting the temporary web panel (2.6), freeing the
+  `before-update` copies other than by count.
+
+**Deviations from the plan** (the plan was the chat reply of 2026-10-07):
+
+- Two more `BackupError` variants, `Exists` and `NoFile`, and a third, `BadSettings` (the plan had
+  the settings errors but not these). They carry the messages the file methods need.
+- File methods write through `<name>.partial` and a rename, not by creating the target and deleting
+  it on failure as the CLI does. The CLI is unchanged.
+- `sync::state::get` and `set` (the `meta` readers) became `pub(crate)` so the backup settings can
+  use them. `SystemClock` in `apps/native/src-tauri/src/host.rs` became `pub` so the start-up
+  backup reads the same clock as the core.
+- The method macro gained the `native:` list (above). The plan said only "compiled out of wasm".
+- The due check reads the manifest of the newest file instead of its name or file time (the plan did
+  not say how it would be decided).
+- A failed copy before a migration is saved after the start-up backup, because a successful backup
+  clears `last_error`. The plan said only that it would be saved.
+- The headless browser check also imports, restores and exports through the panel, not only
+  exports, and found the buffer bug above. The plan's check was export, wipe and restore: there is no
+  web method that wipes, so a restore of an empty export does that job.
+- The pre-migration copy is checked in the desktop app with a migration that cannot run, not one that
+  succeeds, since no older real collection is at hand. The unit test uses a file whose version is
+  set back and checks the copy is byte-identical.
+- No new dependency. The date in the file name is a short function (tested) instead of `chrono` in
+  `fc-api`.
+- `packages/core-client` now also exports the `BackupInfo`, `ExportOutput` and `RestoreOutput` types.

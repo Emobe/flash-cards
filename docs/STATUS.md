@@ -4,19 +4,23 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.13b Backup, export and restore (API, native automatic backup, web export): in progress on branch `step/1.13b-backup-api` (plan approved in chat, no ADR; build notes will go in ADR 0006 "Build notes, step 1.13b"). 1.13a is merged (PR #28).
+1.13b Backup, export and restore (API, native automatic backup, web export): built, awaiting Anthony's review. Branch `step/1.13b-backup-api`. Built to the plan approved in chat (no ADR). Results, the rules to confirm, what was not verified and the deviations list are in ADR 0006, "Build notes, step 1.13b". 1.13 is complete with this step. Next: 1.14 (Developer CLI).
 
-Done so far (commit 1): `fc_core::backup` settings in local `meta` (`backup_settings`, `set_backup_settings`, `set_backup_error`), `Collection::pending_migration(location)`, new `BackupError` variants (`BadSettings`, `Exists`, `NoFile`). `fc-api`: bytes methods `exportBackup`, `restoreBackup`, `importBackup`, `readBackupInfo`; native-only path methods `exportBackupToFile`, `restoreBackupFromFile`, `importBackupFromFile`, `readBackupFileInfo` (a new `native:` list in the method macro, compiled out of wasm); `getBackupSettings`, `setBackupSettings`; `fc_api::autobackup` (`run_if_due`, `copy_before_migration`, tested with a manual clock and temp folders). Bindings regenerated.
+Verified: `cargo xtask check` passes (wasm build included). New tests: 3 settings and 2 `pending_migration` in `fc-core`, 9 API method tests and 9 `autobackup` tests in `fc-api`, 3 in `apps/web`. Desktop (debug app, throwaway data folders): first start wrote a backup, the second start wrote none, and a collection set back one version was copied to `backups/before-update-...db` before the open. Web (headless Brave, debug wasm): export downloads a file, import and restore of a CLI backup, restoring an older export trashes what it lacks, junk gives a readable error, and the downloaded export restores in the CLI with both notes.
 
-Remaining: call `copy_before_migration` and `run_if_due` from `apps/native/src-tauri` (startup, background thread), web export and restore in the spike panel, desktop launch check, headless Brave check, ADR 0006 build notes with the deviations list, phase file, final STATUS.
+Not verified: the phone (no screen shows backups, no APK built), Windows, Firefox, Safari, the release wasm in a browser, a migration that succeeds in the desktop app, a large file on the web, how long the start-up backup holds the collection on a large collection (estimate 3.5 s at 50,000 notes, not measured).
 
-Decisions agreed in the plan: settings are local (not synced); the copy before a migration is a raw file copy (newest 2 kept, separate from the keep-5 count); `listBackups`, `backupNow` and Android content URIs wait for 2.6; backups run even for an empty collection.
+Rules for Anthony to confirm (details in the ADR notes): backup settings are per device and not synced or backed up; the automatic backup runs on every start when the newest is older than the interval, including for an empty collection; the copy before a migration is a raw file copy of `collection.db` (newest 2 kept, not counted in the 5); if that copy fails the migration still runs and the failure is shown as the settings' last error; the file methods never replace an existing file.
+
+Merged: 1.13a Backup core (PR #28), 1.12 Extension points (PR #27, ADR 0009) and 1.11a Merge (PR #25, ADR 0008). Their "not verified" lists are kept below under Done.
 
 ## Branch
 
 `step/1.13b-backup-api`, from `master`. Not pushed.
 
 ## Done
+
+- 1.13b Backup API, automatic backup and web export (ADR 0006 build notes, step 1.13b). `fc_core::backup` settings in `meta` (`backup_settings`, `set_backup_settings`, `set_backup_error`), `Collection::pending_migration`. `fc-api`: `exportBackup`, `restoreBackup`, `importBackup`, `readBackupInfo` (attachments), `exportBackupToFile`, `restoreBackupFromFile`, `importBackupFromFile`, `readBackupFileInfo` (native only, a new `native:` list in the method macro), `getBackupSettings`, `setBackupSettings`; `fc_api::autobackup` (`run_if_due`, `copy_before_migration`), used by `apps/native` on start. A temporary `BackupPanel` in `apps/web`. No new dependencies. Deviations: the list at the end of the ADR notes.
 
 - 1.13a Backup, export and restore (ADR 0006 build notes, step 1.13a). `fc_core::backup`: a zip of a manifest, `changes.jsonl` and media by hash; `export_backup` (collection or one deck, history optional), `restore_backup` (a diff written as new changes with a new device ID, what the backup lacks goes to the trash, events only added), `import_backup` (newer values only), `read_manifest`. `Origin` (Remote, Import, Restore) in `sync/merge.rs`; `sync/restore.rs`. CLI `fc export | restore | import | backup-info`. New dependencies `zip` 8.6.0, `serde_json` 1.0.151, `flate2` 1.1.10 (backend) in `fc-core`. Format: `docs/backup-format.md`. Deviations: the list at the end of the ADR notes.
 
@@ -59,6 +63,7 @@ Decisions agreed in the plan: settings are local (not synced); the copy before a
 
 ## Open items
 
+- **Step 2.6 builds on 1.13b:** `listBackups`, `backupNow`, choosing a folder, restore from the list, showing `last_error`, and deleting the temporary `BackupPanel` in `apps/web`. The backups folder on Android is private to the app, so an uninstall removes it.
 - **Merge speed on the phone and in wasm** is not measured (ADR 0008 build notes, "Measured"). Do it when Phase 4 first calls `merge`. If a new device is too slow, chunk the batch (it is idempotent).
 
 - **Follow-up, postponed by Anthony:** keeping the losing text when the same field is edited on two devices before they sync (ADR 0006's superseded-values log). For now the later edit wins. ADR 0006's own rule for it would have missed about half those cases (ADR 0008 finding 1); ADR 0008 part 7 is the design to use when it is built. Revisit if edits go missing after syncs or people share one account.
@@ -121,7 +126,7 @@ Decisions agreed in the plan: settings are local (not synced); the copy before a
 - No new dependencies in 1.2.
 - 1.1b not verified: Windows, Firefox, Safari, `register_clock` size and speed at 50,000 notes, any real two-device sync (Phase 4).
 - 1.1b leaves for later steps: the merge write method that opens the guard with a remote clock (1.11), a write path for migrations that rewrite synced rows (first migration that needs it), per-entity `requires` registers (steps that need them), unknown events (1.7, 1.11). Phase 4 must read `unsupported_features` before syncing.
-- A restore or import must call `Collection::regenerate_device_id` (1.13): a copy opened by the same installation keeps its device ID.
+- A restore or import must call `Collection::regenerate_device_id` (1.13): a copy opened by the same installation keeps its device ID. (Done in 1.13a: a restore regenerates it.)
 - New dependencies in 1.1b: `uuid` `v5` feature (pulls `sha1_smol`), `getrandom` direct in `fc-core`, `chrono` in `fc-native` and `fc-cli` (clock feature only).
 
 - 1.1a not verified: Windows, Firefox and Safari, and a newer-collection error in a real browser (core and transport tests cover it).
@@ -133,7 +138,7 @@ Decisions agreed in the plan: settings are local (not synced); the copy before a
 - Android: call path, progress, cancel, events and attachments verified (0.3a, 0.3b). Reload behaviour of the notice channel on the phone is not.
 - The phone has the 1.2 debug APK (storage version 3).
 - 0.6 not verified: Windows (Tauri may expose IPC to card frames there, the token covers it), Firefox, Safari, a main-frame reload on Android. Freeze recovery for looping cards is Phase 2 (a looping card freezes the app, checked on desktop).
-- Temporary code to delete (the notes spike is already gone): `CardSandboxSpike`, its cards file, `spikeCardMedia` and the sample media (1.10). Lasting: the gate, `handshake`, the `card` scheme, `frame.html`, `CardFrame`, `PlatformContext`.
+- Temporary code to delete (the notes spike is already gone; `BackupPanel` in `apps/web` goes with step 2.6): `CardSandboxSpike`, its cards file, `spikeCardMedia` and the sample media (1.10). Lasting: the gate, `handshake`, the `card` scheme, `frame.html`, `CardFrame`, `PlatformContext`.
 - Windows: desktop launch and `cargo xtask check` from step 0.1 are unverified and deferred to a manual check by Anthony.
 - Step 2.1 must handle edge-to-edge drawing and safe areas (status bar, navigation bar, cutout, keyboard) once in the app shell.
 - Design experiment for 0.6 shared the repo's `target/` dir, so `fc-native` was cleaned afterwards (`cargo clean -p fc-native`, host and Android). The next desktop and Android builds recompile more than usual.

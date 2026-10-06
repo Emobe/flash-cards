@@ -264,7 +264,7 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Restore from backup.
 - Format documented in `docs/`.
 
-**Status:** split in two as agreed in chat. **1.13a** (core, format doc, CLI) built, awaiting review: `fc_core::backup`, `docs/backup-format.md`, `fc export | restore | import | backup-info`. Built to the plan approved in chat (no ADR); results and the deviations list are in ADR 0006, "Build notes, step 1.13a". **1.13b** (not started): API methods and bindings, the native automatic backup (settings: interval and number kept), web export.
+**Status:** split in two as agreed in chat. **1.13a** (done, merged, PR #28): `fc_core::backup`, `docs/backup-format.md`, `fc export | restore | import | backup-info`. **1.13b** (built, awaiting review): the API (bytes methods for every host, file methods for native only, `getBackupSettings` and `setBackupSettings`), the native automatic backup on start (interval 24 hours and keep 5, both settings, local to the device), a raw copy of the collection file before a migration, and export, restore and import in the browser through a temporary panel. Results and the deviations list are in ADR 0006, "Build notes, step 1.13b". Not in any real UI: the settings screen, the list of backups and restore from it are step 2.6.
 
 ---
 
