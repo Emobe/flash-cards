@@ -16,8 +16,12 @@ mod fold;
 #[cfg(test)]
 mod fold_tests;
 mod queue;
+#[cfg(test)]
+mod queue_tests;
 mod schedule;
 mod settings;
+#[cfg(test)]
+mod simulation_tests;
 mod suspend;
 #[cfg(test)]
 mod tests;
