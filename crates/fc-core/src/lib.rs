@@ -9,6 +9,7 @@ pub mod collection;
 pub mod deck;
 mod html;
 pub mod id;
+pub mod media;
 pub mod note;
 pub mod notetype;
 pub mod scheduling;

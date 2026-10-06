@@ -4,6 +4,7 @@ use rusqlite::Transaction;
 
 use super::requires;
 use crate::deck;
+use crate::media;
 use crate::note;
 use crate::notetype;
 use crate::search;
@@ -33,6 +34,7 @@ pub const SYNCED_TABLES: &[SyncedTable] = &[
     deck::PRESET,
     study::SETTING,
     search::SAVED_SEARCH,
+    media::MEDIA_FILE,
 ];
 
 /// A table of registers whose names are not fixed: one row per `(owner, key)`, where the key is an
@@ -83,6 +85,7 @@ pub const LOCAL_TABLES: &[&str] = &[
     "write_guard",
     "card_schedule",
     "unpushed_row",
+    "media_blob",
 ];
 
 /// One row in `write_guard` exists only while a `WriteTx` is open.

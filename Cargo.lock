@@ -859,6 +859,7 @@ dependencies = [
  "fsrs",
  "getrandom 0.4.3",
  "rusqlite",
+ "sha2",
  "uuid",
 ]
 

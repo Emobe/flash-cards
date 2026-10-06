@@ -4,13 +4,15 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.9 Search and filtering: built on `step/1.9-search`, `cargo xtask check` passes, waiting for Anthony's review (ADR 0006 build notes, step 1.9, list the syntax, the rules to confirm, timings and the deviations). 1.8 was reviewed and merged (PR #20). Next: merge it, then step 1.10 (media) in a new session.
+1.10 Media (core): built on `step/1.10-media`, `cargo xtask check` passes, waiting for Anthony's review (ADR 0006 build notes, step 1.10, list the choices, timings and the deviations). 1.9 was reviewed and merged (PR #21). Next: merge it, then 1.10b (media in the card frame, a Sonnet build, new session).
 
 ## Branch
 
-`step/1.9-search` (from master after PR #20). Not pushed.
+`step/1.10-media` (from master after PR #21). Not pushed.
 
 ## Done
+
+- 1.10 Media, core part (ADR 0006 build notes, step 1.10). Migration v10: `media_file` (synced: `hash`, `size`, `deleted`; its ID is made from the hash) and `media_blob` (local, the bytes once per hash, in the collection file). `fc_core::media`: names `<stem>-<16 hex of the SHA-256>.<ext>`, add, read, `media_bytes` (checked against the hash), `media_references` (note fields, templates, CSS `url()`), `check_media` (unused, missing, without bytes), delete, restore, `delete_unused_media`, a deleted file that is still named reads as alive. `html::css_media_names`. `fc add-media`, `fc media`, `fc media-get`, `fc media-check`, `fc delete-unused-media`. 35 more core tests (547 in `fc-core`), 3 more CLI tests (32). `sha2` 0.10.9 is a direct dependency of `fc-core` (already in the lockfile). Verified on Linux (tests, `cargo xtask check` with the wasm build, CLI on a copy of the real desktop collection, which upgraded from 9 to 10). Timings (release): a 50 MB file adds in 85 ms and reads in 44 ms; with 10,000 files and 50,000 field values `check_media` takes 33 ms. Not run in a UI, a browser or the phone.
 
 - 1.9 Search and filtering (ADR 0006 build notes, step 1.9). Migration v9: `saved_search` (a synced table). `fc_core::search`: the query language (full table in the module doc), sorting by ten keys, paging, cards or notes, saved searches, SQL functions for Unicode-aware matching (`rusqlite` `functions` feature, no new crate). `fc search`, `fc searches`, `fc save-search`, `fc run-search`, `fc delete-search`. 67 more core tests (511 in `fc-core`), 4 more CLI tests (29). Found and fixed: `is:buried` compared with "after today" but burying is stored as "through today". Verified on Linux (tests, `cargo xtask check` with the wasm build, CLI on a copy of the real desktop collection). At 50,000 cards (release): most queries 40 to 160 ms, one text word about 290 ms, two text words about 550 ms. Not run in a UI or the phone; Anthony loaded the web page and it ran without an error.
 
@@ -45,10 +47,16 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: review and merge `step/1.9-search`.
-- Then a new session: `/step 1.10` (media, a Sonnet build).
+- Anthony: review and merge `step/1.10-media`.
+- Then a new session: `/step 1.10b` (media in the card frame, a Sonnet build, changes `frame.html`).
 
 ## Open items
+
+- 1.10 deviations from the plan are listed under "Deviations from the plan" in the ADR 0006 build notes, step 1.10.
+- 1.10 choices for Anthony to confirm (details in the ADR 0006 build notes): the bytes live in the collection file (a larger file, whole-file reads); a name is `<stem>-<16 hex>.<ext>` and a name not in that format belongs to no file (so an imported name shows as missing until Phase 5 renames it); notes in the trash and removed templates still count as using a file; deleting keeps the bytes until an "Empty trash" exists; there is no size limit for one file.
+- 1.10 not verified: the phone (it migrates to 10 the next time the APK runs), the browser, Windows, Firefox, Safari, timings of large files in the OPFS database and on the phone, merging media from two collections (1.11), blob sync (4.4).
+- 1.10 leaves for later steps: 1.10b (CSS `url()` and scripts in the card frame, with the sandbox test re-run), deleting the card sandbox spike (3.1 or Phase 2), `fc-api` and web methods for media (3.1), an editor picker and paste (Phase 3), freeing deleted bytes ("Empty trash").
+- New dependency in 1.10: `sha2` as a direct dependency of `fc-core` (already in the lockfile, no new package).
 
 - 1.9 deviations from the plan are listed under "Deviations from the plan" in the ADR 0006 build notes, step 1.9.
 - 1.9 rules to confirm (details in the ADR 0006 build notes; Anthony chose accents ignored and names matching any part after the first build): `is:due` counts a learning card only once its time has passed (Anthony chose that `is:due` leaves out suspended and buried cards); `added:` reads the note's ID, so Phase 5's import must give notes IDs with their original time; a filter on a number a card does not have (difficulty of a new card) is false, so `-difficulty:>5` includes new cards; `or`, `and` and `not` are keywords unless quoted, and a word starting with `-` is a negation; sorting by the sort field now ignores accents, so `Łódź` sorts as `lodz` (not Polish dictionary order); no whole-name match for decks, tags and note types.

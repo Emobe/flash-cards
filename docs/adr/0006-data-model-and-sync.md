@@ -1214,3 +1214,110 @@ dependency feature (`rusqlite` `functions`, see below), no new crate.
   `study` and `queue` tests, and the CLI `collection` test).
 - `is:buried` and `due:` for learning cards, and `is:due` for learning cards, are rules the plan did
   not spell out; they are in the rules above.
+
+### Build notes, step 1.10 (media)
+
+Built to the plan Anthony approved in chat (there is no plan file). Section 8 of this ADR settled the
+model (SHA-256 identity, a synced media-file entity, the bytes once per hash). These notes record what
+it left to this step: where the bytes live and the name format.
+
+- **Where the bytes live: in the collection file.** `media_blob (hash, data)` is a local table, never
+  synced (Phase 4.4 moves blobs by hash and asks the server which it lacks). `fc-core` never touches
+  the file system (ADR 0003), so this is one code path for native, Android and wasm, and a backup
+  (1.13) stays one file. The cost is a larger collection file and reads of a whole file at a time.
+  A `media_file` row with no blob is a file whose bytes have not arrived on this device: it is known,
+  `media_bytes` says "sync to download it", and `check_media` lists it under "without bytes".
+- **Migration v10.** `media_file` (`hash`, `size`, `deleted`, a synced table with guard triggers, an
+  index on `hash`) and `media_blob`. `media_blob` is in `LOCAL_TABLES`. No existing row is rewritten.
+- **Identity.** The entity ID is `UUIDv5(fc-media-ids-001, hash as lowercase hex)`, so two devices
+  that add the same bytes write the same entity and a merge has no duplicates. The registers are
+  `hash` (lowercase hex of the SHA-256), `size` and `deleted`, as section 3 listed. `sha2` 0.10.9 is a
+  direct dependency of `fc-core` now (it was in the lockfile already, so no new package; pure Rust, the
+  wasm build compiles).
+- **Names: `<stem>-<first 16 hex of the hash>.<extension>`.** The stem and extension come from the file
+  that was added (the part after the last `/` or `\`), cut to letters, digits, `-` and `_` (other
+  characters become `_`, runs are collapsed), a stem of at most 40 characters, an extension of at most 8
+  letters or digits in lower case, `file` when the stem is empty. So a name is safe in `src="..."`,
+  `[sound:...]` and CSS `url(...)`. The name is never stored: a name belongs to the file whose hash
+  starts with the 16 digits in it (`media_file(name)`), and the stem is a hint for people. The same
+  bytes added under two stems give two names for one file. A name that is not in the format (an
+  imported `paste-1.jpg`) belongs to no file and shows as missing; Phase 5 renames on import. If two
+  files ever shared the 16 digits (64 bits), the name would read as no file, not as either.
+- **What counts as using a file.** A name in a note field, a template side or a note type's CSS:
+  `<img>`, `<audio>`, `<video>` and `<source>` `src` and `[sound:...]` (the 1.4 readers), and the new
+  `html::css_media_names` for CSS `url(...)` (web addresses and `data:` URLs are not files). A name in
+  a template that is filled in later (`<img src="{{Image}}">`) is not a file. Notes in the trash and
+  removed templates still count, because restoring them brings the name back. `media_references()`
+  lists each name with the notes and note types that use it (one scan of the field values, about 26 ms
+  for 50,000 notes).
+- **API (`fc_core::media`).** `add_media(name, bytes)` (empty files are refused; the same bytes
+  again store nothing, bring a deleted file back and fill in missing bytes), `media_file(name)`,
+  `media_files()`, `media_bytes(name)` (checks the bytes against the hash, so a damaged copy is never
+  served), `media_references()`, `check_media()` (unused, missing, without bytes),
+  `delete_media(name)` (refused with `StillUsed` while something names it), `restore_media(name)` and
+  `delete_unused_media()`.
+- **Deleting keeps the bytes.** `deleted` is a register, set by the write path. Freeing the bytes
+  belongs to "Empty trash" (section 5), which does not exist yet, so a deleted file still takes space.
+- **Merge rule (section 8).** A deleted file that something still names reads as alive, decided when
+  reading and writing nothing. A test makes one device delete a file as unused while a note that names
+  it exists. Looking up a deleted file scans the references (about 26 ms at 50,000 notes), so only
+  that rare case pays.
+- **CLI.** `fc add-media <file> <path>`, `fc media`, `fc media-get <file> <name> <path>`,
+  `fc media-check` and `fc delete-unused-media`.
+- **Timings** (Linux, release, a throwaway program, not kept as a test):
+
+  | What | Time |
+  | --- | --- |
+  | add a 1, 10, 50 MB file (hash and store) | 2, 13, 85 ms |
+  | read it back (with the hash check) | 1, 9, 44 ms |
+  | add 10,000 files of 1 KB | 1.5 s |
+  | `media_references` with 10,000 names over 50,000 field values | 26 ms |
+  | `check_media` (same collection) | 33 ms |
+  | `media_files` (10,000 files) | 4 ms |
+  | `delete_unused_media` (3 files) | 32 ms |
+
+  The 50,000 field values were inserted with SQL, because adding notes one by one slows down with
+  every note (the duplicate check of 1.3 scans the note type), which is not part of this step. The
+  collection file was 74 MB with the three large files (61 MB of them) and 10,000 small ones.
+- **Verified.**
+  - Linux: 35 new core tests (547 in `fc-core` in all) and 3 new CLI tests (32 in all). They cover
+    names (a table of hostile and odd names, a long stem, a loop of 3,000 random names and contents
+    that must always add and read back), the hash against a known SHA-256, one stored copy for
+    identical bytes under two names, the same ID and registers on two separate collections, a clock
+    for every register, adding again writing nothing, fields, `[sound:]`, `<video>` and `<source>`,
+    templates, removed templates and CSS as references, a template filled in later not being a name,
+    notes in the trash, editing a note away from a file, deleting (used, unused, restore, adding
+    again), a deleted file that a note names staying alive, bytes that are not here, damaged bytes,
+    an unknown register from a newer app being kept, the guard refusing raw writes, an upgrade from a
+    real version-9 layout and a reopen.
+  - `cargo xtask check` passes, which includes the wasm build.
+  - The CLI on a copy of the real desktop collection (it upgraded from 9 to 10 on open): added a file,
+    a note that uses it and a missing name, listed, checked, and got the same bytes back.
+- **Not verified:** the phone (it migrates to 10 the next time the APK runs), the browser (nothing in
+  the web API calls media), Windows, Firefox, Safari, timings of large files in the OPFS wasm database
+  or on the phone, merging media files from two collections (1.11; the tests show that both write the
+  same entity and registers), two devices syncing blobs (4.4).
+- **Left for later steps:** media in CSS `url()` and scripts inside the card frame (a second PR of this
+  step: `frame.html`, `CardFrame` and the sandbox test), deleting the card sandbox spike and its sample
+  media (when `fc-api` has a media method, 3.1, or Phase 2 shows a real card), `fc-api` and web methods
+  for media (3.1), a picker and paste in the editor (Phase 3), freeing the bytes of deleted files
+  ("Empty trash"), a size limit for one file (no document sets one), Anki import renaming (Phase 5),
+  moving blobs by hash and the "which do you lack" exchange (4.4).
+
+**Deviations from the plan** (the plan was approved in chat, there is no plan file):
+
+- The core's reference scan reads CSS `url(...)` too (the plan listed note type CSS as a place that
+  names files, but the `url()` reader was meant for the `frame.html` PR). Without it a font or
+  background used only by a style would have shown as unused and been deleted. `html::css_media_names`
+  is used for the check; `render_card`'s media list is unchanged (the frame cannot use CSS media until
+  the second PR).
+- Added to the plan's API: `restore_media` and `delete_media` (the plan named only
+  `delete_unused_media`), `MediaFile::has_bytes`, `AddedMedia::new`, the `Reference` type, the public
+  `file_name` and `HASH_DIGITS`.
+- The timing check of 50,000 notes inserts the field values with SQL, not through `add_note`, for the
+  reason above. The plan said "10,000 files and 50,000 notes".
+- `media_blob` had to be added to `LOCAL_TABLES` (the schema check requires every table to be
+  classified). No other registry change.
+- Existing tests that assert the storage version were changed from 9 to 10 (`deck`, `note`, `tag`,
+  `study`, `queue` and `search` tests, and the CLI `collection` test).
+- `STATUS.md` listed deleting the card sandbox spike under 1.10. It is deferred, as agreed in the plan.
