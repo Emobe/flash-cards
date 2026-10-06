@@ -1,7 +1,8 @@
 # 0009: Core events and study sessions
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-06
+Accepted: 2026-10-06, with the answers under "Decisions on review".
 
 ## Context
 

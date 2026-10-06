@@ -241,13 +241,15 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 ## 1.12 Extension points
 
-**Model:** Sonnet build (/step)
+**Model:** Opus design session (/adr), then Sonnet build (/step)
 
 **Goal:** stable events and hooks for future add-ons and the UI.
 
 **Acceptance criteria:**
 - Events for at least: note added, edited, deleted; card answered; study session started and ended; sync completed (stub).
 - Documented as a public surface, separate from internals.
+
+**Status:** designed in ADR 0009 (Accepted 2026-10-06), with study sessions built in this step (option S1). Build plan: `docs/plans/1.12-extension-points.md`. Not built yet.
 
 ---
 
