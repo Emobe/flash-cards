@@ -4,6 +4,8 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
+1.12 ADR 0009 accepted (2026-10-06); next is `/step 1.12` in a fresh session. Branch `step/1.12-extension-points`; the build plan is `docs/plans/1.12-extension-points.md`.
+
 1.11a Merge: built, awaiting Anthony's review. Branch `step/1.11a-merge`. Results, findings and the deviations list are in ADR 0008, "Build notes (step 1.11a)" (deviations: the list at the end of those notes). Not verified: the phone, the web, Windows, merge speed on the phone or in wasm.
 
 ## Branch
