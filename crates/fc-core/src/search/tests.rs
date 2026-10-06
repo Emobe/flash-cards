@@ -372,6 +372,24 @@ fn an_unknown_field_is_an_error_with_a_hint_for_a_misspelt_filter() {
     assert_eq!(titles(&f.c, "\"nothing:x\""), Vec::<String>::new());
 }
 
+#[test]
+fn accents_do_not_matter_anywhere() {
+    let f = fixture();
+    assert_eq!(titles(&f.c, "lodz"), ["Łódź"]);
+    assert_eq!(titles(&f.c, "LODZ"), ["Łódź"]);
+    assert_eq!(titles(&f.c, "front:lodz"), ["Łódź"]);
+    assert_eq!(titles(&f.c, "lódz"), ["Łódź"], "a half-right guess");
+    let (note, card) = basic(&f.c, &f.clock, default_deck(), "ręka", "hand");
+    f.c.add_tags(&[note], &["żółty"]).unwrap();
+    assert_eq!(titles(&f.c, "reka"), ["ręka"]);
+    assert_eq!(titles(&f.c, "tag:zolty"), ["ręka"]);
+    assert_eq!(titles(&f.c, "tag:ŻÓŁTY"), ["ręka"]);
+    let deck = f.c.create_deck("Książki", None).unwrap();
+    f.c.move_cards(&[card], deck).unwrap();
+    assert_eq!(titles(&f.c, "deck:ksiazki"), ["ręka"]);
+    assert_eq!(titles(&f.c, "deck:ksi"), ["ręka"]);
+}
+
 // ---- Decks, tags, note types, templates ----
 
 #[test]
@@ -381,10 +399,13 @@ fn a_deck_includes_what_is_inside_it() {
     assert_eq!(titles(&f.c, "deckonly:Polish"), ["Łódź"]);
     assert_eq!(titles(&f.c, "deck:polish::animals"), ["kot", "pies"]);
     assert_eq!(titles(&f.c, "deckonly:Polish::Animals"), ["kot", "pies"]);
-    assert!(
-        titles(&f.c, "deck:Animals").is_empty(),
-        "a path, from the top"
+    assert_eq!(
+        titles(&f.c, "deck:Animals"),
+        ["kot", "pies"],
+        "any part of the path"
     );
+    assert_eq!(titles(&f.c, "deck:nimal"), ["kot", "pies"]);
+    assert_eq!(titles(&f.c, "deckonly:Animals"), ["kot", "pies"]);
     assert!(titles(&f.c, "deck:Nope").is_empty());
 }
 
@@ -430,10 +451,12 @@ fn a_tag_includes_the_tags_inside_it() {
     assert_eq!(titles(&f.c, "tag:lang::polish"), ["kot", "Łódź"]);
     assert_eq!(titles(&f.c, "tag:LANG::French"), ["chat"]);
     assert_eq!(titles(&f.c, "tag:animals"), ["kot"]);
-    assert!(
-        titles(&f.c, "tag:lan").is_empty(),
-        "a whole tag, not part of one"
+    assert_eq!(
+        titles(&f.c, "tag:lan"),
+        ["chat", "kot", "Łódź"],
+        "any part of a tag"
     );
+    assert_eq!(titles(&f.c, "tag:polish"), ["kot", "Łódź"]);
     assert_eq!(titles(&f.c, "tag:l*"), ["chat", "kot", "Łódź"]);
 }
 
@@ -455,8 +478,13 @@ fn a_removed_tag_no_longer_matches() {
 #[test]
 fn note_types_and_templates() {
     let f = fixture();
-    assert_eq!(titles(&f.c, "note:Basic").len(), 5);
-    assert_eq!(titles(&f.c, "note:basic").len(), 5, "ignoring case");
+    assert_eq!(
+        titles(&f.c, "note:Basic").len(),
+        7,
+        "Basic and Basic and reversed"
+    );
+    assert_eq!(titles(&f.c, "note:basic").len(), 7, "ignoring case");
+    assert_eq!(titles(&f.c, "note:reversed").len(), 2, "part of a name");
     assert_eq!(titles(&f.c, "note:\"Basic and reversed*\"").len(), 2);
     assert_eq!(titles(&f.c, "note:Basic*").len(), 7);
     assert_eq!(titles(&f.c, "note:Cloze").len(), 2);
@@ -742,7 +770,7 @@ fn the_title_is_plain_text() {
 #[test]
 fn sort_by_created_follows_when_notes_were_added() {
     let f = fixture();
-    let all = |sort| sorted(&f.c, "note:Basic", sort, Mode::Cards);
+    let all = |sort| sorted(&f.c, "note:Basic -note:reversed", sort, Mode::Cards);
     assert_eq!(
         all(Sort::ascending(SortKey::Created)),
         ["kot", "pies", "Łódź", "dom mały", "chat"]
@@ -763,20 +791,21 @@ fn sort_by_the_sort_field_ignores_case_and_ignores_tags() {
     assert_eq!(
         sorted(
             &f.c,
-            "note:Basic",
+            "note:Basic -note:reversed",
             Sort::ascending(SortKey::SortField),
             Mode::Cards
         ),
-        ["chat", "dom mały", "kot", "pies", "Łódź"]
+        ["chat", "dom mały", "kot", "Łódź", "pies"],
+        "Ł sorts with L, not after Z"
     );
     assert_eq!(
         sorted(
             &f.c,
-            "note:Basic",
+            "note:Basic -note:reversed",
             Sort::descending(SortKey::SortField),
             Mode::Cards
         )[0],
-        "Łódź"
+        "pies"
     );
 }
 
@@ -785,7 +814,7 @@ fn sort_by_due_puts_cards_without_a_due_date_last_in_both_directions() {
     let f = fixture();
     let asc = sorted(
         &f.c,
-        "note:Basic",
+        "note:Basic -note:reversed",
         Sort::ascending(SortKey::Due),
         Mode::Cards,
     );
@@ -796,7 +825,7 @@ fn sort_by_due_puts_cards_without_a_due_date_last_in_both_directions() {
     );
     let desc = sorted(
         &f.c,
-        "note:Basic",
+        "note:Basic -note:reversed",
         Sort::descending(SortKey::Due),
         Mode::Cards,
     );
@@ -811,7 +840,7 @@ fn sort_by_deck_follows_the_deck_list() {
     let f = fixture();
     let order = sorted(
         &f.c,
-        "note:Basic",
+        "note:Basic -note:reversed",
         Sort::ascending(SortKey::Deck),
         Mode::Cards,
     );
@@ -1302,7 +1331,7 @@ fn boolean_queries_agree_with_set_arithmetic() {
         "tag:lang",
         "is:new",
         "is:review",
-        "note:Basic",
+        "note:Basic -note:reversed",
         "due:0..2",
         "rated:1",
         "front:p*",

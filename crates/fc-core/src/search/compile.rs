@@ -9,7 +9,7 @@ use rusqlite::types::Value;
 use super::SearchError;
 use super::parse::{Bounds, Day, Is, Measure, Node, Span, Term, suggest};
 use super::pattern::{Pattern, fold};
-use crate::deck::{Tree, default_deck};
+use crate::deck::{SEPARATOR, Tree, default_deck};
 use crate::id::Id;
 use crate::notetype::{Kind, NoteType};
 
@@ -120,11 +120,10 @@ fn term_sql(term: &Term, ctx: &Context<'_>, params: &mut Params) -> Result<Strin
         Term::Field { name, text } => field_sql(name, text, ctx, params)?,
         Term::Deck { pattern, subdecks } => deck_sql(pattern, *subdecks, ctx, params),
         Term::Tag(pattern) => {
-            let exact = params.arg(pattern.clone());
-            let inside = params.arg(format!("{pattern}::*"));
+            let pattern = params.arg(pattern.clone());
             format!(
                 "EXISTS (SELECT 1 FROM note_tag t WHERE t.note = c.note AND t.present = '1' \
-                 AND (fc_equals(t.tag, {exact}) OR fc_equals(t.tag, {inside})))"
+                 AND fc_has(t.tag, {pattern}))"
             )
         }
         Term::NoteType(pattern) => {
@@ -132,7 +131,7 @@ fn term_sql(term: &Term, ctx: &Context<'_>, params: &mut Params) -> Result<Strin
             let ids: Vec<Id> = ctx
                 .types
                 .iter()
-                .filter(|t| pattern.is_all_of(&fold(&t.name)))
+                .filter(|t| pattern.is_inside(&fold(&t.name)))
                 .map(|t| t.id)
                 .collect();
             params.ids("n.note_type", &ids)
@@ -244,11 +243,19 @@ fn deck_sql(pattern: &str, subdecks: bool, ctx: &Context<'_>, params: &mut Param
     let Some(tree) = ctx.tree else {
         return "0".to_owned();
     };
+    // `deckonly:Polish` means a deck called Polish and not what is inside it, so with no `::` in
+    // the pattern it looks at the deck's own name. `deck:` and a pattern with `::` look at the path.
+    let by_path = subdecks || pattern.contains(SEPARATOR);
     let pattern = Pattern::new(pattern);
     let mut wanted: Vec<Id> = Vec::new();
     let mut seen = HashSet::new();
     for row in tree.rows.iter().filter(|r| !r.deleted) {
-        if !pattern.is_all_of(&fold(&row.path)) {
+        let name = if by_path {
+            &row.path
+        } else {
+            &row.display_name
+        };
+        if !pattern.is_inside(&fold(name)) {
             continue;
         }
         let rows = if subdecks {
@@ -271,18 +278,21 @@ fn deck_sql(pattern: &str, subdecks: bool, ctx: &Context<'_>, params: &mut Param
     }
 }
 
-/// `card:3` is the third template (or cloze number 3), and anything else is a template name.
+/// `card:3` is the third template (or cloze number 3), and anything else is part of a template name.
 fn card_sql(text: &str, ctx: &Context<'_>, params: &mut Params) -> String {
     let pattern = Pattern::new(text);
     let number: Option<usize> = text.parse().ok().filter(|n| *n >= 1);
     let mut clauses = Vec::new();
     for note_type in ctx.types {
-        let named: Vec<Id> = note_type
-            .templates
-            .iter()
-            .filter(|t| pattern.is_all_of(&fold(&t.name)))
-            .map(|t| t.id)
-            .collect();
+        let named: Vec<Id> = match number {
+            Some(_) => Vec::new(),
+            None => note_type
+                .templates
+                .iter()
+                .filter(|t| pattern.is_inside(&fold(&t.name)))
+                .map(|t| t.id)
+                .collect(),
+        };
         if !named.is_empty() {
             clauses.push(params.ids("c.template", &named));
         }

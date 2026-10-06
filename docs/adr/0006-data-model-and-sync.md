@@ -1063,8 +1063,9 @@ dependency feature (`rusqlite` `functions`, see below), no new crate.
   - Joining: a space or `and` (and), `or`, `not` or a leading `-`, and `( )`. `and` binds tighter than
     `or`. An empty query matches every card. `or`, `and` and `not` are words only when bare: `"or"`
     searches for the text.
-  - Filters (names ignore case): `deck:` (with the decks inside it) and `deckonly:`, `tag:` (with the
-    tags inside it), `note:`, `card:` (a template name, or a number: the Nth template, or cloze N),
+  - Filters (names ignore case): `deck:` (decks with the text in their path, so with the decks inside
+    them) and `deckonly:` (decks with the text in their own name, without what is inside), `tag:`,
+    `note:`, `card:` (part of a template name, or a number: the Nth template, or cloze N),
     `is:new|learning|review|due|suspended|buried`, `due:`, `added:`, `rated:` (and `rated:7:1` for an
     answer), `introduced:`, `difficulty:`, `stability:`, `lapses:`, `reviews:`.
   - Days: `due:0` is today and `due:-3..0` is the last three days to today, ranges can be open
@@ -1078,13 +1079,19 @@ dependency feature (`rusqlite` `functions`, see below), no new crate.
   - Errors carry the character where the problem is and say how to fix it.
 - **Rules that are not in the grammar (Anthony to confirm).**
   - Text is matched on what a person reads: tags are left out, entities decoded, spaces collapsed,
-    case ignored in every alphabet (`ŁÓDŹ` finds `Łódź`). Accents are not stripped (`e` does not find
-    `ę`). A pattern with no `*` matches inside a field. Values left behind by a deleted field do not
-    match.
-  - Deck, tag, note type and template names are matched whole, ignoring case, `*` as a wildcard. A deck
-    is its path from the top (`Polish::Animals`), so `deck:Animals` finds nothing and `deck:*::Animals`
-    finds it. A tag does not match part of a name (`tag:lan` does not find `lang`). Untagged notes are
-    `-tag:*`.
+    case and accents ignored (`ŁÓDŹ` and `lodz` find `Łódź`, `reka` finds `ręka`; Anthony asked for
+    this on review, because a learner may not know which accent a letter has). Accents are taken off
+    Latin letters (`search/pattern.rs`, a table of the letters of Europe's Latin alphabets, with `ß`
+    as `ss` and `æ` as `ae`) and combining marks are dropped. Other scripts are folded for case only.
+    A pattern with no `*` matches inside a field. Values left behind by a deleted field do not match.
+    The same folding is used to sort by the sort field, so `Łódź` sorts among the L words, not after
+    Z (it is not Polish dictionary order, where `ł` is a letter of its own after `l`).
+  - Deck, tag, note type and template names also match any part of the name (Anthony asked for this on
+    review: `deck:Animals` finds `Polish::Animals`, `tag:lan` finds `lang::polish`), ignoring case and
+    accents, `*` as a wildcard. `deck:` looks at the whole path. `deckonly:` looks at the deck's own
+    name when the text has no `::`, so `deckonly:Polish` is the deck called Polish and not
+    `Polish::Animals`. There is no way to ask for a whole-name match. Field names before a colon
+    (`front:`) still match whole. Untagged notes are `-tag:*`.
   - A card with no deck register is in the Default deck, as everywhere else.
   - `is:learning` includes relearning. `is:due` is a review card whose due day is today or earlier, or
     a learning card whose due time has passed (a learning card due later today is not "due"). It does
@@ -1169,7 +1176,8 @@ dependency feature (`rusqlite` `functions`, see below), no new crate.
     upgrade from a real version-8 layout).
   - `cargo xtask check` passes, which includes the wasm build.
   - The CLI on a copy of the real desktop collection (it opened at storage version 9): a search,
-    saving a search, an error message. That collection has no notes of its own.
+    saving a search, an error message. That collection has no notes of its own. Also on a small
+    demo collection, to read the rules above on real output.
 - **Not verified:** the web client at runtime (the wasm build compiles, but opening a collection in a
   browser now registers the SQL functions, and nobody has run that: `bun run web:dev` should open the
   collection as before), Windows, Firefox, Safari, the phone (it migrates to 9 the next time the APK
@@ -1178,7 +1186,7 @@ dependency feature (`rusqlite` `functions`, see below), no new crate.
 - **Left for later steps:** the browser screen, filter buttons and a search box (Phase 3, step 3.1),
   `fc-api` and web methods for search (3.1), bulk actions on results (Phase 3), `edited:` and
   retrievability filters (nothing stores an edit time, and retrievability needs the fitted
-  parameters), stripping accents, a saved search used inside a query, text search on the card's
+  parameters), a ranking by how well a result matches the text (Anthony floated it: needs a decision on what "best" means), Polish dictionary order for sorting, a saved search used inside a query, text search on the card's
   rendered question and answer.
 
 **Deviations from the plan** (the plan was approved in chat, there is no plan file):
@@ -1196,6 +1204,10 @@ dependency feature (`rusqlite` `functions`, see below), no new crate.
   text. Its result is the same, and the existing tests pass unchanged.
 - `rusqlite` got the `functions` feature on the wasm target too, not only native (it is a feature of
   the crate we use, so `Cargo.lock` has no new package).
+- After Anthony's review of the first build: accents are ignored, names match any part, and `deckonly:` looks at the
+  deck's own name. `fc_equals` became `fc_has` (a tag has the text inside it), and `card:` with a number no longer also
+  looks at template names. The timings above are from before this change and were not repeated (text without
+  accents takes the old path unchanged).
 - Existing tests that assert the storage version were changed from 8 to 9 (`deck`, `note`, `tag`,
   `study` and `queue` tests, and the CLI `collection` test).
 - `is:buried` and `due:` for learning cards, and `is:due` for learning cards, are rules the plan did

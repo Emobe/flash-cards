@@ -9,11 +9,11 @@
 //!
 //! | Query | Cards that |
 //! | --- | --- |
-//! | `dog`, `"two words"`, `k*t` | have the text in any field (case ignored in every alphabet, `*` matches anything) |
+//! | `dog`, `"two words"`, `k*t` | have the text in any field (case and accents ignored, `*` matches anything) |
 //! | `front:dog`, `front:` | have the text in the field called Front, or nothing in it |
-//! | `deck:Polish`, `deckonly:Polish` | are in the deck and the decks inside it, or only in it |
-//! | `tag:verbs` | are on a note with the tag or a tag inside it (`-tag:*` is untagged) |
-//! | `note:Basic`, `card:2`, `card:Reverse` | are of a note type, the second template, or a template by name |
+//! | `deck:Polish`, `deckonly:Polish` | are in a deck with this in its path (and so in the decks inside it), or in a deck with this in its own name and not in what is inside it |
+//! | `tag:verbs` | are on a note with a tag with this in its name (`-tag:*` is untagged) |
+//! | `note:Basic`, `card:2`, `card:Reverse` | are of a note type with this in its name, the second template, or a template with this in its name |
 //! | `is:new`, `is:learning`, `is:review`, `is:due`, `is:suspended`, `is:buried` | are in that state |
 //! | `due:0`, `due:-3..0`, `due:..0` | are due on those days, counted from today (0) |
 //! | `added:7`, `added:2026-09-01..2026-09-30` | were added in the last 7 days, or on those dates |
@@ -28,7 +28,11 @@
 //! Decisions that are not in the grammar:
 //!
 //! - **Text** is matched on what a person reads: tags and entities in the field's HTML are left
-//!   out. Values left behind by a deleted field do not match.
+//!   out, case and accents are ignored (`reka` finds `ręka`, `lodz` finds `Łódź`; Latin letters
+//!   only) and a word matches inside a longer one. Values left behind by a deleted field do not
+//!   match.
+//! - **Names** (decks, tags, note types, templates) match any part of the name the same way, so
+//!   `deck:Animals` finds `Polish::Animals`. Field names before a colon (`front:`) match whole.
 //! - **Days** are study days (the day-start hour applies) in the device's time zone now. A learning
 //!   card is "due" on the day its due time falls in.
 //! - **Added** is the time in the note's ID (UUIDv7), so a card made later by a new template has

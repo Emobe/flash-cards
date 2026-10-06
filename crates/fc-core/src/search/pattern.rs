@@ -75,17 +75,72 @@ impl Pattern {
     }
 }
 
-/// A piece of a pattern, or a name, reduced the way field text is.
+/// A piece of a pattern, or a name, reduced the way field text is: one space between words, lower
+/// case, and letters without their accents.
 pub(crate) fn fold(text: &str) -> String {
-    text.split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_lowercase()
+    strip_accents(
+        text.split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_lowercase(),
+    )
 }
 
 /// Field text (HTML) reduced for matching.
 pub(crate) fn fold_html(html: &str) -> String {
-    html::comparison_key(html)
+    strip_accents(html::comparison_key(html))
+}
+
+/// Lower case letters that are another letter with a mark, and what they are searched as. Covers the
+/// Latin alphabets of Europe (Polish, Czech, French, Spanish, German, Turkish and so on). A letter
+/// that is not here, in another script, is left as it is.
+const BASE_LETTERS: [(&str, &str); 21] = [
+    ("àáâãäåāăąǎǻ", "a"),
+    ("çćĉċč", "c"),
+    ("ďđð", "d"),
+    ("èéêëēĕėęě", "e"),
+    ("ĝğġģ", "g"),
+    ("ĥħ", "h"),
+    ("ìíîïĩīĭįıǐ", "i"),
+    ("ĵ", "j"),
+    ("ķ", "k"),
+    ("ĺļľŀł", "l"),
+    ("ñńņňŉ", "n"),
+    ("òóôõöøōŏőǒǿ", "o"),
+    ("ŕŗř", "r"),
+    ("śŝşšș", "s"),
+    ("ţťŧț", "t"),
+    ("ùúûüũūŭůűųǔ", "u"),
+    ("ŵ", "w"),
+    ("ýÿŷ", "y"),
+    ("źżž", "z"),
+    ("ß", "ss"),
+    ("æœ", "ae"),
+];
+
+/// Takes the accents off lower case text. Combining marks (U+0300 to U+036F) are dropped, so text
+/// typed with a letter and a separate accent reads the same as one character.
+fn strip_accents(text: String) -> String {
+    if text.is_ascii() {
+        return text;
+    }
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        if ('\u{300}'..='\u{36f}').contains(&c) {
+            continue;
+        }
+        if c.is_ascii() {
+            out.push(c);
+            continue;
+        }
+        match BASE_LETTERS.iter().find(|(letters, _)| letters.contains(c)) {
+            // `æ` and `œ` are two letters.
+            Some((_, "ae")) if c == 'œ' => out.push_str("oe"),
+            Some((_, base)) => out.push_str(base),
+            None => out.push(c),
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -106,6 +161,27 @@ mod tests {
         assert!(inside("ł", "Łódź"));
         assert!(inside("ŁÓD", "łódź"));
         assert!(!inside("kota", "kot"));
+    }
+
+    #[test]
+    fn accents_do_not_matter_in_either_direction() {
+        assert!(inside("reka", "ręka"));
+        assert!(inside("ręka", "reka"));
+        assert!(inside("lodz", "Łódź"));
+        assert!(inside("ŁÓDŹ", "lodz"));
+        assert!(inside("zolc", "Żółć"));
+        assert!(inside("strasse", "Straße"));
+        assert!(inside("francais", "français"));
+        assert!(inside("a", "e\u{301}a"), "a letter and a separate accent");
+        assert!(inside("e", "e\u{301}"));
+        assert!(inside("æ", "ae"));
+        assert!(!inside("ręka", "noga"));
+    }
+
+    #[test]
+    fn other_scripts_are_left_alone_except_for_case() {
+        assert!(inside("привет", "ПРИВЕТ"));
+        assert!(!inside("привет", "privet"));
     }
 
     #[test]

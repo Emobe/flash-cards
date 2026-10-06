@@ -2,7 +2,7 @@
 //! They are deterministic, so SQLite may call each as few times as it can.
 //!
 //! - `fc_contains(text, pattern)`: the field text (HTML) has the pattern inside it.
-//! - `fc_equals(text, pattern)`: the name is the pattern from end to end.
+//! - `fc_has(text, pattern)`: the name (a tag) has the pattern inside it.
 //! - `fc_fold(text)`: field text reduced for sorting.
 //! - `fc_id_ms(id)`: the time in an ID made by `Id::new_v7`, in Unix milliseconds.
 //! - `fc_random(id, seed)`: a number that depends only on the two, for a repeatable shuffle.
@@ -25,12 +25,12 @@ pub(crate) fn register(conn: &Connection) -> rusqlite::Result<()> {
         };
         Ok(inside.borrow_mut().get(pattern).is_inside(&fold_html(text)))
     })?;
-    let whole = RefCell::new(PatternCache::default());
-    conn.create_scalar_function("fc_equals", 2, flags, move |ctx| {
+    let named = RefCell::new(PatternCache::default());
+    conn.create_scalar_function("fc_has", 2, flags, move |ctx| {
         let (Some(text), Some(pattern)) = (text_arg(ctx, 0)?, text_arg(ctx, 1)?) else {
             return Ok(false);
         };
-        Ok(whole.borrow_mut().get(pattern).is_all_of(&fold(text)))
+        Ok(named.borrow_mut().get(pattern).is_inside(&fold(text)))
     })?;
     conn.create_scalar_function("fc_fold", 1, flags, |ctx| {
         Ok(text_arg(ctx, 0)?.map(fold_html))
@@ -104,6 +104,7 @@ mod tests {
         };
         assert!(hit("<b>Mój</b>&nbsp;KOT", "mój kot"));
         assert!(hit("Łódź", "łódź"));
+        assert!(hit("Łódź", "lodz"), "accents do not matter");
         assert!(!hit("<b>cat</b>", "<b>"), "tags are not text");
         assert!(
             !conn
