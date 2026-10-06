@@ -279,6 +279,9 @@ registers:
   never pushed, the losing value goes into a local "superseded values" log. A later UI can offer
   "this field was also edited on another device: show the other version". This covers note fields,
   templates and names.
+  - **Postponed by ADR 0008** ("Decisions on review"): for now the later edit wins and the losing
+    value is not kept. The "never pushed" condition above also misses about half the losing values
+    (ADR 0008, finding 1). ADR 0008 part 7 is the design to build it from.
 
 **Card events** (append-only, merged by union). Reviews and manual scheduling actions are immutable
 records with a UUIDv7 ID:
@@ -561,7 +564,8 @@ Anthony asked Claude Code to make these four calls. Each is the option the Propo
    and nothing is lost because the content stays in the trash. "Edit wins" would bring back items
    the user removed, with no way for them to know why.
 2. **The same field edited on two devices: the later edit wins, with no prompt.** The losing text is
-   kept in the losing device's superseded-values log so a later UI can offer it back. Reason: a
+   kept in the losing device's superseded-values log so a later UI can offer it back. (Keeping the
+   losing text is postponed by ADR 0008: for now the later edit wins and nothing else is kept.) Reason: a
    prompt is what `PRODUCT.md` rules out, and a character-level merge is real-time collaborative
    editing, a non-goal. Revisit if this loses work in practice (see below).
 3. **Same-named decks after a first-sync merge stay separate** until the user merges them with the

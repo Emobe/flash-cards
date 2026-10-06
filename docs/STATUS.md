@@ -4,7 +4,7 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.11 Change tracking for sync (an Opus design session): ADR 0008 (Proposed) and `docs/plans/1.11-merge.md` are written, waiting for Anthony's review. Nothing is built. 1.10b was reviewed and merged (PR #23).
+1.11 Change tracking for sync: ADR 0008 Accepted (2026-10-06) and `docs/plans/1.11-merge.md` written. Ready for the build session (`/step 1.11a`). Nothing is built. 1.10b was reviewed and merged (PR #23).
 
 ## Branch
 
@@ -49,8 +49,7 @@ Kept current by every session. A new session reads this first.
 
 ## Remaining in this step
 
-- Anthony: accept ADR 0008. His review answers are recorded under its "Decisions on review": the superseded-values log is postponed (the later edit wins), one PR, purge and per-entity `requires` later, rejected values dropped and reported.
-- Then: on acceptance, add a pointer in ADR 0006 (section 3 and "Decisions on review" item 2) to ADR 0008's "Decisions on review", and build 1.11a (`/step 1.11a`).
+- Build 1.11a (`/step 1.11a`) from `docs/plans/1.11-merge.md`. ADR 0006 already points to ADR 0008 for the postponed superseded-values log.
 
 ## Open items
 

@@ -1,7 +1,8 @@
 # 0008: Merging collections: change records, the merge and superseded values
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-06
+Accepted: 2026-10-06, with the changes under "Decisions on review".
 
 Anthony's review answers are under "Decisions on review". In short: the superseded-values log
 (part 7) is postponed, so the later edit wins and nothing else is kept; purge and per-entity
@@ -427,7 +428,7 @@ Two files merged both ways is the manual test of this step.
 
 ## Decisions on review
 
-Anthony, 2026-10-06. These are recorded here; the ADR stays Proposed until Anthony accepts it.
+Anthony, 2026-10-06.
 
 1. **The superseded-values log is postponed.** The same field edited on two devices before they sync
    is rare for one person, and not expected in the MVP. For now the later edit wins and the other text
