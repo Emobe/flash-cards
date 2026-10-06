@@ -498,6 +498,30 @@ Review history, statistics and optimisation, in `fc_core::stats`. No migration, 
 change to what is stored: everything reads `card_event` and `card_schedule`. Not in any UI or the web
 API (Phase 2, step 3.7).
 
+**Deviations from the plan** (the plan was approved in chat, there is no plan file):
+
+- `fsrs` panics on a training item with only same-day reviews, so those items are filtered before
+  training (the plan did not know). A test pins it.
+- A minimum of 64 training items and a `NotEnoughHistory` error. The plan only said "a clear error" and
+  expected `fsrs` to report too little data, but it returns defaults without a word.
+- "Items" in `TrainingSet` means reviews that can be learned from (on a later day than the card's
+  previous review, or after one), not "every review after a card's first" as the plan said. So `items`
+  is often well under `reviews - cards`.
+- `daily_counts` takes voided answers off after the scan and writes one join as `CROSS JOIN`, for speed
+  (see Timing). The plan had a plain `NOT EXISTS`.
+- The plan listed the evaluation metrics as left out and no new `PresetChange` field; `PresetChange`
+  gained `fsrs_parameters` and `DeckError` gained `Parameters`, because storing the result needs them.
+- `scheduling::optimise_with_steps`, `training_item_count` and a test-only `memory_from_history` were
+  added, and `optimise` now passes the relearning step count (1 by default, as before).
+- Test helpers in `study/answer_tests.rs` and `study/fold_tests.rs` (`setup`, `basic_card`, `good`,
+  `from_other_device`, `insert` and the time constants) went from `pub(super)` to `pub(crate)`, and the
+  two modules from private to `pub(crate)`, so the `stats` tests can reuse them. `study::today` is
+  `pub(crate)` for the same reason. No change outside tests except that.
+- CLI helpers in `fc-cli/src/study.rs` (`open`, `time`, `date`, `rating_name` and others) are `pub(super)`
+  so `stats.rs` can use them.
+- `fc optimise` also reports whether the preset uses the default or tuned parameters, which the plan
+  did not list, so a test can see that `--apply` stuck.
+
 **What each number means.** These are the definitions a stats screen must use.
 
 - **History** (`card_history`): a card's non-voided reviews in the order the fold applies them. The

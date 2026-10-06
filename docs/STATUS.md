@@ -48,6 +48,7 @@ Kept current by every session. A new session reads this first.
 
 ## Open items
 
+- 1.8 deviations from the plan are listed under "Deviations from the plan" in the ADR 0007 build notes, step 1.8.
 - 1.8 choices for Anthony to confirm (details in the ADR 0007 build notes): unfiltered totals include answers of deleted cards, a deck filter and the forecast and optimiser use live cards only; retention is one figure over review-card answers (no young/mature split); the forecast ignores limits and new cards and day 0 is today without the overdue; the optimiser trains per preset over the live cards in its decks; storing parameters does not recompute existing cards' memory (a reschedule event, Phase 3 or 1.14); training needs 64 items that come on a later day.
 - 1.8 not verified: the phone and the browser, Windows, Firefox, Safari, timings on the phone and the web (a year of stats on 1,000,000 events is 1.7 s on Linux; a covering index on `card_event` would fix it, with a migration, if 3.7 finds it slow), training on a real person's history (all test data is simulated), cancelling training (`fsrs` has no hook).
 - 1.8 leaves for later steps: `rated:` and `introduced:` style search (1.9, `card_history` and `daily_counts` read the same events), the stats screen and web API methods (3.7), reschedule after optimising (Phase 3, 1.14), the optimiser in a worker with progress (Phase 3).
