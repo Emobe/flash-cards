@@ -4,11 +4,15 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.9 Search and filtering: built on `step/1.9-search`, `cargo xtask check` passes, waiting for Anthony's review (ADR 0006 build notes, step 1.9, list the syntax, the rules to confirm, timings and the deviations). 1.8 was reviewed and merged (PR #20). Next: merge it, then step 1.10 (media) in a new session.
+1.10 Media, in progress on `step/1.10-media` (plan approved by Anthony in chat: bytes in SQLite, names `<stem>-<16 hex of hash>.<ext>`, media-file ID from the hash, `sha2` as a direct dependency, ADR 0006 build notes for the record; the `frame.html` change for CSS `url()` and scripts is a second PR). 1.9 was reviewed and merged (PR #21).
+
+Done so far: migration v10 (`media_file` synced, `media_blob` local), `fc_core::media` (add, read, references, check, delete, restore) with 35 tests, `html::css_media_names`.
+
+Left: CLI commands (`fc add-media`, `fc media`, `fc media-get`, `fc media-check`, `fc delete-unused-media`) and tests, timings, ADR 0006 build notes for 1.10 (with a deviations list), phase file status, final check and PR report. Then the second PR (`frame.html` and `CardFrame` for CSS `url()` and scripts, sandbox test re-run). Deleting the card sandbox spike is deferred until `fc-api` has a media method (3.1) or Phase 2 wires a real card.
 
 ## Branch
 
-`step/1.9-search` (from master after PR #20). Not pushed.
+`step/1.10-media` (from master after PR #21). Not pushed.
 
 ## Done
 

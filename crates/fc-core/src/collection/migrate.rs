@@ -64,6 +64,10 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         version: 9,
         apply: v9,
     },
+    Migration {
+        version: 10,
+        apply: v10,
+    },
 ];
 
 /// The newest version in `migrations`.
@@ -469,6 +473,37 @@ fn v9(tx: &Transaction) -> rusqlite::Result<()> {
         &SyncedTable {
             entity: "saved_search",
             table: "saved_search",
+            registers: &[],
+        },
+    )
+}
+
+/// Version 10 (step 1.10): media. See `crate::media`.
+///
+/// `media_file` is the synced entity: one row per distinct file (its ID comes from its hash), with
+/// registers for the hash, the size and `deleted`. `media_blob` holds the bytes, once per hash. It
+/// is local and never synced: Phase 4 moves blobs by hash. A `media_file` row with no blob is a file
+/// whose bytes have not arrived on this device. No existing row is rewritten.
+fn v10(tx: &Transaction) -> rusqlite::Result<()> {
+    tx.execute_batch(
+        "CREATE TABLE media_file (
+            id BLOB PRIMARY KEY NOT NULL,
+            hash TEXT NOT NULL DEFAULT '',
+            size INTEGER NOT NULL DEFAULT 0,
+            deleted INTEGER NOT NULL DEFAULT 0
+        ) WITHOUT ROWID;
+        CREATE INDEX media_file_by_hash ON media_file (hash);
+        CREATE TABLE media_blob (
+            hash TEXT PRIMARY KEY NOT NULL,
+            data BLOB NOT NULL
+        );",
+    )?;
+    // A frozen copy, as in `v2`: the guard only needs the name.
+    install_guard(
+        tx,
+        &SyncedTable {
+            entity: "media_file",
+            table: "media_file",
             registers: &[],
         },
     )

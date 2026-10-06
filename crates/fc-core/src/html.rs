@@ -256,6 +256,35 @@ pub(crate) fn media_names(html: &str) -> Vec<String> {
     names
 }
 
+/// The files that CSS names in `url(...)` (a background, a font), in order and without repeats. A
+/// web address or a `data:` URL is not a file of the collection. A `url(` inside a comment or a
+/// string still counts, which can only make a file look used.
+pub(crate) fn css_media_names(css: &str) -> Vec<String> {
+    let lower = css.to_ascii_lowercase();
+    let mut names: Vec<String> = Vec::new();
+    let mut from = 0;
+    while let Some(found) = lower[from..].find("url(") {
+        let start = from + found + "url(".len();
+        from = start;
+        let rest = css[start..].trim_start();
+        let (value, ok) = match rest.chars().next() {
+            Some(quote @ ('"' | '\'')) => match rest[1..].find(quote) {
+                Some(end) => (&rest[1..1 + end], true),
+                None => ("", false),
+            },
+            _ => match rest.find(')') {
+                Some(end) => (&rest[..end], true),
+                None => ("", false),
+            },
+        };
+        let name = decode(value.trim());
+        if ok && is_local(&name) && !names.contains(&name) {
+            names.push(name);
+        }
+    }
+    names
+}
+
 /// `html` with each `[sound:name]` shorthand turned into an `<audio controls>` element. A name
 /// that is empty or spans more than one line is left as text.
 pub(crate) fn expand_sound(html: &str) -> String {
@@ -285,6 +314,20 @@ pub(crate) fn expand_sound(html: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn css_names_come_from_url() {
+        assert_eq!(
+            css_media_names(
+                ".a { background: URL( \"bg.png\" ) } @font-face { src: url('f.woff2'), url(g.woff) }\
+                 .b { background: url(https://x.test/a.png) url(data:image/png;base64,AAA) url(bg.png) }"
+            ),
+            ["bg.png", "f.woff2", "g.woff"]
+        );
+        assert!(css_media_names("a { color: red } url(").is_empty());
+        assert!(css_media_names("url(\"unclosed").is_empty());
+        assert!(css_media_names("").is_empty());
+    }
 
     #[test]
     fn content_is_text_or_media() {

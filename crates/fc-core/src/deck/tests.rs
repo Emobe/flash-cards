@@ -1202,7 +1202,7 @@ fn a_version_4_collection_upgrades_and_its_cards_are_in_the_default_deck() {
     old.close().unwrap();
 
     let upgraded = Collection::open(location, host(&clock)).unwrap();
-    assert_eq!(upgraded.info().unwrap().schema_version, 9);
+    assert_eq!(upgraded.info().unwrap().schema_version, 10);
     check_schema(&upgraded.conn, SYNCED_TABLES).unwrap();
     assert_eq!(live_cards(&upgraded, note), vec![card]);
     assert_eq!(deck_of(&upgraded, note), vec![default_deck()]);
