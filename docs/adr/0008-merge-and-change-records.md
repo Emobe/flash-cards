@@ -443,3 +443,161 @@ Anthony, 2026-10-06.
    comes with "Empty trash". Per-entity `requires` must still ship before step 4.3 releases sync.
 4. **Rejected values** (part 4): Claude Code's call, as a technical decision. They are dropped and
    reported, not stored.
+
+## Build notes (step 1.11a)
+
+Built to the plan in `docs/plans/1.11-merge.md`, one PR. No new dependency.
+
+- **What exists.**
+  - Migration v11: `unknown_row_value`, a local table (in `LOCAL_TABLES`).
+  - `sync/changes.rs`: `Changes`, `RegisterChange`, `RowChange`, `Clock`, `Selection` and
+    `Collection::changes`.
+  - `sync/merge.rs`: `Collection::merge`, `MergeReport`, `Rejected`, and the crate-only
+    `WriteTx::apply_register` and `apply_row`.
+  - `sync/unknown.rs`: `adopt_unknown`, and one shared rule for storing an unknown register.
+  - `note/generate.rs`: `reconcile_notes` (some notes of one note type) and
+    `reconcile_note_type_counting`.
+  - `fc merge <from> <into>`.
+- **How a merge runs**, in one `Collection::write`:
+  1. The HLC moves up to the highest received register clock, including registers that lose, before
+     anything else is written.
+  2. Each register is classified once: a register of a synced table, a value of a dynamic table, or
+     unknown. A known one is type-checked against `pragma_table_info` (read once per merge), then
+     compared with the local clock. The winner is written with `INSERT ... ON CONFLICT`, so a row that
+     does not exist yet is made with that one value and the defaults. Its clock is saved as pushed.
+  3. Each append-only row is inserted with `INSERT OR IGNORE`. Extra columns, and every column of an
+     unknown entity, go to `unknown_row_value`. Nothing is added to `unpushed_row`.
+  4. Cards of notes: every note type with a changed `note_type`, `note_type_field` or `template`
+     register is reconciled whole, and every other live note with a changed `note` register or field
+     value is reconciled once. A card register triggers nothing, as part 5 says.
+  5. Schedule: every card with a new event, and every card with an event that names a parameter set
+     that arrived in this batch, is folded again.
+- **What is rejected** (part 4, "Claude Code's call"): a NULL for a NOT NULL column, a type that does
+  not fit the declared one (an integer fits REAL), NaN (SQLite would store NULL), a row missing a NOT
+  NULL column, and a row that gives a column twice. Rejected changes are listed in
+  `MergeReport::rejected` with entity, ID, register or column, and the reason. Nothing else in a batch
+  can make a merge fail except the database itself (the failure rolls everything back, tested).
+- **`MergeReport`.** `registers_applied`, `registers_ignored`, `unknown_registers` (newly kept),
+  `unknown_rows` (rows that arrived with columns or an entity type this build keeps as unknown, newly
+  kept), `rows_added`, `notes_reconciled` (notes whose cards the merge changed, not notes looked at),
+  `cards_rebuilt` and `rejected`.
+
+**Findings during the build:**
+
+1. **A new device would have brought back cards that went to the trash with their deck.** Found by the
+   convergence test (seed 12). A deck is deleted on A while B adds a note to it. The deck then reads as
+   alive because of that one card (ADR 0006's "still referenced, so still alive"), and the other cards
+   stay deleted on the devices that merged it. A new device reconciles every note, and the existing
+   dead-deck rule no longer saw the deck as dead, so it restored all of those cards and then would have
+   pushed the revival to everyone. The merge now treats any deck whose `deleted` register is set as dead
+   when reconciling, whatever still refers to it (`reconcile_after_merge`). A local edit of a note
+   still uses the old rule (an edit of one note in such a deck can bring its own card back). Test:
+   `a_new_device_does_not_bring_back_cards_that_went_to_the_trash_with_their_deck`.
+2. **Two answers to a new card are two steps.** The plan's row "Same card reviewed on two devices ...
+   interval about the single-Good one" holds for a review card (a second answer minutes after the first
+   is a same-day review, and the interval moves by about a day). For a new card, Good on two devices
+   replays as two answers and the card graduates, as ADR 0007 part 6 says ("a concurrent event is
+   recomputed from the state the fold has reached"). Both are tested.
+3. **The media bytes are not synced** (4.4), so `has_bytes` differs between two converged collections.
+   The test digest leaves it out. Every other field of `media_files()` is compared.
+
+**Audit of ADR 0006 section 3 against the registry** (part 10). The registry has these tables and no
+others. `.write(|` outside tests was searched, and every public operation that calls it is in the tour.
+
+| ADR 0006 section 3 | Built |
+| --- | --- |
+| Field `options` (the note type's options) | Not built. Nothing uses it. |
+| Card `flag` and a new-card position | Not built. No feature uses them yet. |
+| `collection_setting` | Built without `deleted` (ADR 0007). |
+| `requirement` | Added in 1.1b (a collection-level `requires`). |
+| Dynamic tables `note_field_value`, `note_tag` | Built (1.3, 1.6). |
+| Append-only `card_event`, `fsrs_parameter_set` | Built (1.7a). |
+| Note type, template, note, note tag, card, deck, options preset, media file, saved search | Built with the registers listed, and these were added by later steps: `relearning_steps`, `fsrs_parameters` and `space_siblings` on the preset, `limits_include_subdecks` on the deck. The preset's "limits" are two registers (`new_per_day`, `reviews_per_day`). |
+
+Registers added after their table was created (`card.deck`, `card.suspended`, `card.buried_until`,
+`deck.limits_include_subdecks` and `options_preset.space_siblings`) have no clock on rows older than
+their migration, and hold the column default everywhere. (The seeded Default deck and preset got seed
+clocks for theirs in the migrations, so those are sent.) `changes` does not send a register with no clock, and
+`a_register_with_no_clock_is_not_sent` checks it. The invariant check in the tests (every register has
+a clock or holds its default) runs on the tour and on the three collections of the convergence test.
+
+**Tests.** 44 new in `fc-core` (593 in all) and 2 new in `fc-cli`.
+
+- `sync/merge_tests.rs` (40): the helpers (`pair`, `sync`, `settle`, `digest`), changes reading,
+  the merge rule (higher, equal, lower, ties by device, a missing row, the HLC, a failed merge),
+  rejected values, every row of ADR 0006 section 11 that needs no server, the "restore" of a template,
+  a field and a deck after a merge, a version-10 upgrade, and the finding above.
+- `sync/tour_tests.rs` (4):
+  - **The tour:** every public operation that writes (the list in the plan), then
+    `changes(All)` into an empty collection, whose `digest` equals the original, with the invariant
+    checks on both.
+  - **The convergence test:** three collections with clocks 7 minutes ahead and 3 hours behind, 2,000
+    random operations from 46 kinds, a random pairwise merge every 20 operations, then a full mesh. It
+    ends with identical digests, then re-applies every batch (nothing applied, nothing rejected), then
+    merges into two empty collections in opposite orders (identical). Three more seeds of 700
+    operations each run in a second test. Seeds are fixed (`id::seeded`).
+  - **The "older app" test:** an old schema (version 7 plus the `unknown_row_value` table) receives
+    registers of a card, a deck and a preset that it lacks, a whole table (`saved_search`), `media_file`
+    and an event column it lacks. It keeps them, relays them to a full collection (identical digest), and
+    after reopening with migrations that call `adopt_unknown` (including adding the event column), every
+    value is in its table, nothing is left in the store, and the append-only update trigger is back.
+- `fc-cli/tests/merge.rs` (2): a note on each of two files is on both after merging both ways, and the
+  second merge applies nothing.
+
+**Measured** (Linux, release, a throwaway test that was not kept, because `fc-core` cannot read the
+clock). A collection of 50,000 Basic notes (550,000 registers, 10,000 events on 10,000 cards), made
+as a batch because adding notes one by one slows down with each note (the duplicate check of 1.3):
+
+| What | Time |
+| --- | --- |
+| `changes(All)` | 0.62 s |
+| `merge` into an empty collection (a new device) | 3.4 s (11.3 s before the statements were cached) |
+| `merge` of a batch touching 1% of notes into a copy | 42 ms |
+| `merge` of the whole batch again (nothing new) | 0.74 s |
+
+Most of the time is one read and two writes per register. There is no target (the plan says so).
+`notes_reconciled` was 0 in all of these: every card was there already, so the reconcile only reads.
+The first number to look at on the phone and in wasm is the new-device merge: ADR 0008 "Revisit if" says
+to chunk the batch (it is idempotent) if it is too slow.
+
+**Verified.**
+
+- Linux: `cargo xtask check` passes (it includes the wasm build). The CLI on two scratch files and on a
+  copy of the real desktop collection (version 11 on open): a note added to each, merged both ways, both
+  notes on both, and a second merge applied nothing.
+- Not verified: the phone and the web (nothing calls `merge` there, and the migration to 11 runs the next
+  time they open a collection), Windows, merge speed on the phone or in wasm, a batch with media bytes
+  (4.4).
+
+**Deviations from the plan:**
+
+1. **`apply_register` and `apply_row` take a `&Targets`** (what this build and database can apply,
+   read once per merge: tables present, declared column types) as well as the change. The ADR wrote
+   `apply_register(change)`.
+2. **`reconcile_note` became `reconcile_notes(w, note_type, notes, dead)`.** It takes the notes of one
+   note type together, so the templates of a type are parsed once for a batch of 50,000 notes and not
+   once each. `reconcile_note_type` is kept and now calls `reconcile_note_type_counting(w, type, dead)`.
+3. **The merge reconciles with a stricter set of dead decks** (finding 1). This is a change to the text
+   of part 5, which said "the existing dead-deck rule covers the case".
+4. **`adopt_unknown(tx, entity, table, names)`** has a `table` argument (a migration works with frozen
+   table names) and handles both registers and event columns. For columns it drops the append-only
+   update trigger for the statements and puts it back. It is `pub(crate)`, used only by tests (no
+   migration needs it yet), and carries a `dead_code` allowance outside tests.
+5. **`WriteTx::hlc` is `pub(super)`** and `register_clock` reads use a cached statement
+   (`prepare_cached`), which cut the new-device merge to a third.
+6. **`study` exports `ParameterSets` and `rebuild_card` inside the crate** (`pub(crate)`).
+7. **`MergeReport::unknown_rows` also counts rows with an unknown column**, and a row that is rejected
+   for a duplicate column is a rejection, not a failure (the plan listed three kinds of rejection; NaN
+   and a duplicated column are two more).
+8. **Not done: the optional switch of the hand-written remote helpers** in `deck/tests.rs`,
+   `study/queue_tests.rs` and `study/fold_tests.rs`. They still write raw SQL. The plan said to do it
+   only if small.
+9. **The tests that assert the storage version** were changed from 10 to 11 (`deck`, `note`, `tag`,
+   `study`, `queue`, `search` and `media` tests, and the CLI `collection` test).
+10. **The "older app" test leaves out note registers** when it feeds the old schema. The code under
+    test reads the newest deck columns while reconciling, which an old schema cannot answer. A real
+    older build would read its own columns. What the old side keeps as unknown does not depend on notes.
+11. **The plan's two-device "same card reviewed" row** is tested for a review card, and the new-card
+    case is a second test (finding 2).
+12. **Not done:** `fc superseded` (part 7 is postponed), purge, per-entity `requires`, and any `fc-api`
+    or web method, as the plan said.
