@@ -160,7 +160,7 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Daily counts, retention, due forecast for the next 30 days.
 - FSRS parameter optimisation can run from history.
 
-**Status:** done (2026-10-06), awaiting review. Built to ADR 0007 (build notes, step 1.8), no migration and no new dependency. `fc_core::stats`: `card_history`, `daily_counts` (by study day and state, with time spent), `retention`, `due_forecast` (overdue, today and the next N days), `optimisation_data` / `optimise_preset` and `PresetChange.fsrs_parameters`. `fc history`, `fc stats`, `fc forecast`, `fc optimise [--apply]`. Found: `fsrs` panics on a training item with only same-day reviews, now filtered; training needs at least 64 items. Applying parameters does not recompute existing cards' memory (a later reschedule event). Not in any UI or the web API.
+**Status:** done (2026-10-06), reviewed and merged (PR #20). Built to ADR 0007 (build notes, step 1.8), no migration and no new dependency. `fc_core::stats`: `card_history`, `daily_counts` (by study day and state, with time spent), `retention`, `due_forecast` (overdue, today and the next N days), `optimisation_data` / `optimise_preset` and `PresetChange.fsrs_parameters`. `fc history`, `fc stats`, `fc forecast`, `fc optimise [--apply]`. Found: `fsrs` panics on a training item with only same-day reviews, now filtered; training needs at least 64 items. Applying parameters does not recompute existing cards' memory (a later reschedule event). Not in any UI or the web API.
 
 ---
 
@@ -178,6 +178,8 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Fast enough on a 50,000-card collection (target agreed in the plan for this step).
 
 **Review focus:** is the query syntax something a normal person could use, with the UI also offering filters as buttons?
+
+**Status:** done (2026-10-06), awaiting review. Built to the plan approved in chat; the syntax, rules, timings and deviations are in ADR 0006 (build notes, step 1.9). `fc_core::search`: a query language (text, `field:`, `deck:`, `tag:`, `note:`, `card:`, `is:`, `due:`, `added:`, `rated:`, `introduced:`, `difficulty:`, `stability:`, `lapses:`, `reviews:`, with `or`, `-` and brackets), ten sorts, paging, notes or cards, saved searches (migration v9, a synced table), Unicode-aware matching through SQL functions (`rusqlite` `functions` feature). `fc search`, `fc searches`, `fc save-search`, `fc run-search`, `fc delete-search`. At 50,000 cards most queries take 40 to 160 ms, a text word about 290 ms. Not in any UI or the web API (3.1).
 
 ---
 

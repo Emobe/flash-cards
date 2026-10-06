@@ -7,27 +7,33 @@
 //! - `fc_id_ms(id)`: the time in an ID made by `Id::new_v7`, in Unix milliseconds.
 //! - `fc_random(id, seed)`: a number that depends only on the two, for a repeatable shuffle.
 
+use std::cell::RefCell;
+
 use rusqlite::Connection;
 use rusqlite::functions::{Context, FunctionFlags};
+use rusqlite::types::ValueRef;
 
 use super::pattern::{Pattern, fold, fold_html};
 
 pub(crate) fn register(conn: &Connection) -> rusqlite::Result<()> {
     let flags = FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC;
-    conn.create_scalar_function("fc_contains", 2, flags, |ctx| {
+    // A query uses one pattern for every row, so the last one is kept.
+    let inside = RefCell::new(PatternCache::default());
+    conn.create_scalar_function("fc_contains", 2, flags, move |ctx| {
         let (Some(text), Some(pattern)) = (text_arg(ctx, 0)?, text_arg(ctx, 1)?) else {
             return Ok(false);
         };
-        Ok(Pattern::new(&pattern).is_inside(&fold_html(&text)))
+        Ok(inside.borrow_mut().get(pattern).is_inside(&fold_html(text)))
     })?;
-    conn.create_scalar_function("fc_equals", 2, flags, |ctx| {
+    let whole = RefCell::new(PatternCache::default());
+    conn.create_scalar_function("fc_equals", 2, flags, move |ctx| {
         let (Some(text), Some(pattern)) = (text_arg(ctx, 0)?, text_arg(ctx, 1)?) else {
             return Ok(false);
         };
-        Ok(Pattern::new(&pattern).is_all_of(&fold(&text)))
+        Ok(whole.borrow_mut().get(pattern).is_all_of(&fold(text)))
     })?;
     conn.create_scalar_function("fc_fold", 1, flags, |ctx| {
-        Ok(text_arg(ctx, 0)?.map(|text| fold_html(&text)))
+        Ok(text_arg(ctx, 0)?.map(fold_html))
     })?;
     conn.create_scalar_function("fc_id_ms", 1, flags, |ctx| {
         let bytes: Option<Vec<u8>> = ctx.get(0)?;
@@ -45,8 +51,25 @@ pub(crate) fn register(conn: &Connection) -> rusqlite::Result<()> {
     Ok(())
 }
 
-fn text_arg(ctx: &Context<'_>, index: usize) -> rusqlite::Result<Option<String>> {
-    ctx.get(index)
+/// The pattern of the last call, so reading it is done once per query and not once per row.
+#[derive(Default)]
+struct PatternCache(Option<(String, Pattern)>);
+
+impl PatternCache {
+    fn get(&mut self, text: &str) -> &Pattern {
+        if self.0.as_ref().is_none_or(|(last, _)| last != text) {
+            self.0 = Some((text.to_owned(), Pattern::new(text)));
+        }
+        &self.0.as_ref().expect("just set").1
+    }
+}
+
+/// An argument as text without copying it, or `None` for NULL.
+fn text_arg<'a>(ctx: &'a Context<'_>, index: usize) -> rusqlite::Result<Option<&'a str>> {
+    match ctx.get_raw(index) {
+        ValueRef::Null => Ok(None),
+        other => other.as_str().map(Some).map_err(Into::into),
+    }
 }
 
 /// FNV-1a over the bytes and the seed, then mixed so close IDs land far apart. SQLite integers are

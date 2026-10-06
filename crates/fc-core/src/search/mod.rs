@@ -69,7 +69,7 @@ pub const SAVED_SEARCH: SyncedTable = SyncedTable {
 pub enum Mode {
     #[default]
     Cards,
-    /// One row per note that has a matching card. Its card is the first of them.
+    /// One row per note that has a matching card. Its card is the matching one with the lowest ID.
     Notes,
 }
 

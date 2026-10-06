@@ -101,33 +101,58 @@ pub(crate) fn escape(text: &str) -> String {
 
 /// A field's text as a person reads it: no tags, entities decoded, spaces collapsed.
 pub(crate) fn readable(html: &str) -> String {
-    let mut plain = String::new();
-    let mut rest = html;
-    while let Some(open) = rest.find('<') {
-        plain.push_str(&rest[..open]);
-        let Some(close) = rest[open..].find('>') else {
-            rest = "";
-            break;
-        };
-        if BREAKS.contains(&tag_name(&rest[open + 1..open + close]).as_str()) {
-            plain.push(' ');
-        }
-        rest = &rest[open + close + 1..];
-    }
-    plain.push_str(rest);
-    let plain = plain
-        .replace("&nbsp;", " ")
-        .replace("&#160;", " ")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&amp;", "&");
-    plain.split_whitespace().collect::<Vec<_>>().join(" ")
+    reduce(html, false)
 }
 
 /// A field's text reduced for comparing two notes: no tags, spaces collapsed, lower case.
 pub(crate) fn comparison_key(html: &str) -> String {
-    readable(html).to_lowercase()
+    reduce(html, true)
+}
+
+fn reduce(html: &str, lower: bool) -> String {
+    let stripped;
+    let mut plain = html;
+    if html.contains('<') {
+        let mut text = String::with_capacity(html.len());
+        let mut rest = html;
+        while let Some(open) = rest.find('<') {
+            text.push_str(&rest[..open]);
+            let Some(close) = rest[open..].find('>') else {
+                rest = "";
+                break;
+            };
+            if BREAKS.contains(&tag_name(&rest[open + 1..open + close]).as_str()) {
+                text.push(' ');
+            }
+            rest = &rest[open + close + 1..];
+        }
+        text.push_str(rest);
+        stripped = text;
+        plain = &stripped;
+    }
+    let decoded;
+    if plain.contains('&') {
+        decoded = plain
+            .replace("&nbsp;", " ")
+            .replace("&#160;", " ")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&amp;", "&");
+        plain = &decoded;
+    }
+    let mut out = String::with_capacity(plain.len());
+    for word in plain.split_whitespace() {
+        if !out.is_empty() {
+            out.push(' ');
+        }
+        if lower {
+            out.extend(word.chars().flat_map(char::to_lowercase));
+        } else {
+            out.push_str(word);
+        }
+    }
+    out
 }
 
 /// The end of the tag that starts at `html[0]` (a `<`): the index of its `>`, not counting a `>`
