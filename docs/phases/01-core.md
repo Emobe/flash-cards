@@ -228,16 +228,14 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 
 **Review focus:** compare against the ADR line by line.
 
-**Status:** design accepted (2026-10-06), ready to build.
-- ADR 0008 (Proposed) covers:
+**Status:** done (2026-10-06), awaiting review. Built to ADR 0008 and `docs/plans/1.11-merge.md` as one PR, 1.11a. `Collection::changes` and `Collection::merge`, the tour of every writing operation, a 2,000-operation convergence test of three collections, tests for every row of ADR 0006 section 11 that needs no server, the "older app" test and `fc merge`. The deviations are listed in ADR 0008, "Build notes (step 1.11a)", including one change to the text of part 5 (a deleted deck is dead when the merge reconciles). A new device merges 50,000 notes in 3.4 s on Linux. Not verified: the phone, the web, Windows, merge speed on the phone or in wasm.
+- ADR 0008 (Accepted) covers:
   - the change records;
   - the merge, and what it recomputes;
   - values that do not fit;
   - unknown rows;
   - the superseded-values log, postponed on review (the later edit wins and nothing else is kept);
   - the shape of purge and per-entity `requires`.
-- The plan is `docs/plans/1.11-merge.md`: one PR, **1.11a** (merge, audit, edge-case tests,
-  `fc merge`). ADR 0008 is Accepted, with Anthony's answers under its "Decisions on review".
 
 ---
 

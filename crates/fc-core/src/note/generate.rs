@@ -295,14 +295,63 @@ impl Collection {
         w: &mut WriteTx<'_>,
         note_type: Id,
     ) -> Result<(), CollectionError> {
+        let dead = dead_decks(&self.conn)?;
+        self.reconcile_note_type_counting(w, note_type, &dead)
+            .map(drop)
+    }
+
+    /// `reconcile_note_type` with the decks to treat as deleted given, returning how many notes had
+    /// their cards changed.
+    pub(crate) fn reconcile_note_type_counting(
+        &self,
+        w: &mut WriteTx<'_>,
+        note_type: Id,
+        dead: &HashSet<Id>,
+    ) -> Result<usize, CollectionError> {
         let Some(found) = self.note_type(note_type).map_err(CollectionError::from)? else {
-            return Ok(());
+            return Ok(0);
         };
         let plan = Plan::new(&found);
-        let dead = dead_decks(&self.conn)?;
+        let mut changed = 0;
         for note in self.note_states(note_type)? {
-            reconcile(w, &plan, &note, &dead)?;
+            changed += usize::from(reconciled(&reconcile(w, &plan, &note, dead)?));
         }
-        Ok(())
+        Ok(changed)
     }
+
+    /// The same for some notes of one note type, as the merge needs it (ADR 0008, part 5). A note
+    /// that is deleted, or of another note type, is left alone. Returns how many notes had their
+    /// cards changed.
+    pub(crate) fn reconcile_notes(
+        &self,
+        w: &mut WriteTx<'_>,
+        note_type: Id,
+        notes: &[Id],
+        dead: &HashSet<Id>,
+    ) -> Result<usize, CollectionError> {
+        let Some(found) = self.note_type(note_type).map_err(CollectionError::from)? else {
+            return Ok(0);
+        };
+        let plan = Plan::new(&found);
+        let mut changed = 0;
+        for id in notes {
+            let live: Option<i64> = self
+                .conn
+                .query_row(
+                    "SELECT 1 FROM note WHERE id = ?1 AND note_type = ?2 AND deleted = 0",
+                    rusqlite::params![id, note_type],
+                    |row| row.get(0),
+                )
+                .ok();
+            if live.is_some() {
+                let state = self.note_state(*id)?;
+                changed += usize::from(reconciled(&reconcile(w, &plan, &state, dead)?));
+            }
+        }
+        Ok(changed)
+    }
+}
+
+fn reconciled(done: &Reconciled) -> bool {
+    !done.added.is_empty() || !done.removed.is_empty()
 }

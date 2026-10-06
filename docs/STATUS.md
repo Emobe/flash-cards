@@ -4,13 +4,15 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.11 Change tracking for sync: ADR 0008 Accepted (2026-10-06) and `docs/plans/1.11-merge.md` written. Ready for the build session (`/step 1.11a`). Nothing is built. 1.10b was reviewed and merged (PR #23).
+1.11a Merge: built, awaiting Anthony's review. Branch `step/1.11a-merge`. Results, findings and the deviations list are in ADR 0008, "Build notes (step 1.11a)" (deviations: the list at the end of those notes). Not verified: the phone, the web, Windows, merge speed on the phone or in wasm.
 
 ## Branch
 
-`step/1.11-merge` (from master after PR #23). Not pushed.
+`step/1.11a-merge` (from master after PR #24). Not pushed.
 
 ## Done
+
+- 1.11a Merge (ADR 0008 build notes, step 1.11a). Migration v11 (`unknown_row_value`). `Collection::changes(All | Unpushed)` and `Collection::merge` with the type check, the reconcile of changed notes and the schedule rebuild; `adopt_unknown` for later migrations; `fc merge <from> <into>`. 44 more core tests (593 in `fc-core`), 2 more CLI tests: every row of ADR 0006 section 11 that needs no server, a tour of every writing operation (a new collection built from `changes(All)` has the same digest), a 2,000-operation convergence test of three collections, the "older app" test and a version-10 upgrade. Found and fixed: a new device would have brought back cards that went to the trash with their deck (the merge now treats a deleted deck as dead when reconciling; a change to the text of ADR 0008 part 5). A new device merges 50,000 notes in 3.4 s on Linux (release). `cargo xtask check` passes. Not verified: the phone, the web, Windows, merge speed on the phone or in wasm.
 
 - 1.10b Media in the card frame (ADR 0005 build notes, step 1.10b). `render_card`'s media list also has the CSS `url()` names of the note type CSS (core tests). `frame.html` rewrites `url()` in `<style>` elements and `style=""` attributes for supplied names, and gives scripts `fcMedia.url(name)` (a blob URL or null). `frame.test.ts` tests the rewriter (7 tests). A temporary "Media card" in the spike panel. The 54-attempt card on desktop (built debug app), the phone and the web (dev and production): 38 blocked, 0 SUCCEEDED, 16 other, no alarm, same as 0.6. Sample card, Media card and both navigating cards work on all three. New attacks on `fcMedia` ran on the web only. `cargo xtask check` passes. Not verified: a font from a blob URL, Windows, Firefox, Safari.
 
@@ -47,11 +49,9 @@ Kept current by every session. A new session reads this first.
 - 0.5 Scheduling spike: `fsrs` 6.6.2 chosen (ADR 0004). Intervals 2, 11, 46, 163, 497 on desktop, native and wasm. Optimiser works on wasm (66 ms for 2,000 cards). Phone: same intervals, optimiser 77 ms for 200 cards. Reviewed and merged (PR #6).
 - 0.3 UI-to-core bridge. 0.3a (call path, PR #3) and 0.3b (notices, progress, cancellation, events and attachments, PR #4) reviewed by Anthony and merged. Verified on desktop and the phone. Attachment round trip 1 MB: 40 ms desktop, 75 ms phone. 5 MB: 181 ms desktop, 250 ms phone.
 
-## Remaining in this step
-
-- Build 1.11a (`/step 1.11a`) from `docs/plans/1.11-merge.md`. ADR 0006 already points to ADR 0008 for the postponed superseded-values log.
-
 ## Open items
+
+- **Merge speed on the phone and in wasm** is not measured (ADR 0008 build notes, "Measured"). Do it when Phase 4 first calls `merge`. If a new device is too slow, chunk the batch (it is idempotent).
 
 - **Follow-up, postponed by Anthony:** keeping the losing text when the same field is edited on two devices before they sync (ADR 0006's superseded-values log). For now the later edit wins. ADR 0006's own rule for it would have missed about half those cases (ADR 0008 finding 1); ADR 0008 part 7 is the design to use when it is built. Revisit if edits go missing after syncs or people share one account.
 - **Per-entity `requires`** (ADR 0006 section 10) must ship in the first app version that syncs: before step 4.3 is released, not when a feature first writes it (ADR 0008 part 9).

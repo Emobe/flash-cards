@@ -86,6 +86,7 @@ pub const LOCAL_TABLES: &[&str] = &[
     "card_schedule",
     "unpushed_row",
     "media_blob",
+    "unknown_row_value",
 ];
 
 /// One row in `write_guard` exists only while a `WriteTx` is open.

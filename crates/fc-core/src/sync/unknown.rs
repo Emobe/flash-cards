@@ -3,7 +3,7 @@
 //! older app cannot overwrite them. After an upgrade, a migration applies what was stored.
 
 use rusqlite::types::Value;
-use rusqlite::{Transaction, TransactionBehavior, params};
+use rusqlite::{Connection, Transaction, TransactionBehavior, params};
 
 use super::{Hlc, state};
 use crate::collection::{Collection, CollectionError};
@@ -19,6 +19,31 @@ pub struct UnknownRegister {
     pub value: Value,
     pub hlc: Hlc,
     pub device: Id,
+}
+
+/// The one rule for keeping an unknown register: the higher `(hlc, device)` wins, so applying the
+/// same changes in any order, or twice, gives the same result. Returns whether the stored value
+/// changed. The merge and `store_unknown_register` both use it.
+pub(super) fn store_unknown(
+    conn: &Connection,
+    register: &UnknownRegister,
+) -> rusqlite::Result<bool> {
+    let changed = conn.execute(
+        "INSERT INTO unknown_register (entity_type, entity_id, field, value, hlc, device)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+         ON CONFLICT (entity_type, entity_id, field) DO UPDATE
+         SET value = excluded.value, hlc = excluded.hlc, device = excluded.device
+         WHERE (excluded.hlc, excluded.device) > (hlc, device)",
+        params![
+            register.entity_type,
+            register.entity_id,
+            register.field,
+            register.value,
+            register.hlc.to_stored(),
+            register.device
+        ],
+    )?;
+    Ok(changed == 1)
 }
 
 impl Collection {
@@ -60,25 +85,11 @@ impl Collection {
             )));
         }
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
-        let changed = tx.execute(
-            "INSERT INTO unknown_register (entity_type, entity_id, field, value, hlc, device)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-             ON CONFLICT (entity_type, entity_id, field) DO UPDATE
-             SET value = excluded.value, hlc = excluded.hlc, device = excluded.device
-             WHERE (excluded.hlc, excluded.device) > (hlc, device)",
-            params![
-                register.entity_type,
-                register.entity_id,
-                register.field,
-                register.value,
-                register.hlc.to_stored(),
-                register.device
-            ],
-        )?;
+        let changed = store_unknown(&tx, register)?;
         let last = state::hlc_last(&tx)?.observe(register.hlc);
         state::set_hlc_last(&tx, last)?;
         tx.commit()?;
-        Ok(changed == 1)
+        Ok(changed)
     }
 
     /// The unknown registers stored for one entity.
@@ -124,4 +135,187 @@ impl Collection {
     pub fn regenerate_device_id(&self) -> Result<Id, CollectionError> {
         state::regenerate_device_id(&self.conn, &self.host)
     }
+}
+
+/// Called by a migration that adds registers or columns this build used to keep as unknown data
+/// (ADR 0008, part 6). It moves what was stored into `table`, and removes it from the store:
+///
+/// - **Registers** named in `names` (for an entity whose rows have registers): each is written into
+///   its row with its stored clock, marked pushed, unless the row already has a register clock that
+///   is equal or higher. A row that does not exist is created with only that value.
+/// - **Columns** named in `names` (for an append-only entity): each is written into its row, or the
+///   whole row is created if the table has none yet.
+///
+/// `entity` is the entity type in sync data and `table` the SQLite table, which the migration has
+/// just created or altered. Returns how many values were moved.
+///
+/// A later migration that adds a register or column calls this once for it, with the names of
+/// the new registers or columns, after its own schema changes.
+#[cfg_attr(not(test), allow(dead_code))] // No migration needs it yet; the tests do.
+pub(crate) fn adopt_unknown(
+    tx: &Transaction,
+    entity: &str,
+    table: &str,
+    names: &[&str],
+) -> rusqlite::Result<usize> {
+    let mut moved = adopt_registers(tx, entity, table, names)?;
+    moved += adopt_columns(tx, entity, table, names)?;
+    Ok(moved)
+}
+
+/// Opens the write guard for the rest of the closure, if it is not open already.
+#[cfg_attr(not(test), allow(dead_code))] // No migration needs it yet; the tests do.
+fn with_guard<T>(tx: &Transaction, f: impl FnOnce() -> rusqlite::Result<T>) -> rusqlite::Result<T> {
+    let opened = tx.execute("INSERT OR IGNORE INTO write_guard (id) VALUES (1)", [])? == 1;
+    let result = f();
+    if opened {
+        tx.execute("DELETE FROM write_guard", [])?;
+    }
+    result
+}
+
+#[cfg_attr(not(test), allow(dead_code))] // No migration needs it yet; the tests do.
+fn adopt_registers(
+    tx: &Transaction,
+    entity: &str,
+    table: &str,
+    names: &[&str],
+) -> rusqlite::Result<usize> {
+    let mut statement = tx.prepare(
+        "SELECT entity_id, field, value, hlc, device FROM unknown_register
+         WHERE entity_type = ?1 ORDER BY entity_id, field",
+    )?;
+    let stored = statement
+        .query_map([entity], |row| {
+            Ok((
+                row.get::<_, Id>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Value>(2)?,
+                row.get::<_, i64>(3)?,
+                row.get::<_, Id>(4)?,
+            ))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut moved = 0;
+    for (id, field, value, hlc, device) in stored {
+        if !names.contains(&field.as_str()) {
+            continue;
+        }
+        let local: Option<(i64, Id)> = tx
+            .query_row(
+                "SELECT hlc, device FROM register_clock
+                 WHERE entity_type = ?1 AND entity_id = ?2 AND field = ?3",
+                params![entity, id, field],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .ok();
+        if local.is_none_or(|local| (hlc, device) > local) {
+            with_guard(tx, || {
+                tx.execute(
+                    &format!(
+                        "INSERT INTO \"{table}\" (id, \"{field}\") VALUES (?1, ?2)
+                         ON CONFLICT (id) DO UPDATE SET \"{field}\" = excluded.\"{field}\""
+                    ),
+                    params![id, value],
+                )
+            })?;
+            tx.execute(
+                "INSERT INTO register_clock (entity_type, entity_id, field, hlc, device, pushed)
+                 VALUES (?1, ?2, ?3, ?4, ?5, 1)
+                 ON CONFLICT (entity_type, entity_id, field)
+                 DO UPDATE SET hlc = excluded.hlc, device = excluded.device, pushed = 1",
+                params![entity, id, field, hlc, device],
+            )?;
+        }
+        tx.execute(
+            "DELETE FROM unknown_register WHERE entity_type = ?1 AND entity_id = ?2 AND field = ?3",
+            params![entity, id, field],
+        )?;
+        moved += 1;
+    }
+    Ok(moved)
+}
+
+#[cfg_attr(not(test), allow(dead_code))] // No migration needs it yet; the tests do.
+fn adopt_columns(
+    tx: &Transaction,
+    entity: &str,
+    table: &str,
+    names: &[&str],
+) -> rusqlite::Result<usize> {
+    let mut statement = tx.prepare(
+        "SELECT row_id, column, value FROM unknown_row_value
+         WHERE entity_type = ?1 ORDER BY row_id, column",
+    )?;
+    let stored = statement
+        .query_map([entity], |row| {
+            Ok((
+                row.get::<_, Id>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Value>(2)?,
+            ))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut by_row: std::collections::BTreeMap<Id, Vec<(String, Value)>> = Default::default();
+    for (id, column, value) in stored {
+        if names.contains(&column.as_str()) {
+            by_row.entry(id).or_default().push((column, value));
+        }
+    }
+    if by_row.is_empty() {
+        return Ok(0);
+    }
+    // An append-only table refuses every UPDATE. The migration lifts that for the statements below
+    // and puts the trigger back as it was.
+    let update_trigger = format!("{table}_guard_update");
+    let saved: Option<String> = tx
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = ?1",
+            [&update_trigger],
+            |row| row.get(0),
+        )
+        .ok();
+    if saved.is_some() {
+        tx.execute_batch(&format!("DROP TRIGGER \"{update_trigger}\""))?;
+    }
+    let mut moved = 0;
+    for (id, columns) in &by_row {
+        let exists = tx
+            .query_row(
+                &format!("SELECT 1 FROM \"{table}\" WHERE id = ?1"),
+                [id],
+                |_| Ok(()),
+            )
+            .is_ok();
+        if exists {
+            for (column, value) in columns {
+                tx.execute(
+                    &format!("UPDATE \"{table}\" SET \"{column}\" = ?1 WHERE id = ?2"),
+                    params![value, id],
+                )?;
+            }
+        } else {
+            let names: String = columns.iter().map(|(c, _)| format!(", \"{c}\"")).collect();
+            let marks = ", ?".repeat(columns.len());
+            let args = std::iter::once(Value::Blob(id.as_bytes().to_vec()))
+                .chain(columns.iter().map(|(_, v)| v.clone()));
+            with_guard(tx, || {
+                tx.execute(
+                    &format!("INSERT INTO \"{table}\" (id{names}) VALUES (?{marks})"),
+                    rusqlite::params_from_iter(args),
+                )
+            })?;
+        }
+        for (column, _) in columns {
+            tx.execute(
+                "DELETE FROM unknown_row_value WHERE entity_type = ?1 AND row_id = ?2 AND column = ?3",
+                params![entity, id, column],
+            )?;
+            moved += 1;
+        }
+    }
+    if let Some(sql) = saved {
+        tx.execute_batch(&sql)?;
+    }
+    Ok(moved)
 }

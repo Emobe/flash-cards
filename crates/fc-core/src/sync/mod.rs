@@ -15,20 +15,26 @@
 //! `WriteTx` records `(hlc, device, pushed)` for every register it writes, in the same
 //! transaction. The tests in `registry` fail if a table is added without being declared.
 
+mod changes;
 mod hlc;
+mod merge;
 mod registry;
 mod requires;
 pub(crate) mod state;
 mod unknown;
 mod write;
 
+pub use changes::{Changes, Clock, RegisterChange, RowChange, Selection};
 pub use hlc::Hlc;
+pub use merge::{MergeReport, Rejected};
 pub use registry::{
     APPEND_ONLY_TABLES, AppendOnlyTable, DYNAMIC_TABLES, DynamicTable, LOCAL_TABLES, SYNCED_TABLES,
     SyncedTable, install_append_only_guard, install_dynamic_guard, install_guard,
 };
 pub use requires::SUPPORTED_FEATURES;
 pub use unknown::UnknownRegister;
+#[cfg(test)]
+pub(crate) use unknown::adopt_unknown;
 pub(crate) use write::seed_row;
 pub use write::{RegisterClock, WriteTx};
 
@@ -36,4 +42,8 @@ pub use write::{RegisterClock, WriteTx};
 pub(crate) use registry::check_schema;
 
 #[cfg(test)]
+mod merge_tests;
+#[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tour_tests;

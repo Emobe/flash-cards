@@ -39,7 +39,7 @@ pub use queue::{Counts, DeckCounts, LEARN_AHEAD_MS, Next};
 pub use schedule::CardSchedule;
 pub use undo::Undone;
 
-pub(crate) use fold::check_cache;
+pub(crate) use fold::{ParameterSets, check_cache, rebuild_card};
 pub use settings::DEFAULT_DAY_START_HOUR;
 
 /// The sync entity types and register and column names are part of the sync format and never change

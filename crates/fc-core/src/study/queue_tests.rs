@@ -1034,7 +1034,7 @@ fn a_version_7_collection_upgrades_and_its_cards_are_in_the_queue() {
     old.close().unwrap();
 
     let upgraded = Collection::open(location, super::answer_tests::host(&clock)).unwrap();
-    assert_eq!(upgraded.info().unwrap().schema_version, 10);
+    assert_eq!(upgraded.info().unwrap().schema_version, 11);
     check_schema(&upgraded.conn, SYNCED_TABLES).unwrap();
     // The old card is awake and due, the Default deck and preset have the new settings, and the
     // seeded rows have clocks for the new registers, so a sync can compare them.
