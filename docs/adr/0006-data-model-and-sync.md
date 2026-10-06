@@ -1049,3 +1049,168 @@ the plan.
 - **Left for later steps:** the `Tags` field in templates (1.4 left it for here, but nothing in the 1.6
   brief needs it, so it waits for a step that renders cards in the UI), tag search syntax and `tag:` in
   search (1.9), the CLI commands beyond these (1.14), a tags screen and bulk tagging (Phase 3).
+
+### Build notes, step 1.9 (search and filtering)
+
+Built to the plan Anthony approved in chat (there is no plan file). Migration v9 (`saved_search`), one
+dependency feature (`rusqlite` `functions`, see below), no new crate.
+
+- **Grammar (approved).** A query is text; the filters a screen offers as buttons build the same text.
+  `fc_core::search` has the table of filters in its module doc, and `parse.rs` has the grammar.
+  - Terms: `dog`, `"two words"`, `k*t` (`*` is a wildcard, `\*` a star, `\"` a quote). A bare word
+    matches inside any field. `front:dog` matches inside the field called Front in any note type that
+    has one, and `front:` finds an empty field.
+  - Joining: a space or `and` (and), `or`, `not` or a leading `-`, and `( )`. `and` binds tighter than
+    `or`. An empty query matches every card. `or`, `and` and `not` are words only when bare: `"or"`
+    searches for the text.
+  - Filters (names ignore case): `deck:` (decks with the text in their path, so with the decks inside
+    them) and `deckonly:` (decks with the text in their own name, without what is inside), `tag:`,
+    `note:`, `card:` (part of a template name, or a number: the Nth template, or cloze N),
+    `is:new|learning|review|due|suspended|buried`, `due:`, `added:`, `rated:` (and `rated:7:1` for an
+    answer), `introduced:`, `difficulty:`, `stability:`, `lapses:`, `reviews:`.
+  - Days: `due:0` is today and `due:-3..0` is the last three days to today, ranges can be open
+    (`..0`, `3..`) and use dates (`2026-09-01..2026-09-30`). For the three filters that look back, a
+    single number is a count: `added:7`, `rated:7`, `introduced:30` are the last 7 or 30 days, today
+    included. Other days are written as ranges (`added:-30..-8`).
+  - Numbers: `5`, `>5`, `>=5`, `<5`, `<=5`, `=5`, `2..6`, `..6`, `5..`.
+  - An unknown word before a colon is a field name. If no note type has the field it is an error that
+    names the nearest filter (`decks:` gives `Did you mean the filter "deck:"?`) and says to quote the
+    text. A deck, tag or note type that does not exist matches nothing.
+  - Errors carry the character where the problem is and say how to fix it.
+- **Rules that are not in the grammar (Anthony to confirm).**
+  - Text is matched on what a person reads: tags are left out, entities decoded, spaces collapsed,
+    case and accents ignored (`ŁÓDŹ` and `lodz` find `Łódź`, `reka` finds `ręka`; Anthony asked for
+    this on review, because a learner may not know which accent a letter has). Accents are taken off
+    Latin letters (`search/pattern.rs`, a table of the letters of Europe's Latin alphabets, with `ß`
+    as `ss` and `æ` as `ae`) and combining marks are dropped. Other scripts are folded for case only.
+    A pattern with no `*` matches inside a field. Values left behind by a deleted field do not match.
+    The same folding is used to sort by the sort field, so `Łódź` sorts among the L words, not after
+    Z (it is not Polish dictionary order, where `ł` is a letter of its own after `l`).
+  - Deck, tag, note type and template names also match any part of the name (Anthony asked for this on
+    review: `deck:Animals` finds `Polish::Animals`, `tag:lan` finds `lang::polish`), ignoring case and
+    accents, `*` as a wildcard. `deck:` looks at the whole path. `deckonly:` looks at the deck's own
+    name when the text has no `::`, so `deckonly:Polish` is the deck called Polish and not
+    `Polish::Animals`. There is no way to ask for a whole-name match. Field names before a colon
+    (`front:`) still match whole. Untagged notes are `-tag:*`.
+  - A card with no deck register is in the Default deck, as everywhere else.
+  - `is:learning` includes relearning. `is:due` is a review card whose due day is today or earlier, or
+    a learning card whose due time has passed (a learning card due later today is not "due"). It
+    leaves out suspended and buried cards (Anthony's decision on review: a card someone suspended is
+    not due), which `is:suspended` and `is:buried` still find.
+  - `is:buried` is burying through today, which is what `bury_cards` writes (found by a test: the first
+    version compared with "after today" and found nothing).
+  - Days are study days (the day-start hour applies) in the device's time zone now. A review card is
+    due on its due day, a learning card on the day its due time falls in. `added` is the time in the
+    note's ID (UUIDv7), so a card made later by a new template has its note's date, and a note imported
+    later must be given an ID with its original time (Phase 5). `rated` and `introduced` use the study
+    day each answer was stored with, so changing the time zone or the day start later does not move
+    old answers.
+  - Answers that were undone do not count for `rated`, `introduced` or `reviews`.
+  - A filter on a number a card does not have (difficulty of a new card) is false, so `-difficulty:>5`
+    includes new cards.
+- **Results.** Live cards of live notes (`Mode::Cards`), or one row per note (`Mode::Notes`, shown by
+  its matching card with the lowest ID). A page has the total and up to `limit` rows (at most 1000,
+  `limit` 0 only counts). A row: card, note, note type, deck, the sort field as plain text, state, due
+  day or time, suspended, buried (enough for a list on a phone; a screen reads more with the existing
+  calls).
+- **Sorting** is an option, not syntax: `created` (newest first by default), `due`, `field` (the sort
+  field, ignoring case), `deck` (the deck list's order), `note`, `difficulty`, `stability`, `lapses`,
+  `reviews`, `random` (the same for the same `seed`), each ascending or descending. Cards with nothing
+  to sort by (a new card has no due date) come last in both directions, and ties are in ID order. In
+  notes mode a note takes the earliest due, the first deck, the highest difficulty and lapses, the
+  lowest stability and the total reviews of its cards.
+- **How it runs.** Parsed in `search/parse.rs` (no collection needed, so a screen can check a query as
+  it is typed with `check_query`), names are looked up in Rust with the same matching (`compile.rs`,
+  decks, note types, fields and templates reach SQL as ID lists), and everything runs as one SQL
+  statement over `card JOIN note LEFT JOIN card_schedule`, every value a parameter, with a second
+  statement for the total. Only the page's rows are read one by one afterwards. Every clause is a
+  plain true or false so `not` is safe.
+- **SQL functions (`rusqlite` `functions` feature).** SQLite folds only ASCII, which would make `ł`
+  and `Ł` different letters, so `fc_contains`, `fc_equals`, `fc_fold`, `fc_id_ms` and `fc_random` are
+  registered when a collection is opened (`search/functions.rs`). The feature is part of the crate we
+  already use (no new crate); it is also on for the wasm target, which compiles.
+- **Saved searches (migration v9).** `saved_search` (`name`, `query`, `sort`, `mode`, `deleted`), a
+  synced table with the guard triggers, as ADR 0006 section 3 listed it. Sort and mode are stored as
+  the text `Sort` and `Mode` show, and a value from a newer app reads as the default, so reading never
+  fails. Creating checks that the query can be read and that the name is free ignoring case (a merge
+  can still leave two with one name; they are listed by name then ID). A change writes only the
+  registers that differ. Deleting sets `deleted`. A saved search whose query no longer reads (a newer
+  app wrote it) reports the syntax error when run. A saved search cannot contain another.
+- **CLI.** `fc search <file> <query> [--sort key[:desc]] [--notes] [--limit n] [--offset n] [--seed n]`,
+  `fc searches`, `fc save-search <name> <query> [--sort] [--notes]`, `fc run-search <name>`,
+  `fc delete-search <name>`.
+- **Timings** (Linux, release, a throwaway test with 50,000 notes and cards inserted directly, 30
+  decks, one in five a review card; median of five, a page of 50 with the total, sorted by `created`;
+  not kept as a test, `fc-core` may not read the clock):
+
+  | Query | Found | ms |
+  | --- | --- | --- |
+  | (empty) | 50,000 | 48 |
+  | `deck:"Deck 3"` | 1,667 | 36 |
+  | `is:due` | 2,502 | 61 |
+  | `difficulty:>5 stability:<20` | 1,666 | 57 |
+  | `added:30` | 50,000 | 54 |
+  | `note:Basic due:..0` | 2,502 | 123 |
+  | `tag:lang::kot` | 7,143 | 122 |
+  | `is:new -is:suspended deck:Deck*` | 40,000 | 126 |
+  | `front:woda` | 9,500 | 160 |
+  | `szkoła` (any field) | 9,500 | 288 |
+  | text that matches nothing | 0 | 273 |
+  | `przykład ręka` (two words) | 9,500 | 557 |
+  | `(kot or pies) -tag:lang::dom` | 15,428 | 548 |
+
+  Sorting by `field` adds 90 to 130 ms on results of tens of thousands. Text matching is a scan: about
+  275 ms per word over 100,000 field values, so two words cost twice. Caching the compiled pattern and
+  reading arguments without copying took a word from 387 to 288 ms. If the phone or the web is too
+  slow, the option is a lower-cased index of field text (a migration), kept in step by the write path.
+  The target in the plan (median under 150 ms, worst under 300 ms) holds for everything except text
+  with more than one word and combinations of text terms.
+- **Verified.**
+  - Linux: 67 new core tests (511 in `fc-core` in all) and 4 new CLI tests (29 in all). They cover the
+    grammar (precedence, quotes, keywords, error positions and messages), every filter, Polish letters
+    in text, HTML in fields, wildcards, empty fields, the unknown-field error and its hint, decks
+    (subdecks, the Default deck, a moved card), tags (children, case, removed), note types and
+    templates, card states, due, added, rated and introduced in other time zones and with another
+    day start, undone answers, numbers, 300 random boolean queries checked against set arithmetic on
+    the filters' own results, notes mode, all sorts in both directions, a shuffle, paging, and saved
+    searches (create, run, change one part, delete, names, a newer app's values, the schema check, an
+    upgrade from a real version-8 layout).
+  - `cargo xtask check` passes, which includes the wasm build.
+  - The CLI on a copy of the real desktop collection (it opened at storage version 9): a search,
+    saving a search, an error message. That collection has no notes of its own. Also on a small
+    demo collection, to read the rules above on real output.
+- **Verified by Anthony:** `bun run web:dev` loads the page without an error (the wasm build now
+  registers the SQL functions when it opens a collection). Search itself has no web method yet, so
+  the functions were not called in the browser.
+- **Verified by Anthony:** the phone's storage is on version 9, so migration v9 ran there. Search was not run on the phone.
+- **Not verified:** Windows, Firefox, Safari, search on the phone, merging saved searches from two collections (1.11; the tests write registers with their
+  clocks), timings on the phone and the web.
+- **Left for later steps:** the browser screen, filter buttons and a search box (Phase 3, step 3.1),
+  `fc-api` and web methods for search (3.1), bulk actions on results (Phase 3), `edited:` and
+  retrievability filters (nothing stores an edit time, and retrievability needs the fitted
+  parameters), a ranking by how well a result matches the text (Anthony floated it: needs a decision on what "best" means), Polish dictionary order for sorting, a saved search used inside a query, text search on the card's
+  rendered question and answer.
+
+**Deviations from the plan** (the plan was approved in chat, there is no plan file):
+
+- The speed target was not met for text with more than one word or several text terms (557 and 548
+  ms, against 300 ms worst). Anthony said the target was low priority; the numbers are above.
+- The plan called for checking random queries against a brute-force match in Rust. The test checks
+  random combinations against set arithmetic on the results of each filter on its own instead, which
+  tests the `and`, `or`, `not` and bracket logic but not the filters (each has its own tests).
+- Added to the plan's API: `SearchOptions::seed` and `MAX_LIMIT`, `check_query`, `SearchRow` fields
+  `note_type`, `suspended` and `buried`, `SearchError::UnknownSort`, the `Mode::name` and `parse`
+  helpers, and the CLI command `fc run-search`.
+- `html::comparison_key` was split into `html::readable` (the text as a person reads it, used for a
+  row's title) and a shared `reduce`, written in one pass without chained `replace` calls on plain
+  text. Its result is the same, and the existing tests pass unchanged.
+- `rusqlite` got the `functions` feature on the wasm target too, not only native (it is a feature of
+  the crate we use, so `Cargo.lock` has no new package).
+- After Anthony's review of the first build: `is:due` leaves out suspended and buried cards, accents are ignored, names match any part, and `deckonly:` looks at the
+  deck's own name. `fc_equals` became `fc_has` (a tag has the text inside it), and `card:` with a number no longer also
+  looks at template names. The timings above are from before this change and were not repeated (text without
+  accents takes the old path unchanged).
+- Existing tests that assert the storage version were changed from 8 to 9 (`deck`, `note`, `tag`,
+  `study` and `queue` tests, and the CLI `collection` test).
+- `is:buried` and `due:` for learning cards, and `is:due` for learning cards, are rules the plan did
+  not spell out; they are in the rules above.

@@ -908,7 +908,7 @@ fn a_version_3_collection_upgrades_to_notes_and_cards() {
 
     let upgraded = Collection::open(location, host(&clock)).unwrap();
     let info = upgraded.info().unwrap();
-    assert_eq!(info.schema_version, 8);
+    assert_eq!(info.schema_version, 9);
     assert_eq!(
         upgraded.note_types().unwrap().len(),
         4,

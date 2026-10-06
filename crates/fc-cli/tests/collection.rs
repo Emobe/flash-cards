@@ -51,7 +51,7 @@ fn creates_then_opens_and_closes_a_collection() {
     let info = fc(&["info", file.path()]);
     assert!(info.status.success(), "{}", stderr(&info));
     let text = stdout(&info);
-    assert!(text.contains("Storage version: 8 (this build understands up to 8)"));
+    assert!(text.contains("Storage version: 9 (this build understands up to 9)"));
     assert!(text.contains("Device ID: "));
     assert!(text.contains("Created by core: 0.0.0"));
 }

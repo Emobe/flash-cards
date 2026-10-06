@@ -60,6 +60,10 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         version: 8,
         apply: v8,
     },
+    Migration {
+        version: 9,
+        apply: v9,
+    },
 ];
 
 /// The newest version in `migrations`.
@@ -442,6 +446,32 @@ fn v8(tx: &Transaction) -> rusqlite::Result<()> {
         )?;
     }
     Ok(())
+}
+
+/// Version 9 (step 1.9): saved searches. See `crate::search`.
+///
+/// One row per saved search with a register for each part. Every column has a default and nothing
+/// has a foreign key (ADR 0006, section 6). No existing row is rewritten.
+fn v9(tx: &Transaction) -> rusqlite::Result<()> {
+    tx.execute_batch(
+        "CREATE TABLE saved_search (
+            id BLOB PRIMARY KEY NOT NULL,
+            name TEXT NOT NULL DEFAULT '',
+            query TEXT NOT NULL DEFAULT '',
+            sort TEXT NOT NULL DEFAULT '',
+            mode TEXT NOT NULL DEFAULT '',
+            deleted INTEGER NOT NULL DEFAULT 0
+        ) WITHOUT ROWID;",
+    )?;
+    // A frozen copy, as in `v2`: the guard only needs the name.
+    install_guard(
+        tx,
+        &SyncedTable {
+            entity: "saved_search",
+            table: "saved_search",
+            registers: &[],
+        },
+    )
 }
 
 /// What a database file is, before anything is written to it.
