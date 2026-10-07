@@ -4,23 +4,32 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-2.6 Settings and local backups (no new ADR; ADR 0006 build notes, step 2.6). Branch `step/2.6-settings-backups`, started from `step/2.5b-presets` (2.5b PR still open).
+2.6 Settings and local backups is **done and merged (PR #44)**; 2.5 Deck management is done (PR #42, #43). Build notes: ADR 0006, step 2.6. Folder choosing is out (agreed): Export is how a copy leaves the device.
 
-Done: `fc-api` native methods `listBackups`, `backupNow`, `restoreListedBackup` (a safety backup first, names only, never paths); `Core::set_backup_dir`; the Backups section in Settings (interval, keep, last error, Back up now, list with Restore, export, restore and import from a file); `BackupPanel` deleted; `cargo xtask check` passes.
+Anthony checked Export, Restore from a file and the file picker in the web client (qutebrowser, Linux). Still not checked: the Settings screen in the real desktop app and on the phone (Back up now, the list, Restore, Export from the native webviews). See Open items.
 
-**2.6 built, awaiting review.** Anthony checked Export, Restore from a file and the file picker in the web client (qutebrowser, Linux) and it looked good; the picker's `accept` filter was removed after he found it hid `.fcbackup`. Not checked: the screen in the real desktop app and on the phone (Back up now, the list, Restore, Export from the native webviews). Build notes: ADR 0006, step 2.6. Folder choosing is out (agreed): Export is how a copy leaves the device.
+2.7 Dogfood builds: design session done. **ADR 0012 Accepted** (2026-10-07), with the answers in its
+"Decisions on review": app ID `io.github.emobe.flashcards`, no data to move, Windows built by Anthony
+on Windows with no GitHub Actions, the pacman package only, release APKs signed with the existing
+debug key (no new key), the `unsafe` exception and the versioning. Plan in
+`docs/plans/2.7-dogfood-builds.md`. Nothing is built.
 
-Next: 2.7 Dogfood builds (`/step 2.7`), after Anthony reviews 2.5b and 2.6.
+The design session left a test app, `dev.placeholder.flashcards.relexp` ("Flash cards", empty), on
+the phone. Anthony removes it; sessions do not uninstall.
+
+Next: `/step 2.7` (two PRs, 2.7a and 2.7b).
 
 ## Branch
 
-`step/2.6-settings-backups`.
+`step/2.7-dogfood-builds` (ADR 0012, the plan and STATUS; it also carries the 2.6 STATUS commit). PR
+open for Anthony's review; `/step 2.7` starts from `master` once it is merged.
 
 ## Done
 
-- 2.6 Settings and local backups (ADR 0006 build notes, step 2.6): `listBackups`, `backupNow`, `restoreListedBackup`, Backups section in Settings, `BackupPanel` deleted. Branch `step/2.6-settings-backups`, not pushed.
-- 2.5b Option presets (ADR 0010 build notes, step 2.5b): preset methods in `fc-api`, `OptionsScreen`. PR open.
+- 2.6 Settings and local backups (ADR 0006 build notes, step 2.6): `listBackups`, `backupNow`, `restoreListedBackup`, Backups section in Settings, `BackupPanel` deleted. Merged (PR #44).
+- 2.5b Option presets (ADR 0010 build notes, step 2.5b): preset methods in `fc-api`, `OptionsScreen`. Merged (PR #43).
 - 2.5a Deck management: decks (ADR 0010 build notes, step 2.5a): `createDeck`, `renameDeck`, `moveDeck`, `deleteDeck`, `restoreDeck`, Manage mode, `Dialog`.
+- **2.4 Add note is done** (PR #39, #40, #41); its three postponed follow-ups are in Open items.
 - 2.4c Media (ADR 0011 build notes, step 2.4c): `editor/media.ts`, `editor/mediaViews.ts`, Image, Take photo and Sound buttons, CSP `blob:`, Android clean-up of old camera files. Merged (PR #41).
 - 2.4b Add screen and editor (ADR 0011 build notes, step 2.4b): ProseMirror (`prosemirror-*`, exact versions), `packages/ui/src/editor/`, `AddScreen`.
 - 2.4a Note API (ADR 0011 build notes, step 2.4a): `add_note_with`, `getNoteTypes`, `getTags`, `findDuplicates`, `addNote`, `addMedia`. The note and media methods earlier lines gave to 3.1 were built here; 3.1 keeps search and the browser's methods. Merged (PR #39).
@@ -75,7 +84,9 @@ Next: 2.7 Dogfood builds (`/step 2.7`), after Anthony reviews 2.5b and 2.6.
 
 ## Open items
 
-- **2.4 follow-ups, postponed by Anthony (2026-10-07):** (1) Take photo opens the gallery or file manager instead of the camera, probably because the manifest lacks a `<queries>` entry for `ACTION_IMAGE_CAPTURE` (Android 11+ package visibility); ADR 0011 finding 6 was wrong to say no manifest change is needed. (2) Record a sound with the microphone (ADR 0011 left it out; needs `RECORD_AUDIO` and a look at card-frame reach). (3) Pictures overflow a phone card; add `img { max-width: 100% }` to the card frame or note type CSS. Details in the ADR 0011 build notes. 2.4 is not marked done until Anthony decides whether these block it.
+- 2.6 checks left: the Settings screen in the real desktop app and on the phone (Back up now, the list, Restore, Export from the native webviews).
+
+- **2.4 follow-ups, postponed by Anthony (2026-10-07):** (1) Take photo opens the gallery or file manager instead of the camera, probably because the manifest lacks a `<queries>` entry for `ACTION_IMAGE_CAPTURE` (Android 11+ package visibility); ADR 0011 finding 6 was wrong to say no manifest change is needed. (2) Record a sound with the microphone (ADR 0011 left it out; needs `RECORD_AUDIO` and a look at card-frame reach). (3) Pictures overflow a phone card; add `img { max-width: 100% }` to the card frame or note type CSS. Details in the ADR 0011 build notes. They do not block 2.4, which is done (Anthony, 2026-10-07).
 
 - **1.14b choices for Anthony to confirm:** `start_study_session` and `end_study_session` have no CLI command (a session lives in one process and only emits events, ADR 0009); eight sync-plumbing operations have none either (reasons in the table in `tests/coverage.rs`); `fc notes` now also prints the trash, which changes its output; `template set` and `notetype css` read a file with `@path`.
 - **1.14b not verified:** the phone, the web, Windows, the new commands on a copy of the real desktop collection.
