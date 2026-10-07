@@ -11,8 +11,13 @@ Anthony checked Export, Restore from a file and the file picker in the web clien
 2.7 Dogfood builds: ADR 0012 Accepted (2026-10-07); plan in `docs/plans/2.7-dogfood-builds.md`. Two PRs.
 **2.7a (app identity) is being built on `step/2.7a-app-identity`.** Done so far: workspace version
 0.1.0, the About group in Settings (version and build ID), app ID `io.github.emobe.flashcards`, `.dev`
-debug builds. Left: check on desktop and the phone, build notes, PR. 2.7b (release builds) is not
-started.
+debug builds. Desktop checked (title "Flash cards dev", new empty `.dev` data folder, Settings shows
+"Version 0.1.0 (dev)"). The phone gets `io.github.emobe.flashcards.dev` next to the old apps and
+`android:install` launches it. **Stopped on a finding:** with `version` removed from
+`tauri.conf.json`, `tauri android build` does not write `tauri.properties`, so the APK is versionName
+`1.0`, versionCode 1, not 0.1.0 / 1000 (ADR 0012 decision 6 assumed the Cargo fallback). Waiting for
+Anthony's choice. Left after that: Settings on the phone (Anthony opens it), build notes, PR. 2.7b
+(release builds) is not started.
 
 The design session left a test app, `dev.placeholder.flashcards.relexp` ("Flash cards", empty), on
 the phone. Anthony removes it, and the old `dev.placeholder.flashcards` app; sessions do not uninstall.
