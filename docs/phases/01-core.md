@@ -279,3 +279,5 @@ Everything is built according to the accepted ADRs from Phase 0, especially the 
 - Can generate a large fake collection for performance testing.
 
 **Notes:** this can grow alongside 1.1 to 1.13 rather than being built last. Claude Code decides.
+
+**Status:** split in two as agreed in chat. **1.14a** (built, awaiting review): `fc fake` makes a large invented collection (seeded, nested decks, three note types, tags, media, a review history made through the core) and `fc bench` times the operations the earlier ADR notes asked to measure, on a copy. Results at 10,000 notes and the deviations list are in ADR 0006, "Build notes, step 1.14a". **1.14b** (not started): the commands the CLI still lacks (note type, deck, preset, note edit and delete, tag delete, settings, media delete, saved search update), and a check that every public core operation has a command.

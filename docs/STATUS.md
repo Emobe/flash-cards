@@ -4,13 +4,11 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.14a Developer CLI: large fake collection and timing (the first half of 1.14, split in two as agreed in chat). Branch `step/1.14a-fake-collection`, from `master`. In progress.
+1.14a Developer CLI: large fake collection and timing (the first half of 1.14, split in two as agreed in chat): built, awaiting Anthony's review. Branch `step/1.14a-fake-collection`, from `master`. Results, "not verified" and the deviations list are in ADR 0006, "Build notes, step 1.14a". Next: 1.14b (the missing commands).
 
-Done so far (commit "Step 1.14a: fc fake makes a large invented collection, fc bench times it"): `fc fake <file>` (`crates/fc-cli/src/fake.rs`: seeded, nested decks, Basic, Basic and reversed and Cloze notes, tags, media, a review history made by answering through the core day by day, some suspended and buried cards), `fc bench <file>` (`bench.rs`: times the operations the ADR notes asked 1.14 to measure, on a copy), 8 CLI tests in `crates/fc-cli/tests/fake.rs`. Clippy is clean.
+Verified: `cargo xtask check` passes, clippy is clean, 8 new CLI tests. `fc fake` and `fc bench` run on a 10,000-note collection (13,629 cards, 30 days of history): every timing is under 1 s (the slowest are export 600 ms and merge into a new collection 766 ms); the list is in the ADR notes.
 
-Found: `fc fake` is slow at scale, because every `add_note` scans the first fields of its note type for duplicates (about 60 ms at 50,000 notes, ADR 0006 notes, 1.3), so generating is quadratic: 5,000 notes took about a minute. A bulk path in the core would fix it; not done, it needs Anthony's approval.
-
-Remaining: the 50,000-note run and its timings, `cargo xtask check`, the ADR 0006 build notes for 1.14a (results, deviations list), the phase file and this file, then the PR report. 1.14b (the missing commands) is the next step after this.
+Not verified: the phone and the web (the CLI is desktop only), Windows, 50,000 notes. Generating is slow and grows with the square of the notes (10,000 notes take 76 s) because `add_note` scans for duplicates every time; a batch path in the core would fix it and was not built.
 
 Previous step: 1.13b Backup, export and restore (API, native automatic backup, web export), merged (PR #29). Its "not verified" list and the rules for Anthony to confirm are in ADR 0006, "Build notes, step 1.13b".
 

@@ -1533,3 +1533,75 @@ plan: settings are local to the device, the copy before a migration is a raw fil
 - No new dependency. The date in the file name is a short function (tested) instead of `chrono` in
   `fc-api`.
 - `packages/core-client` now also exports the `BackupInfo`, `ExportOutput` and `RestoreOutput` types.
+
+### Build notes, step 1.14a (fake collection and bench)
+
+Step 1.14 was split in two as agreed in chat: 1.14a is the large fake collection and the timings
+(this), 1.14b is the commands the CLI still lacks. Built to the plan approved in chat (no ADR). No
+change to `fc-core`, no new dependency.
+
+- **`fc fake <file>`** (`crates/fc-cli/src/fake.rs`). Options `--notes` (1000), `--decks` (20),
+  `--media` (notes / 50), `--review-days` (0), `--new-per-day` (20), `--reviews-per-day` (100),
+  `--seed` (1). It makes nested decks (a fifth at the top, the rest inside a random earlier deck,
+  three levels at most), Basic (60%), Basic and reversed (25%) and Cloze (15%) notes with invented
+  Polish-looking text (first fields are unique), tags from a pool of 16 with `::` children on half
+  the notes, small random "images" each used by exactly one note (so `media-check` is clean), then
+  a review history, then about 1% of the cards suspended and 0.5% buried today. It never
+  overwrites a file. Progress goes to stderr.
+- **The history is real core output but plausible, not faithful.** A `ManualClock` steps back from
+  now, one day at a time, and each day answers up to `--new-per-day` new and `--reviews-per-day`
+  due cards (together at most 600, so a day fits in the hour before "now") with ratings 8% Again,
+  10% Hard, 70% Good, 12% Easy. A card answered Again is not shown again the same day.
+- **The same seed gives the same notes, decks, tags and answers, but not the same due dates.** The
+  scheduler's fuzz is seeded from IDs, which are new every run. Picking cards with the core's
+  `random` sort had the same problem (it depends on IDs), so the generator picks with its own
+  generator (xorshift64\*, no dependency).
+- **`fc bench <file>`** (`bench.rs`) copies the file (and removes the copy) and times: open, deck
+  counts, `next_card`, nine searches, `tags`, `notes_with_tag`, `find_duplicates`, daily counts,
+  forecast, export with history, `changes(All)`, merge into a new collection, `rebuild_schedule`,
+  then on the copy one note added, one tag added, one answer, a tag renamed, and a template added to
+  Basic. Reads show the fastest of three runs, writes one run. A query that fails is shown as
+  `failed:` and the rest still run.
+- **Measured** (Linux, release, 10,000 notes, 13,629 cards, 21 decks, 21 tags, 200 media files, a
+  30-day history of 1,909 answers, 24.8 MB; `fc fake --notes 10000 --review-days 30`). Milliseconds:
+  deck counts 22, `next_card` 24, searches 12 to 35 (a text word 70), `tags()` 8, `notes_with_tag`
+  5.5, `find_duplicates` 4.7, daily counts 0.9, forecast 0.9, export with history 600, `changes(All)`
+  161, merge into a new collection 766, `rebuild_schedule` 6, add a note 14, add a tag 6, answer one
+  card 31, rename a tag on 590 notes 38, add a template to Basic with 6,020 notes 420. These
+  repeat the measurements the 1.3, 1.5 and 1.6 notes asked 1.14 to make, at 10,000 notes and not
+  50,000: `find_duplicates` is 4.7 ms against 60 ms at 50,000, and the template is 0.42 s against
+  3.5 s at 50,001 notes, so both look linear and are in line with the earlier figures. Deck counts and
+  `next_card` are about 20 ms, so the tree being rebuilt on each read (1.5 notes) is not a problem
+  at this size.
+- **Generating is slow, and gets slower as it grows.** 10,000 notes took 76 s and the history
+  17 s. A run at 50,000 notes was started and stopped (the first 10,000 took several minutes while
+  other work ran). Every `add_note` scans the first fields of its note type for duplicates (60 ms at
+  50,000), so the cost of the whole run grows with the square of the notes. Not profiled. If a
+  bigger collection is wanted, a core method that adds notes in a batch, or without the duplicate
+  scan, would fix it; it was not built (needs Anthony's approval).
+- **Verified.** 8 CLI tests (`crates/fc-cli/tests/fake.rs`): what was asked for is made (decks,
+  nesting, notes, media, history, due counts), the same seed gives the same tags and answers per
+  day and another seed does not, an existing file is refused untouched, bad options are usage
+  errors and make no file, no decks and no history works, a fake collection merges into a new one
+  and exports with its media, `bench` leaves the collection byte-identical and no copies behind.
+  `cargo xtask check` passes. Clippy is clean.
+- **Not verified.** The phone and the web (the CLI is desktop only, so the phone and wasm timings the
+  earlier notes wanted are still missing), Windows, 50,000 notes and above, collections with more
+  than 600 answers a day, and the merge timing against a collection that already has data.
+
+**Deviations from the plan** (the plan was the chat reply of 2026-10-07):
+
+- The timing run is 10,000 notes, not 50,000. Anthony asked for it after the first 50,000 run was
+  far too slow (see above).
+- No size cap on the history: the plan said "cap the default history size". The default history is
+  none (`--review-days 0`), and a day is capped at 600 answers.
+- The cards for the history are not picked with the core's `random` sort (the plan did not say how);
+  see "The same seed" above.
+- "Same seed gives the same collection" in the plan holds for notes, decks, tags and answers only,
+  not due dates.
+- The plan's list of timings is longer in the build: `changes(All)`, answering a card, adding a
+  note and adding a tag are also timed.
+- `fc bench` takes no options (the plan did not give any).
+- The "every public operation has a command" check is in 1.14b, as planned there, not here.
+- `docs/STATUS.md` no longer repeats the 1.13b "rules for Anthony to confirm" paragraph (it is
+  in the 1.13b build notes above, which merged with PR #29).
