@@ -224,6 +224,10 @@
 }
 
 /* Managing decks (step 2.5a). */
+.deck-head[hidden] {
+  display: none;
+}
+
 .page-head {
   display: flex;
   flex-wrap: wrap;

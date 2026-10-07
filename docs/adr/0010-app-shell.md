@@ -897,3 +897,60 @@ the one frame change (theme, autoplay, `allow="autoplay"`) is an ADR 0005 amendm
 - **Desktop check:** I floated and resized the app window with `i3-msg` and closed it afterwards. My
   first `pkill -f` attempts killed my own shell and the dev server twice. Nothing was lost.
 - **STATUS:** the 2.3a/2.3b "in progress" text is replaced by the final status.
+
+## Build notes (step 2.5a)
+
+Built on `step/2.5a-decks`, the first of two PRs for step 2.5 (2.5b is the option presets). No migration,
+no new dependency. No ADR of its own: the data rules for decks are ADR 0006 (built in 1.5) and the
+screens follow this ADR.
+
+### What was built
+
+- **`fc-api`** (`crates/fc-api/src/decks.rs`): `createDeck(name, parentId?)` answers the new ID,
+  `renameDeck`, `moveDeck(deckId, parentId?)`, `deleteDeck` answers `{ decks, cards }`, the decks inside it
+  and the cards that went (counted as live decks and cards before and after, so it is exact whatever the
+  Default-deck rule did), `restoreDeck`. All call the `Collection` operations that 1.5 built. A name that
+  is empty, has `::`, is taken, a move into itself and deleting the Default deck are `invalidInput` with
+  the core's plain sentence; a deck that is gone is `notFound`; the rest is logged and answers the generic
+  message. `DeckSummary` gained `isDefault`, so the screen knows which deck has no Delete.
+- **Decks screen:** an Add deck button and a Manage toggle (`aria-pressed`) next to the heading. In Manage
+  mode a row shows Add inside, Rename, Move and Delete (not on the Default deck) in place of the study link
+  and counts. The buttons carry the deck name for screen readers.
+- **`DeckDialog`** and a small shared **`Dialog`** (`components/Dialog.tsx`) on a native `dialog`: name,
+  parent (`select`, "Top level" first), Move without the deck itself and the decks inside it, and a Delete
+  confirmation that says how many decks go with it. A refused change shows the core's sentence in the
+  window, which stays open with what was typed. After a delete a notice offers Undo (`restoreDeck`), or
+  says why it could not (for example the name was taken in the meantime).
+- **Back closes a window.** A `Dialog` takes one history entry while it is open, so the Android back
+  button closes it and stays on the Decks screen. Without it, Back left the app (found on the phone). The
+  router keeps its route object when a pop does not change the path, so a window closing does not move
+  focus to the heading.
+
+### Verified
+
+- `cargo xtask check` passes (303 Vitest tests, 9 `fc-api` deck tests).
+- **Web** (headless Brave over CDP, real key events, screenshots read) at 390 px and 1100 px: add a deck,
+  add one inside it, a refused duplicate name shows the sentence, Move offers only decks outside the moved
+  one, Delete says "Polish and the deck inside it", Undo brings both back, no sideways scroll.
+- **Phone** (debug APK, my taps, with Anthony's permission to use the phone while it is free): the new
+  buttons, Manage mode, the Move window (fits, the select is native), Android Back closes the window and
+  stays in the app.
+
+### Not verified
+
+- Creating, renaming and deleting on the phone (I only opened the Move window and cancelled, so I changed
+  none of Anthony's decks).
+- The real desktop app (`bun run dev`): the screen is the same code as the web, but I did not run it.
+- Delete of a very large deck: timing at 50,000 cards.
+
+### Deviations from the plan
+
+- **Rebased onto master** after PR #41 merged, because the branch was cut from a stale local `master`.
+- **The empty state shows only when there are no cards and no deck besides Default.** The plan did not say;
+  otherwise a collection with only new, empty decks hid them.
+- **Extras not in the plan's file list:** the shared `Dialog` component, `isDefault` on `DeckSummary`, the
+  history entry for windows, the router's same-path guard, "Add inside" on each row, a Dismiss button on the
+  undo notice.
+- **The New/Learn/Review header and the "done for now" line are hidden in Manage mode** (found by looking).
+- **`bun run android:build` needed `NDK_HOME` and `JAVA_HOME`,** which this shell does not set. I set them
+  for the commands only, and changed no shell config.

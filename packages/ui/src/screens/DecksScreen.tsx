@@ -220,7 +220,7 @@ function DeckTree({
 
   return (
     <>
-      {nothingDue && (
+      {nothingDue && !managing && (
         <p role="status" className="deck-done">
           You're done for now. Nothing is due today.
         </p>

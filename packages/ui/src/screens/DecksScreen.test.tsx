@@ -307,6 +307,28 @@ describe("Managing decks", () => {
     expect(calls.at(-1)).toEqual({ method: "restoreDeck", input: { deckId: "d-polish" } });
   });
 
+  test("the back button closes a window and stays on the Decks screen", async () => {
+    renderManage();
+    await manage();
+    fireEvent.click(screen.getByRole("button", { name: "Delete Polish" }));
+    expect(screen.getByRole("dialog")).toBeDefined();
+    act(() => window.history.back());
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(window.location.hash).toBe("#/decks");
+    expect(screen.getByRole("button", { name: "Done" })).toBeDefined();
+  });
+
+  test("closing a window with a button leaves no extra history entry", async () => {
+    renderManage();
+    await manage();
+    const before = window.history.length;
+    fireEvent.click(screen.getByRole("button", { name: "Rename Polish" }));
+    expect(window.history.state?.fcDialog).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(window.history.state?.fcDialog).toBeFalsy());
+    expect(window.history.length).toBe(before + 1);
+  });
+
   test("Cancel changes nothing", async () => {
     const calls = renderManage();
     await manage();
