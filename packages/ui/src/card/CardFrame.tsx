@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type Ref, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { usePlatform } from "../platform";
 
 /** Taller than any real card. A card cannot make the app lay out more than this. */
@@ -6,6 +6,15 @@ const MAX_HEIGHT_PX = 10_000;
 
 /** The frame page makes two `load` events by itself (ADR 0005, finding 8). A third is a navigation. */
 const LOADS_BEFORE_NAVIGATION = 3;
+
+/** What a parent can ask of a shown card. */
+export type CardFrameHandle = {
+  /** Plays the card's audio from the start. A card without audio ignores it. */
+  play(): void;
+};
+
+/** The most audio elements the frame may report, so a card cannot make the count absurd. */
+const MAX_AUDIO = 1000;
 
 type Props = {
   /** The finished card document. It is untrusted. */
@@ -15,6 +24,15 @@ type Props = {
   loadMedia: (name: string) => Promise<Blob>;
   /** Called with each height the card reports, clamped. For layout checks and timing. */
   onHeight?: (px: number) => void;
+  /** The app's effective theme. The card follows it, not the system (ADR 0005 amendment, 2.3). */
+  theme?: "light" | "dark";
+  /** Start the card's audio as soon as it is shown. */
+  autoplay?: boolean;
+  /** Called once with how many `<audio>` elements the card contains. */
+  onAudio?: (count: number) => void;
+  /** Called when the browser refused to start audio without a tap. */
+  onAutoplayBlocked?: () => void;
+  ref?: Ref<CardFrameHandle>;
 };
 
 /**
@@ -22,19 +40,19 @@ type Props = {
  * opaque origin, so the card cannot reach the app, its storage or its core. A new `html` or media
  * list gives a new frame.
  */
-export function CardFrame({ html, mediaNames, loadMedia, onHeight }: Props) {
+export function CardFrame(props: Props) {
+  const theme = props.theme ?? "light";
   return (
     <CardFrameInstance
-      key={`${mediaNames.join("\0")}\0\0${html}`}
-      html={html}
-      mediaNames={mediaNames}
-      loadMedia={loadMedia}
-      onHeight={onHeight}
+      {...props}
+      theme={theme}
+      key={`${theme}\0${props.mediaNames.join("\0")}\0\0${props.html}`}
     />
   );
 }
 
-function CardFrameInstance({ html, mediaNames, loadMedia, onHeight }: Props) {
+function CardFrameInstance(props: Props) {
+  const { ref } = props;
   const { cardFrameUrl } = usePlatform();
   const frameRef = useRef<HTMLIFrameElement>(null);
   const loads = useRef(0);
@@ -42,15 +60,22 @@ function CardFrameInstance({ html, mediaNames, loadMedia, onHeight }: Props) {
   const [navigated, setNavigated] = useState(false);
 
   // The props are read once per frame, when it announces itself. A change makes a new instance.
-  const latest = useRef({ html, mediaNames, loadMedia, onHeight });
-  latest.current = { html, mediaNames, loadMedia, onHeight };
+  const latest = useRef(props);
+  latest.current = props;
+
+  useImperativeHandle(ref, () => ({
+    play() {
+      // Only the parent can send this, and the frame only believes its parent.
+      frameRef.current?.contentWindow?.postMessage({ type: "play" }, "*");
+    },
+  }));
 
   useEffect(() => {
     let sent = false;
     let alive = true;
 
     async function sendCard(target: Window) {
-      const { html, mediaNames, loadMedia } = latest.current;
+      const { html, mediaNames, loadMedia, theme, autoplay } = latest.current;
       const media: Record<string, Blob> = {};
       await Promise.all(
         mediaNames.map(async (name) => {
@@ -62,7 +87,7 @@ function CardFrameInstance({ html, mediaNames, loadMedia, onHeight }: Props) {
         }),
       );
       // The frame has an opaque origin, which cannot be named as a target origin.
-      if (alive) target.postMessage({ html, media }, "*");
+      if (alive) target.postMessage({ html, media, theme, autoplay: autoplay === true }, "*");
     }
 
     function onMessage(event: MessageEvent) {
@@ -72,7 +97,7 @@ function CardFrameInstance({ html, mediaNames, loadMedia, onHeight }: Props) {
       if (!target || event.source !== target) return;
       const data: unknown = event.data;
       if (typeof data !== "object" || data === null) return;
-      const message = data as { type?: unknown; px?: unknown };
+      const message = data as { type?: unknown; px?: unknown; count?: unknown };
       if (message.type === "ready" && !sent) {
         sent = true;
         void sendCard(target);
@@ -82,6 +107,13 @@ function CardFrameInstance({ html, mediaNames, loadMedia, onHeight }: Props) {
           : 0;
         setHeight(px);
         latest.current.onHeight?.(px);
+      } else if (message.type === "audio" && typeof message.count === "number") {
+        const count = Number.isFinite(message.count)
+          ? Math.min(Math.max(Math.floor(message.count), 0), MAX_AUDIO)
+          : 0;
+        latest.current.onAudio?.(count);
+      } else if (message.type === "autoplay-blocked") {
+        latest.current.onAutoplayBlocked?.();
       }
     }
 
@@ -114,6 +146,7 @@ function CardFrameInstance({ html, mediaNames, loadMedia, onHeight }: Props) {
       title="Card"
       src={cardFrameUrl}
       sandbox="allow-scripts"
+      allow="autoplay"
       referrerPolicy="no-referrer"
       style={{ display: "block", width: "100%", border: 0, height }}
     />

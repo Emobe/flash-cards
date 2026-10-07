@@ -5,7 +5,7 @@ use fc_core::events::{Event, Listener};
 use fc_core::id::Id;
 use fc_core::scheduling::Rating;
 use fc_core::study::EndReason;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 /// Progress of a long operation. No 64-bit integers (see ADR 0002).
@@ -21,7 +21,7 @@ pub struct Progress {
 }
 
 /// How well a card was remembered, as an event reports it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(rename_all = "camelCase")]
 pub enum EventRating {

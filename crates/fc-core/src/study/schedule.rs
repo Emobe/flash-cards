@@ -200,6 +200,12 @@ pub(crate) fn opt<T: Into<Value>>(value: Option<T>) -> Value {
 }
 
 impl Collection {
+    /// The time the collection's clock gives now, in Unix milliseconds. For turning the queue's
+    /// "due at" into a wait.
+    pub fn now_ms(&self) -> i64 {
+        self.host.clock.now().unix_ms
+    }
+
     /// A card's schedule. A card with no answers reads as new.
     pub fn card_schedule(&self, card: Id) -> Result<CardSchedule, StudyError> {
         Ok(match read_cached(&self.conn, card)? {

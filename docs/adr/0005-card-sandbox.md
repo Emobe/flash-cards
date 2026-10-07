@@ -185,6 +185,12 @@ previews, and in the editor. No card HTML is ever inserted into the app's own DO
 - **Element.** `<iframe sandbox="allow-scripts">`. Never `allow-same-origin` (with `allow-scripts`
   it removes the sandbox), `allow-top-navigation*`, `allow-popups`, `allow-forms` or `allow-modals`.
   No `allow` attribute, so the frame gets no camera, microphone, geolocation, clipboard or fullscreen.
+  *(Amendment, step 2.3a, approved by Anthony: the one attribute is `allow="autoplay"`. Chromium
+  refuses `play()` in a cross-origin sandboxed frame unless autoplay is delegated to it, even right
+  after a real click on the page (`navigator.userActivation` in the frame stays false). The attribute
+  delegates autoplay and nothing else: camera, microphone, geolocation, clipboard and fullscreen
+  stay off, and a card can already start its own audio by script. No other `allow` value is
+  accepted.)*
 - **The card-frame page** (`frame.html`). One static file, trusted, written by us, and the same for
   every platform. It includes:
   - A CSP:
@@ -193,6 +199,13 @@ previews, and in the editor. No card HTML is ever inserted into the app's own DO
   - A small bootstrap script. It refuses to run unless `self.origin === "null"`, so it only works
     inside a sandbox. It accepts exactly one message whose `source` is `parent`:
     `{ html, media: { name: Blob } }`.
+    *(Amendment, step 2.3a: the message is `{ html, media, theme, autoplay }`. `theme` is the app's
+    effective theme, `"light"` or `"dark"`, anything else reads as light. The frame sets
+    `color-scheme` on the card's `<html>` and, for dark, a `night` class, so a card follows the app's
+    Light or Dark override and not only the system setting (ADR 0010 decision 3). `autoplay` starts
+    the card's `<audio>` elements, one after another, once the card is written. After the card is
+    written the frame still accepts one thing from its parent, `{ type: "play" }`, which plays the
+    audio again from the start. Both come only from `parent`, which a card cannot impersonate.)*
 - **Rendering.** The bootstrap:
   1. Parses the HTML inertly with `DOMParser`.
   2. Rewrites `src` on `img`, `audio`, `video` and `source` elements whose value names a supplied
@@ -205,6 +218,11 @@ previews, and in the editor. No card HTML is ever inserted into the app's own DO
   - only listens to messages whose `source` is that frame's `contentWindow`;
   - accepts only `ready` and `height` (clamped to a sane range);
   - ignores everything else.
+
+  *(Amendment, step 2.3a: also `audio`, how many `<audio>` elements the card contains (a count,
+  clamped to 1,000), and `autoplay-blocked`, sent when the browser refused to start sound without a
+  tap. A card can fake them, which only changes whether the app shows a Replay button for its own
+  frame.)*
 
   A card can send fake messages of these types. That can only affect its own frame.
 - **Navigation.** A card can navigate its own frame (for example by clicking a link or setting
@@ -477,3 +495,11 @@ Built to the plan Anthony approved in chat (no plan file). The CSP, the message 
   me, and it was already showing the app), and the web with a scratch DevTools script that is not committed.
 - Not verified: Windows, Firefox, Safari, a real font from a blob URL, new attacks on desktop and phone,
   keyboard and focus behaviour in a card (Phase 2).
+
+## Build notes (step 2.3a)
+
+The frame changes of step 2.3a (theme, autoplay and replay, the `audio` and `autoplay-blocked`
+messages, and `allow="autoplay"` on the iframe) are in the amendments above. Their build notes, checks
+and deviations are in ADR 0010, "Build notes (step 2.3a)". Result worth knowing here: on Chromium,
+autoplay and replay inside the sandboxed frame are refused even after a real click unless the iframe
+has `allow="autoplay"`; with it they work.
