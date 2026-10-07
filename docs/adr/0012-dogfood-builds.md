@@ -297,3 +297,20 @@ lives, and moving data from the placeholder app. Outputs go to `release/` (gitig
 7. **Version numbering:** `0.1.0` first, patch for every device build, minor at the end of a phase;
    the commit shown next to the version in Settings.
 8. The split into two PRs in the plan (`docs/plans/2.7-dogfood-builds.md`).
+
+## Decisions on review
+
+Anthony's answers on 2026-10-07. Where they differ from the decisions above, these win.
+
+1. **App ID:** Anthony left the choice to Claude Code: `io.github.emobe.flashcards`.
+2. **No data to move.** There is no study data worth keeping on the phone or desktop, so the build
+   skips the Export and Restore move. The placeholder app is uninstalled by Anthony.
+3. **Windows: option B.** No GitHub Actions for now ("future, definitely"). Anthony builds and tests
+   the installer on his Windows machine with `bun run dist:windows`, which runs there. No workflow
+   file in this step.
+4. **Linux: the pacman package only.** The `.deb` is still built, as the input to the `PKGBUILD`,
+   but it is not documented or named as an installer. Other formats come later.
+5. **Android key backup location:** not answered yet. Anthony makes the key in the build session.
+6. **The `unsafe` exception:** accepted.
+7. **Version numbering and the commit in Settings:** accepted.
+8. **The split** is for the build PRs (2.7a, 2.7b), as in the plan.
