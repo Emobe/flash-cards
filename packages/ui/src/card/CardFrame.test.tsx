@@ -1,7 +1,8 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { createRef } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { PlatformProvider } from "../platform";
-import { CardFrame } from "./CardFrame";
+import { CardFrame, type CardFrameHandle } from "./CardFrame";
 
 afterEach(cleanup);
 
@@ -137,4 +138,60 @@ test("new html makes a new iframe", () => {
   rerenderWith({ html: "<p>next</p>" });
   expect(frame()).not.toBe(first);
   expect(document.querySelectorAll("iframe").length).toBe(1);
+});
+
+test("tells the frame the theme and whether to autoplay, and a new theme makes a new iframe", async () => {
+  const { rerenderWith } = setup({ theme: "dark", autoplay: true });
+  const first = frame();
+  const target = first.contentWindow as Window;
+  const post = vi.spyOn(target, "postMessage");
+  messageFrom(target, { type: "ready" });
+  await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
+  const [message] = post.mock.calls[0] as [{ theme: string; autoplay: boolean }];
+  expect(message.theme).toBe("dark");
+  expect(message.autoplay).toBe(true);
+
+  rerenderWith({ theme: "light" });
+  expect(frame()).not.toBe(first);
+});
+
+test("the theme is light and autoplay off unless asked", async () => {
+  setup();
+  const target = frame().contentWindow as Window;
+  const post = vi.spyOn(target, "postMessage");
+  messageFrom(target, { type: "ready" });
+  await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
+  const [message] = post.mock.calls[0] as [{ theme: string; autoplay: boolean }];
+  expect(message.theme).toBe("light");
+  expect(message.autoplay).toBe(false);
+});
+
+test("reports how much audio the card has, clamped, and when autoplay was refused", () => {
+  const onAudio = vi.fn();
+  const onAutoplayBlocked = vi.fn();
+  setup({ onAudio, onAutoplayBlocked });
+  const target = frame().contentWindow as Window;
+  messageFrom(target, { type: "audio", count: 2 });
+  messageFrom(target, { type: "audio", count: 1e9 });
+  messageFrom(target, { type: "audio", count: -3 });
+  messageFrom(target, { type: "audio", count: Number.NaN });
+  messageFrom(target, { type: "audio", count: "2" });
+  expect(onAudio.mock.calls.map((c) => c[0])).toEqual([2, 1000, 0, 0]);
+  expect(onAutoplayBlocked).not.toHaveBeenCalled();
+  messageFrom(target, { type: "autoplay-blocked" });
+  expect(onAutoplayBlocked).toHaveBeenCalledTimes(1);
+
+  // Another window cannot say either.
+  messageFrom(window, { type: "audio", count: 5 });
+  messageFrom(window, { type: "autoplay-blocked" });
+  expect(onAudio).toHaveBeenCalledTimes(4);
+  expect(onAutoplayBlocked).toHaveBeenCalledTimes(1);
+});
+
+test("play() asks the frame to play and nothing else", () => {
+  const ref = createRef<CardFrameHandle>();
+  setup({ ref });
+  const post = vi.spyOn(frame().contentWindow as Window, "postMessage");
+  ref.current?.play();
+  expect(post).toHaveBeenCalledWith({ type: "play" }, "*");
 });

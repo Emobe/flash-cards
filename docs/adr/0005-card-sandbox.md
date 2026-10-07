@@ -193,6 +193,13 @@ previews, and in the editor. No card HTML is ever inserted into the app's own DO
   - A small bootstrap script. It refuses to run unless `self.origin === "null"`, so it only works
     inside a sandbox. It accepts exactly one message whose `source` is `parent`:
     `{ html, media: { name: Blob } }`.
+    *(Amendment, step 2.3a: the message is `{ html, media, theme, autoplay }`. `theme` is the app's
+    effective theme, `"light"` or `"dark"`, anything else reads as light. The frame sets
+    `color-scheme` on the card's `<html>` and, for dark, a `night` class, so a card follows the app's
+    Light or Dark override and not only the system setting (ADR 0010 decision 3). `autoplay` starts
+    the card's `<audio>` elements, one after another, once the card is written. After the card is
+    written the frame still accepts one thing from its parent, `{ type: "play" }`, which plays the
+    audio again from the start. Both come only from `parent`, which a card cannot impersonate.)*
 - **Rendering.** The bootstrap:
   1. Parses the HTML inertly with `DOMParser`.
   2. Rewrites `src` on `img`, `audio`, `video` and `source` elements whose value names a supplied
@@ -205,6 +212,11 @@ previews, and in the editor. No card HTML is ever inserted into the app's own DO
   - only listens to messages whose `source` is that frame's `contentWindow`;
   - accepts only `ready` and `height` (clamped to a sane range);
   - ignores everything else.
+
+  *(Amendment, step 2.3a: also `audio`, how many `<audio>` elements the card contains (a count,
+  clamped to 1,000), and `autoplay-blocked`, sent when the browser refused to start sound without a
+  tap. A card can fake them, which only changes whether the app shows a Replay button for its own
+  frame.)*
 
   A card can send fake messages of these types. That can only affect its own frame.
 - **Navigation.** A card can navigate its own frame (for example by clicking a link or setting

@@ -4,17 +4,17 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-2.2 Home and deck list: reviewed and approved by Anthony, merged (PR #35). `getDeckList` in `fc-api`, the Decks screen (tree with New, Learn and Review counts, one tap to study, collapse, empty state, "done for now", refresh on focus). Not verified: a populated list on the phone (nothing can add cards until 2.4), Enter on a row, Windows, timings through the UI. Build notes and deviations: ADR 0010 "Build notes (step 2.2)". The Add button on the empty state lands on the 2.1 placeholder until 2.4. 2.5 revisits the empty state when decks can be created.
+2.3 Review screen, split in two PRs (Anthony agreed to the plan in chat, defaults on all three questions: split, a debug-only "Add sample cards" on the Developer screen, delete the 0.6 sandbox spike at the end of 2.3b).
 
-2.1b System bars and title bar follow the theme: merged (PR #34).
+**2.3a Study API and frame** (branch `step/2.3a-study-api`), in progress. Done: `fc-api` methods `startStudySession`, `endStudySession`, `nextCard`, `renderCard`, `getMedia`, `answerCard`, `undoAnswer` (`crates/fc-api/src/study.rs`, tests, bindings), `Collection::now_ms`; `frame.html` and `CardFrame` take `theme` and `autoplay`, report `audio` and `autoplay-blocked`, and `play()` replays; ADR 0005 amendment text. `cargo xtask check` passes. Remaining: run the sandbox spike (the 54-attempt card) and the new frame behaviour in a browser, on desktop and on the phone; ADR 0005 build notes for 2.3a; the PR.
 
-Next: 2.3 Review screen.
+**2.3b Review screen** (not started): `StudyScreen`, interval formatting, shortcuts, end screen, debug "Add sample cards", delete the 0.6 spike.
 
 Previous step: 2.2 Home and deck list, merged (PR #35).
 
 ## Branch
 
-`master` (2.2 merged, no step branch open).
+`step/2.3a-study-api`.
 
 ## Done
 

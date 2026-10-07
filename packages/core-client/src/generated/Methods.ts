@@ -13,6 +13,7 @@ import type { DivideOutput } from "./DivideOutput";
 import type { EchoOutput } from "./EchoOutput";
 import type { EmitInput } from "./EmitInput";
 import type { EndSessionInput } from "./EndSessionInput";
+import type { EndSessionOutput } from "./EndSessionOutput";
 import type { ExportInput } from "./ExportInput";
 import type { ExportOutput } from "./ExportOutput";
 import type { ExportToFileInput } from "./ExportToFileInput";
@@ -33,6 +34,7 @@ import type { SlowOutput } from "./SlowOutput";
 import type { StartSessionInput } from "./StartSessionInput";
 import type { StartSessionOutput } from "./StartSessionOutput";
 import type { StudyNext } from "./StudyNext";
+import type { UndoAnswerOutput } from "./UndoAnswerOutput";
 
 export type Methods = {
   getCoreInfo: { input: null; output: CoreInfo; bytesIn: false; bytesOut: false };
@@ -47,7 +49,7 @@ export type Methods = {
   };
   endStudySession: {
     input: EndSessionInput;
-    output: SessionSummary | null;
+    output: EndSessionOutput;
     bytesIn: false;
     bytesOut: false;
   };
@@ -60,7 +62,7 @@ export type Methods = {
   };
   getMedia: { input: GetMediaInput; output: GetMediaOutput; bytesIn: false; bytesOut: true };
   answerCard: { input: AnswerCardInput; output: AnswerCardOutput; bytesIn: false; bytesOut: false };
-  undoAnswer: { input: null; output: UndoneAnswer | null; bytesIn: false; bytesOut: false };
+  undoAnswer: { input: null; output: UndoAnswerOutput; bytesIn: false; bytesOut: false };
   spikeCardMedia: {
     input: CardMediaInput;
     output: CardMediaOutput;

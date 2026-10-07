@@ -93,25 +93,35 @@ pub struct EndSessionInput {
     pub session_id: String,
 }
 
-/// Ends a study session and returns what it did, or null if it was not open.
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct EndSessionOutput {
+    /// What the session did, or null if it was not open.
+    pub summary: Option<SessionSummary>,
+}
+
+/// Ends a study session and returns what it did.
 pub struct EndStudySession;
 
 impl Method for EndStudySession {
     const NAME: &'static str = "endStudySession";
     type Input = EndSessionInput;
-    type Output = Option<SessionSummary>;
+    type Output = EndSessionOutput;
 
     fn call(core: &Core, input: Self::Input, _: &OpContext) -> Result<Self::Output, ApiError> {
         let session = parse_id(&input.session_id)?;
         let summary = with(core, "end a study session", |c| {
             c.end_study_session(session)
         })?;
-        Ok(summary.map(|s| SessionSummary {
-            answered: s.answered,
-            again: s.again,
-            studied_ms: s.studied_ms,
-            elapsed_ms: s.elapsed_ms,
-        }))
+        Ok(EndSessionOutput {
+            summary: summary.map(|s| SessionSummary {
+                answered: s.answered,
+                again: s.again,
+                studied_ms: s.studied_ms,
+                elapsed_ms: s.elapsed_ms,
+            }),
+        })
     }
 }
 
@@ -424,19 +434,29 @@ pub struct UndoneAnswer {
     pub card_id: String,
 }
 
-/// Takes back the newest answer made on this device. Null when there is none.
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct UndoAnswerOutput {
+    /// The card whose answer was taken back, or null when there was nothing to undo.
+    pub undone: Option<UndoneAnswer>,
+}
+
+/// Takes back the newest answer made on this device.
 pub struct UndoAnswer;
 
 impl Method for UndoAnswer {
     const NAME: &'static str = "undoAnswer";
     type Input = ();
-    type Output = Option<UndoneAnswer>;
+    type Output = UndoAnswerOutput;
 
     fn call(core: &Core, (): (), _: &OpContext) -> Result<Self::Output, ApiError> {
         let undone = with(core, "undo an answer", |c| c.undo_answer())?;
-        Ok(undone.map(|u| UndoneAnswer {
-            card_id: u.card.to_string(),
-        }))
+        Ok(UndoAnswerOutput {
+            undone: undone.map(|u| UndoneAnswer {
+                card_id: u.card.to_string(),
+            }),
+        })
     }
 }
 
@@ -524,11 +544,14 @@ mod tests {
 
         // Undo gives the card back, and the queue offers it again first.
         let undone = call(&core, "undoAnswer", Value::Null).unwrap();
-        assert_eq!(undone["cardId"], json!(card));
+        assert_eq!(undone["undone"]["cardId"], json!(card));
         let again = next(&core);
         assert_eq!(again["cardId"], json!(card));
         assert_eq!(again["counts"], first["counts"]);
-        assert_eq!(call(&core, "undoAnswer", Value::Null).unwrap(), Value::Null);
+        assert_eq!(
+            call(&core, "undoAnswer", Value::Null).unwrap(),
+            json!({ "undone": null })
+        );
 
         call(
             &core,
@@ -537,12 +560,13 @@ mod tests {
         )
         .unwrap();
         let summary = call(&core, "endStudySession", json!({ "sessionId": session })).unwrap();
+        let summary = &summary["summary"];
         assert_eq!(summary["answered"], 1, "the undone answer is left out");
         assert_eq!(summary["again"], 1);
         assert_eq!(summary["studiedMs"], 2000);
         // Ending it twice says nothing the second time.
         let twice = call(&core, "endStudySession", json!({ "sessionId": session })).unwrap();
-        assert_eq!(twice, Value::Null);
+        assert_eq!(twice, json!({ "summary": null }));
     }
 
     #[test]

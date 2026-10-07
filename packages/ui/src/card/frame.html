@@ -73,7 +73,31 @@
   }
   // </css-rewrite>
 
-  function render(html, media) {
+  // Audio the card contains. `play` starts them one after another from the first, so the parent
+  // can autoplay and replay. A card can do the same by itself, so this gives it nothing new.
+  var MAX_AUDIO_REPORT = 1000;
+  function playAll() {
+    var sounds = Array.from(document.querySelectorAll("audio"));
+    sounds.forEach((sound) => {
+      sound.pause();
+      sound.currentTime = 0;
+    });
+    function playFrom(index) {
+      var sound = sounds[index];
+      if (!sound) return;
+      sound.addEventListener("ended", () => playFrom(index + 1), { once: true });
+      var started = sound.play();
+      if (started && typeof started.catch === "function") {
+        started.catch((error) => {
+          // The browser refused to start sound without a tap. The parent can say so.
+          if (error && error.name === "NotAllowedError") toParent({ type: "autoplay-blocked" });
+        });
+      }
+    }
+    playFrom(0);
+  }
+
+  function render(html, media, theme, autoplay) {
     // One blob URL per supplied file, made inside this frame. Revoked with the frame.
     var urls = new Map();
     Object.keys(media).forEach((name) => {
@@ -106,6 +130,10 @@
     parsed.querySelectorAll("[style]").forEach((element) => {
       element.setAttribute("style", rewriteCssUrls(element.getAttribute("style"), urlFor));
     });
+    // The app's colour scheme, not the system's: the card follows the Light or Dark override too.
+    // `color-scheme` keeps the frame transparent, and `night` is for the note type's own CSS.
+    parsed.documentElement.style.colorScheme = theme;
+    if (theme === "dark") parsed.documentElement.classList.add("night");
     var doctype = parsed.doctype ? `<!DOCTYPE ${parsed.doctype.name}>` : "";
     // Rewriting the document erases this script's listener, so no second message can arrive.
     document.open();
@@ -122,6 +150,16 @@
     }
     new ResizeObserver(report).observe(document.documentElement);
     report();
+
+    // The rewrite above erased every listener, so this is the only message the frame still takes,
+    // and only from the parent: a card cannot make `event.source` the parent.
+    var sounds = document.querySelectorAll("audio").length;
+    toParent({ type: "audio", count: Math.min(sounds, MAX_AUDIO_REPORT) });
+    window.addEventListener("message", (event) => {
+      if (event.source !== parentWindow) return;
+      if (event.data && event.data.type === "play") playAll();
+    });
+    if (autoplay && sounds > 0) playAll();
   }
 
   window.addEventListener("message", (event) => {
@@ -131,7 +169,7 @@
       return;
     }
     received = true;
-    render(data.html, data.media);
+    render(data.html, data.media, data.theme === "dark" ? "dark" : "light", data.autoplay === true);
   });
 
   toParent({ type: "ready" });

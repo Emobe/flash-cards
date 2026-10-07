@@ -45,6 +45,7 @@ const OPERATIONS: &[(&str, Covered)] = &[
     ("media_references", By("media")), ("merge", By("merge")), ("move_cards", By("move-cards")),
     ("move_deck", By("deck")), ("move_field", By("field")), ("move_template", By("template")),
     ("next_card", By("next")), ("note", By("notes")), ("notes", By("notes")),
+    ("now_ms", Not("the clock reading; the commands take --now instead")),
     ("notes_with_tag", By("tagged")), ("note_tags", By("notes")), ("note_type", By("notetypes")),
     ("note_types", By("notetypes")), ("observe_hlc", Not(SYNC_PLUMBING)), ("open", Not("every command opens its collection")),
     ("open_or_create", Not("`new` creates and every other command opens; this is for the apps")),
