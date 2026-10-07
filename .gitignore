@@ -13,6 +13,9 @@ yarn.lock
 pnpm-lock.yaml
 bun.lockb
 
+# Release builds (bun run dist:*)
+release/
+
 # Tauri
 apps/native/src-tauri/gen/schemas/
 

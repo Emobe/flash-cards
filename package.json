@@ -12,6 +12,7 @@
     "android:dev": "bun scripts/android-dev.ts",
     "android:build": "bun run --cwd apps/native tauri android build --debug --apk --target aarch64",
     "android:install": "bun scripts/android-install.ts",
+    "dist:linux": "bun scripts/dist-linux.ts",
     "lint": "biome check .",
     "format": "biome check --write .",
     "typecheck": "tsc --build",

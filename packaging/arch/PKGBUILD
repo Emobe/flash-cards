@@ -1,0 +1,19 @@
+# Repackages the .deb that `tauri build --bundles deb` produces as a pacman package (ADR 0012).
+# `scripts/dist-linux.ts` copies this folder, puts the .deb next to it as `flash-cards.deb`, and
+# passes the version in the environment. Not meant to be run by hand.
+pkgname=flash-cards
+pkgver=${FC_VERSION:?set FC_VERSION}
+pkgrel=1
+pkgdesc="Spaced-repetition flash cards"
+arch=('x86_64')
+url="https://github.com/Emobe/flash-cards"
+license=('custom')
+depends=('webkit2gtk-4.1' 'gtk3' 'gst-plugins-base' 'gst-plugins-good')
+options=('!strip' '!debug')
+source=("flash-cards.deb")
+noextract=("flash-cards.deb")
+sha256sums=('SKIP')
+
+package() {
+  bsdtar -xOf flash-cards.deb data.tar.gz | bsdtar -xf - -C "$pkgdir"
+}

@@ -12,7 +12,8 @@ Anthony checked Export, Restore from a file and the file picker in the web clien
 **2.7a (app identity) is merged (PR #46).** Anthony still has to look at the About line in the "Flash cards dev" app on the phone.
 **2.7b (release builds) is in progress** on `step/2.7b-release-builds`, commit by commit:
 - done: Linux blank-window fix in `main.rs` (`unsafe_code = "deny"` for `fc-native`), removed from `scripts/dev.ts`, README troubleshooting.
-- left: bundle metadata and `dist:linux` (PKGBUILD), Android release signing and `dist:android`, `dist:windows`, README "Dogfood builds", build notes in ADR 0012, checks on Linux and the phone, Anthony's Windows build.
+- done: bundle metadata (`mainBinaryName`, descriptions, category) and `bun run dist:linux` (`packaging/arch/PKGBUILD`, `scripts/dist-linux.ts`, `scripts/lib/dist.ts`); the package builds, the release binary renders with no variable and shows Version 0.1.0 in Settings. Anthony still installs it with pacman and checks the menu entry and card sound.
+- left: Android release signing and `dist:android`, `dist:windows`, README "Dogfood builds", build notes in ADR 0012, checks on Linux and the phone, Anthony's Windows build.
 Anthony said (2026-10-07, in chat) that Claude Code may tap and do gestures on the phone; unlocking is not covered, and `CLAUDE.md` still says "never touch" (a deviation to list).
 
 The design session left a test app, `dev.placeholder.flashcards.relexp` ("Flash cards", empty), on
