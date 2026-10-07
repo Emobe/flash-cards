@@ -14,10 +14,11 @@ export function workspaceVersion(script: string): string {
   const manifest = readFileSync(join(import.meta.dir, "../../Cargo.toml"), "utf8");
   const section = manifest.split("[workspace.package]")[1] ?? "";
   const match = section.match(/^version\s*=\s*"(\d+\.\d+\.\d+)"/m);
-  if (!match) {
+  const version = match?.[1];
+  if (!version) {
     fail(script, 'no version = "x.y.z" under [workspace.package] in the root Cargo.toml.');
   }
-  return match[1];
+  return version;
 }
 
 /** Runs a command, echoing it; exits on failure. */
