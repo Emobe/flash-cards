@@ -27,7 +27,7 @@ if (window.top === window) {
     <StrictMode>
       <CoreProvider client={client}>
         <PlatformProvider platform={platform}>
-          <App />
+          <App build={__BUILD_ID__} />
         </PlatformProvider>
       </CoreProvider>
     </StrictMode>,

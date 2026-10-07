@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
+import { buildId } from "../../scripts/lib/build-id";
 
 const cardFrame = fileURLToPath(new URL("../../packages/ui/src/card/frame.html", import.meta.url));
 
@@ -29,11 +30,12 @@ function cardFramePage(): Plugin {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react(), cardFramePage()],
+  define: { __BUILD_ID__: JSON.stringify(buildId(command)) },
   worker: { format: "es" },
   build: {
     outDir: "dist",
     emptyOutDir: true,
   },
-});
+}));

@@ -18,17 +18,30 @@ import { useCollectionState } from "./useCollectionState";
  * The root of the UI. Shared by every platform, so it must not import Tauri or any other platform
  * API (see docs/adr/0001-workspace-layout.md).
  */
-export function App({ extraDeveloperTools }: { extraDeveloperTools?: ReactNode }) {
+export function App({
+  extraDeveloperTools,
+  build,
+}: {
+  extraDeveloperTools?: ReactNode;
+  /** The build ID shown in Settings next to the version (see `scripts/lib/build-id.ts`). */
+  build?: string;
+}) {
   return (
     <ThemeProvider>
       <RouterProvider>
-        <Screens extraDeveloperTools={extraDeveloperTools} />
+        <Screens extraDeveloperTools={extraDeveloperTools} build={build} />
       </RouterProvider>
     </ThemeProvider>
   );
 }
 
-function Screens({ extraDeveloperTools }: { extraDeveloperTools?: ReactNode }) {
+function Screens({
+  extraDeveloperTools,
+  build,
+}: {
+  extraDeveloperTools?: ReactNode;
+  build?: string;
+}) {
   const collection = useCollectionState();
   const { route } = useRouter();
 
@@ -46,12 +59,13 @@ function Screens({ extraDeveloperTools }: { extraDeveloperTools?: ReactNode }) {
       </AppShell>
     );
   }
-  return <AppShell>{screenFor(route, extraDeveloperTools)}</AppShell>;
+  return <AppShell>{screenFor(route, extraDeveloperTools, build)}</AppShell>;
 }
 
 function screenFor(
   route: ReturnType<typeof useRouter>["route"],
   extraDeveloperTools: ReactNode,
+  build: string | undefined,
 ): ReactNode {
   const developer = isDeveloperBuild();
   switch (route.name) {
@@ -62,13 +76,13 @@ function screenFor(
     case "browse":
       return <BrowseScreen />;
     case "settings":
-      return <SettingsScreen developerTools={developer} />;
+      return <SettingsScreen developerTools={developer} build={build} />;
     case "developer":
       // A release build has no such screen: the link is gone, and a typed URL lands on Settings.
       return developer ? (
         <DeveloperScreen extraTools={extraDeveloperTools} />
       ) : (
-        <SettingsScreen developerTools={false} />
+        <SettingsScreen developerTools={false} build={build} />
       );
     case "study":
       return <StudyScreen deckId={route.deckId} />;
