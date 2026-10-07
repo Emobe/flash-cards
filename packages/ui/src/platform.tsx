@@ -6,9 +6,11 @@ export type Platform = {
   cardFrameUrl: string;
   /**
    * Tells the platform which theme is in effect, so the system bars and title bar match (ADR 0010).
-   * Called on start and on every change of the effective theme.
+   * Called on start and on every change of the effective theme. `followSystem` is true when the
+   * user's setting is System: a desktop window must then follow the desktop theme again instead of
+   * being pinned to `theme`, or `prefers-color-scheme` would stop following the system.
    */
-  setSystemTheme(theme: "light" | "dark"): void;
+  setSystemTheme(theme: "light" | "dark", followSystem: boolean): void;
 };
 
 const PlatformContext = createContext<Platform | null>(null);

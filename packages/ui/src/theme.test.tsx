@@ -102,29 +102,29 @@ describe("ThemeProvider", () => {
     const { setDark, setSystemTheme, wrapper } = setup(false);
     const { result } = renderHook(() => useTheme(), { wrapper });
     expect(result.current.effective).toBe("light");
-    expect(setSystemTheme).toHaveBeenLastCalledWith("light");
+    expect(setSystemTheme).toHaveBeenLastCalledWith("light", true);
     expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
 
     act(() => setDark(true));
     expect(result.current.effective).toBe("dark");
-    expect(setSystemTheme).toHaveBeenLastCalledWith("dark");
+    expect(setSystemTheme).toHaveBeenLastCalledWith("dark", true);
   });
 
   test("an override wins over the system, is stored, and reaches the platform", () => {
     const { setDark, setSystemTheme, wrapper } = setup(true);
     const { result } = renderHook(() => useTheme(), { wrapper });
-    expect(setSystemTheme).toHaveBeenLastCalledWith("dark");
+    expect(setSystemTheme).toHaveBeenLastCalledWith("dark", true);
 
     act(() => result.current.setPreference("light"));
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
     expect(localStorage.getItem(THEME_KEY)).toBe("light");
-    expect(setSystemTheme).toHaveBeenLastCalledWith("light");
+    expect(setSystemTheme).toHaveBeenLastCalledWith("light", false);
 
     // A system change does not move an override.
     setSystemTheme.mockClear();
     act(() => setDark(false));
     expect(result.current.effective).toBe("light");
-    expect(setSystemTheme).not.toHaveBeenCalledWith("dark");
+    expect(setSystemTheme).not.toHaveBeenCalledWith("dark", expect.anything());
 
     act(() => result.current.setPreference("system"));
     expect(document.documentElement.hasAttribute("data-theme")).toBe(false);

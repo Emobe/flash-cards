@@ -13,12 +13,13 @@ if (!root) {
 // A card that navigates its own frame to the app gets a blank page, not a second copy of the app
 // holding a transport (ADR 0005).
 if (window.top === window) {
-  const client = new CoreClient(createTauriTransport());
+  const transport = createTauriTransport();
+  const client = new CoreClient(transport);
   // The `card` scheme is served by the Rust side: card://localhost/... on Linux and
   // http://card.localhost/... on Android and Windows.
   const platform = {
     cardFrameUrl: convertFileSrc("frame.html", "card"),
-    setSystemTheme: () => {},
+    setSystemTheme: transport.setSystemTheme,
   };
 
   createRoot(root).render(

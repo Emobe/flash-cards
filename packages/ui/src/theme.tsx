@@ -79,7 +79,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     applyPreference(preference);
-    platform.setSystemTheme(effective);
+    platform.setSystemTheme(effective, preference === "system");
   }, [preference, effective, platform]);
 
   const setPreference = useCallback((next: ThemePreference) => {

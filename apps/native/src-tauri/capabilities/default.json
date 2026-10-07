@@ -3,5 +3,11 @@
   "identifier": "default",
   "description": "Permissions for the main window. Only this window may call the core (ADR 0002).",
   "windows": ["main"],
-  "permissions": ["allow-handshake", "allow-call", "allow-subscribe", "allow-cancel"]
+  "permissions": [
+    "allow-handshake",
+    "allow-call",
+    "allow-subscribe",
+    "allow-cancel",
+    "allow-set-system-theme"
+  ]
 }

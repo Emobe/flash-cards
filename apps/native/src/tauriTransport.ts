@@ -28,12 +28,22 @@ export function encodeBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+/** The core transport plus the one platform call that needs the session token. */
+export type TauriTransport = Transport & {
+  /**
+   * Makes the system bars (Android) and the title bar (desktop) match the page's theme, through the
+   * token-checked `set_system_theme` command (ADR 0010). Failure is logged, never thrown: the
+   * page still works with the wrong bar colour.
+   */
+  setSystemTheme(theme: "light" | "dark", followSystem: boolean): void;
+};
+
 /**
  * Talks to the Rust core through Tauri's `call`, `subscribe` and `cancel` commands. Each needs the
  * session token that `handshake` returns once per page load, so the transport claims it first
  * (ADR 0005). The token lives only in this closure.
  */
-export function createTauriTransport(): Transport {
+export function createTauriTransport(): TauriTransport {
   const handshake = invoke<string>("handshake").catch((error: unknown) => {
     throw isApiError(error) ? error : new Error(String(error));
   });
@@ -82,6 +92,13 @@ export function createTauriTransport(): Transport {
     },
     cancel(op) {
       handshake.then((token) => invoke("cancel", { token, op })).catch(() => {});
+    },
+    setSystemTheme(theme, followSystem) {
+      handshake
+        .then((token) =>
+          invoke("set_system_theme", { token, dark: theme === "dark", followSystem }),
+        )
+        .catch((error: unknown) => console.error("Could not set the system theme", error));
     },
     subscribe(onNotice) {
       listeners.add(onNotice);

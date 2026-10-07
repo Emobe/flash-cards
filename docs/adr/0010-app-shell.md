@@ -556,3 +556,85 @@ ADR 0005 amendment line for the fifth command.
 - **STATUS:** I replaced the design-session paragraphs in "Current step" with build status. The
   phone findings stay in this ADR.
 - `docs/plans/2.1-directions.html` is kept as the record of the choice, as the plan said.
+
+## Build notes (step 2.1b)
+
+Built on `step/2.1b-system-bars`. About 280 added lines of code and tests (about 80 of them tests), plus these docs. No new dependencies
+(`tauri`'s `test` feature is enabled for tests only).
+
+### What was built
+
+- **`set_system_theme(token, dark, followSystem)`**, the fifth bridge command
+  (`apps/native/src-tauri/src/lib.rs`). It checks the token first, then asks `Appearance` to apply
+  the theme. It is registered like the other four: `build.rs`, the generated permission and
+  `allow-set-system-theme` in `capabilities/default.json`. (Tauri turns `_` into `-` in permission
+  names.)
+- **`appearance.rs`**: the local `appearance` plugin and the `Appearance` state. The plugin has no
+  commands and no permissions. On Android its `setup` registers `AppearancePlugin` and keeps the
+  handle. `apply` calls `Window::set_theme` on desktop and `run_mobile_plugin("setBarStyle")` on
+  Android.
+- **`AppearancePlugin.kt`**: sets `isAppearanceLightStatusBars` and `isAppearanceLightNavigationBars`
+  on the UI thread.
+- **`Platform.setSystemTheme(theme, followSystem)`**, called by `ThemeProvider` with
+  `followSystem = preference === "system"`. `createTauriTransport()` returns the transport plus
+  `setSystemTheme`, because the token lives in its closure. `apps/native/src/main.tsx` passes it
+  through. A failure is logged and never thrown.
+- **Tests:** a test on Tauri's mock runtime that `set_system_theme` rejects an empty, a wrong and a
+  missing token with `internal` and accepts the issued one; transport tests for the arguments and
+  for a failed call; the theme and App tests now check `followSystem`.
+
+### Verified
+
+- `cargo xtask check` passes.
+- **Phone** (SM-S928B, three-button, portrait, system dark, `bun run android:build`, `adb install`):
+  - Choosing **Light** in Settings gave a light page with **dark** status bar icons and a light
+    navigation bar backing with dark icons. Choosing **System** again gave light icons on the dark
+    page. logcat showed `Tauri/Plugin: pluginId: appearance, command: setBarStyle` for each change.
+    This is the whole chain: page, token-checked command, Rust, Kotlin.
+  - **Android back** after Settings then Developer tools: back goes to Settings, then Decks, and a
+    third back leaves the app. So `pushState` entries count for the WebView's `canGoBack()`.
+  - Not asked for but seen: the Developer tools row is in the debug APK.
+- **Desktop** (Linux, X11, i3, `bun run dev`): the system theme here is light. Dark to System,
+  Light to System and Dark to System again each returned the page to the same light colour, so
+  `set_theme(None)` releases the window and nothing is stuck. No `Could not set the system theme`
+  errors in the log.
+
+### Not verified
+
+- **The desktop title bar changing colour.** This machine runs i3, which draws the title bar, so a
+  GTK theme change cannot show. It needs GNOME, KDE or Windows.
+- **A system that is dark while an override is Light on desktop** (the system here is light), and
+  Windows (`set_theme` is documented for it, not run).
+- **Gesture navigation.** I tried Samsung's `navigation_bar_gesture_while_hidden` setting, which
+  did not change the mode (the navigation bar stayed three-button), and put it back to `0`. Switching
+  the mode needs system overlay changes, which I did not make. Landscape, the keyboard with
+  `BottomAction`, the cutout and the largest font size are also not checked.
+- **That card frames cannot call the plugin**: the capability grants only the `allow-` entry for
+  our command and the probe in finding 6 showed the rejection. I did not repeat it from a card.
+- A release APK. The bar icon code does not depend on the build type.
+
+### Deviations from the plan
+
+- **`setSystemTheme` has a second argument, `followSystem`.** ADR 0010 and the plan have only
+  the theme. On desktop `set_theme(Some(...))` pins the window and WebKitGTK's
+  `prefers-color-scheme` follows it, so System could not return to the desktop theme. With
+  `followSystem` the command calls `set_theme(None)`. Android and web ignore it. The command has
+  a third argument for the same reason. (Raised in the plan, and Anthony said go.)
+- **The Rust command is generic over the runtime** (`Webview<R>`), so the test can run it on the
+  mock runtime. No effect at run time.
+- **The token test covers `set_system_theme` only.** The plan said to extend a test of every command,
+  but no such test existed (only the `Gate` unit tests), and the other four commands are not generic
+  over the runtime. Adding the mock-runtime test for them is not part of this step.
+- **`tauri` with the `test` feature is a dev-dependency of `fc-native`.** Not a new crate, but it
+  is a Cargo.toml line the plan did not list.
+- **The payload is `serde_json::json!`**, not a `Serialize` struct, because `serde` is not a direct
+  dependency and I did not add one.
+- **I used the phone beyond install and screenshots.** Anthony said "you can do gestures" after the
+  plan. I took that to allow taps and key events inside the app (Settings choices, back presses, a
+  launch with `monkey`) and one attempt to switch to gesture navigation, which I reversed. I did not
+  unlock the phone, which was already awake and unlocked. If Anthony meant something narrower, say so
+  and I will not repeat it.
+- **`Appearance` is managed on every platform** (an empty struct off Android), not only on Android,
+  so the command has one signature everywhere.
+- **Size:** about 280 lines of code and tests. No split needed.
+- **STATUS:** the "Current step" text from 2.1 (waiting for review) was replaced by the 2.1b status.
