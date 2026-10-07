@@ -24,3 +24,7 @@ tauri = { version = "2", features = [] }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+
+[dev-dependencies]
+# Tauri's mock runtime, to check that `set_system_theme` rejects a missing token.
+tauri = { version = "2", features = ["test"] }

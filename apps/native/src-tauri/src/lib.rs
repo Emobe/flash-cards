@@ -3,8 +3,11 @@
 //!
 //! Exposes the core to the UI through three fixed commands: `call`, `subscribe` and `cancel`
 //! (`docs/adr/0002-ui-core-bridge.md`), each guarded by a session token from a fourth command,
-//! `handshake` (`docs/adr/0005-card-sandbox.md`).
+//! `handshake` (`docs/adr/0005-card-sandbox.md`). A fifth, `set_system_theme`, is guarded the same
+//! way and makes the system bars and title bar follow the app's theme
+//! (`docs/adr/0010-app-shell.md`).
 
+mod appearance;
 mod card;
 mod gate;
 mod host;
@@ -20,8 +23,9 @@ use base64::engine::general_purpose::STANDARD;
 use fc_api::{ApiError, Clock, Core, Notice, OpContext, autobackup, forward_events};
 use tauri::ipc::{Channel, Response};
 use tauri::webview::PageLoadEvent;
-use tauri::{Manager, State, Webview};
+use tauri::{Manager, Runtime, State, Webview};
 
+use appearance::Appearance;
 use gate::Gate;
 use hub::NoticeHub;
 use ops::Operations;
@@ -123,6 +127,27 @@ fn cancel(
     Ok(())
 }
 
+/// Tells the platform which theme the page shows, so the system bars (Android) and the title bar
+/// (desktop) match an override. `follow_system` is true when the user's setting is System.
+// Generic over the runtime only so the tests can run it on Tauri's mock runtime.
+#[tauri::command]
+async fn set_system_theme<R: Runtime>(
+    gate: State<'_, Arc<Gate>>,
+    appearance: State<'_, Appearance>,
+    webview: Webview<R>,
+    token: String,
+    dark: bool,
+    follow_system: bool,
+) -> Result<(), ApiError> {
+    gate.authorize(&token)?;
+    appearance
+        .apply(&webview, dark, follow_system)
+        .map_err(|error| {
+            eprintln!("Could not set the system theme: {error}");
+            ApiError::internal()
+        })
+}
+
 /// Opens (or creates) the collection in the app data directory. A failure is logged and the app
 /// still starts. `Core` remembers why the open failed, so methods that need a collection answer
 /// with that error (`updateRequired`, `unavailable`) and the app shell shows its problem screen
@@ -196,11 +221,18 @@ pub fn run() {
         .manage(hub)
         .manage(Arc::new(Operations::default()))
         .manage(Arc::new(Gate::default()))
+        .plugin(appearance::plugin())
         .setup(|app| {
             open_collection(app);
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![handshake, call, subscribe, cancel])
+        .invoke_handler(tauri::generate_handler![
+            handshake,
+            call,
+            subscribe,
+            cancel,
+            set_system_theme
+        ])
         .register_uri_scheme_protocol("card", |_ctx, request| card::respond(request.uri().path()))
         // A new main-frame load starts a new session: the token is claimed again by the new page.
         // Card frames must not reset it (ADR 0005), so only the `main` webview counts.
@@ -228,5 +260,52 @@ mod tests {
     fn frame_has_length_prefix_json_and_attachment() {
         let out = frame(b"{}", &[9, 8]);
         assert_eq!(out, [2, 0, 0, 0, b'{', b'}', 9, 8]);
+    }
+
+    /// Runs `set_system_theme` through Tauri's IPC on the mock runtime, with `token`.
+    fn invoke_set_system_theme(
+        gate: &Arc<Gate>,
+        token: serde_json::Value,
+    ) -> Result<tauri::ipc::InvokeResponseBody, serde_json::Value> {
+        use tauri::test::{INVOKE_KEY, mock_builder, mock_context, noop_assets};
+        use tauri::webview::InvokeRequest;
+        use tauri::{WebviewUrl, WebviewWindowBuilder};
+
+        let app = mock_builder()
+            .manage(Arc::clone(gate))
+            .manage(Appearance {})
+            .invoke_handler(tauri::generate_handler![set_system_theme])
+            .build(mock_context(noop_assets()))
+            .expect("mock app");
+        let window = WebviewWindowBuilder::new(&app, "main", WebviewUrl::default())
+            .build()
+            .expect("mock window");
+        tauri::test::get_ipc_response(
+            &window,
+            InvokeRequest {
+                cmd: "set_system_theme".into(),
+                callback: tauri::ipc::CallbackFn(0),
+                error: tauri::ipc::CallbackFn(1),
+                url: "tauri://localhost".parse().unwrap(),
+                body: tauri::ipc::InvokeBody::Json(serde_json::json!({
+                    "token": token, "dark": true, "followSystem": false
+                })),
+                headers: Default::default(),
+                invoke_key: INVOKE_KEY.to_string(),
+            },
+        )
+    }
+
+    #[test]
+    fn set_system_theme_rejects_a_missing_or_wrong_token() {
+        let gate = Arc::new(Gate::default());
+        let token = gate.issue().unwrap();
+        for bad in [serde_json::json!(""), serde_json::json!("guess")] {
+            let error = invoke_set_system_theme(&gate, bad).unwrap_err();
+            assert_eq!(error["kind"], "internal", "{error}");
+        }
+        // A missing argument fails too, before the command body runs.
+        assert!(invoke_set_system_theme(&gate, serde_json::Value::Null).is_err());
+        assert!(invoke_set_system_theme(&gate, serde_json::json!(token)).is_ok());
     }
 }
