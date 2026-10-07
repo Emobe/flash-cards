@@ -1,0 +1,240 @@
+/*
+ * The shell owns every inset (ADR 0010 decision 4): `env(safe-area-inset-*)` appears only in this
+ * file. Compact (under 600 px): content, then the bottom bar. 600 px and over: a rail on the left,
+ * widening to a sidebar from 1024 px. A media query on width, never a platform check.
+ */
+
+.shell {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-areas: "main" "action" "nav";
+  background: var(--bg);
+  /* The keyboard covers the layout viewport, so shrink the shell to what is still visible. */
+  padding-bottom: var(--keyboard-inset, 0px);
+}
+
+.shell-main {
+  grid-area: main;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: calc(env(safe-area-inset-top) + var(--space-5))
+    calc(env(safe-area-inset-right) + var(--space-4)) var(--space-5)
+    calc(env(safe-area-inset-left) + var(--space-4));
+}
+
+.shell[data-nav="off"][data-keyboard="closed"] .shell-main {
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--space-5));
+}
+
+.shell-page {
+  max-width: 46rem;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* A screen's primary action, pinned above the keyboard and the bottom bar. */
+.shell-action {
+  grid-area: action;
+}
+
+.shell-action:empty {
+  display: none;
+}
+
+.shell-action:not(:empty) {
+  background: var(--bg);
+  border-top: var(--border);
+  padding: var(--space-3) calc(env(safe-area-inset-right) + var(--space-4)) var(--space-3)
+    calc(env(safe-area-inset-left) + var(--space-4));
+}
+
+.shell[data-nav="off"][data-keyboard="closed"] .shell-action:not(:empty) {
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--space-3));
+}
+
+/* Navigation: the bottom bar. */
+.shell-nav {
+  grid-area: nav;
+  background: var(--surface);
+  border-top: var(--border);
+  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.shell-nav ul {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shell-nav li {
+  flex: 1;
+  min-width: 0;
+}
+
+.shell-nav a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 3.5rem;
+  padding: var(--space-2) var(--space-1);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  box-shadow: inset 0 2px 0 transparent;
+  transition: color var(--motion);
+}
+
+.shell-nav a[aria-current="page"] {
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+/* A bottom bar would cover a third of the screen above the keyboard. */
+@media (max-width: 599.98px) {
+  .shell[data-keyboard="open"] .shell-nav {
+    display: none;
+  }
+}
+
+.shell-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--target);
+  height: var(--target);
+  margin: calc(var(--space-2) * -1) 0 var(--space-2) calc(var(--space-2) * -1);
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--text);
+}
+
+/* The rail and the sidebar. */
+@media (min-width: 600px) {
+  :root {
+    --target: 2.5rem;
+  }
+
+  .shell {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas: "nav main" "nav action";
+  }
+
+  .shell[data-nav="off"] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "main" "action";
+  }
+
+  .shell-main {
+    padding: calc(env(safe-area-inset-top) + var(--space-5))
+      calc(env(safe-area-inset-right) + var(--space-5)) var(--space-5) var(--space-5);
+  }
+
+  .shell[data-nav="off"] .shell-main {
+    padding-left: calc(env(safe-area-inset-left) + var(--space-5));
+  }
+
+  .shell-nav {
+    width: calc(5.5rem + env(safe-area-inset-left));
+    border-top: 0;
+    border-right: var(--border);
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  .shell-nav ul {
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-2);
+  }
+
+  .shell-nav a {
+    border-radius: var(--radius);
+    box-shadow: none;
+  }
+
+  .shell-nav a[aria-current="page"] {
+    background: var(--bg);
+    box-shadow: none;
+  }
+
+  .shell-action:not(:empty) {
+    padding-right: calc(env(safe-area-inset-right) + var(--space-5));
+    padding-left: var(--space-5);
+  }
+}
+
+@media (min-width: 1024px) {
+  .shell-nav {
+    width: calc(13rem + env(safe-area-inset-left));
+  }
+
+  .shell-nav a {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--space-3);
+    min-height: 2.75rem;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-base);
+  }
+}
+
+/* The keyboard shortcuts list. */
+.shortcuts {
+  max-width: 24rem;
+  padding: var(--space-5);
+  background: var(--surface);
+  color: var(--text);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+.shortcuts::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+.shortcuts dl {
+  margin: var(--space-4) 0;
+}
+
+.shortcuts dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  border-bottom: var(--border);
+}
+
+.shortcuts dt,
+.shortcuts dd {
+  margin: 0;
+}
+
+.shortcuts kbd {
+  display: inline-block;
+  min-width: 1.5rem;
+  padding: 0 var(--space-1);
+  text-align: center;
+  background: var(--bg);
+  border: var(--border-control);
+  border-radius: 4px;
+  font-family: inherit;
+}
+
+.shortcuts button {
+  min-height: var(--target);
+  padding: 0 var(--space-4);
+  background: var(--surface);
+  border: var(--border-control);
+  border-radius: var(--radius);
+}
