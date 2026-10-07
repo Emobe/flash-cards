@@ -1,6 +1,6 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
-import { buildId } from "../../scripts/lib/build-id";
+import { buildId } from "../../scripts/lib/build-id.ts";
 
 // Tauri expects a fixed dev server port and must not have the screen cleared.
 // See https://v2.tauri.app/start/frontend/vite/

@@ -2,6 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "../..",
+    "allowImportingTsExtensions": true,
     "outDir": "../../node_modules/.tsbuild/desktop",
     "types": ["vite/client", "bun"],
     "tsBuildInfoFile": "../../node_modules/.tsbuild/native.tsbuildinfo"
