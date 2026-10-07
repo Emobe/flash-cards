@@ -848,8 +848,8 @@ the one frame change (theme, autoplay, `allow="autoplay"`) is an ADR 0005 amendm
 
 ### Verified
 
-- `cargo xtask check` passes (165 Vitest tests, 41 of them new: 23 for the screen, 4 for the formatting,
-  the rest are the 2.3a ones; 63 tests in `fc-api` with the new sample-cards test).
+- `cargo xtask check` passes (165 Vitest tests: 27 new in 2.3b, 23 for the screen and 4 for the formatting; 63 tests in `fc-api`
+  with the new sample-cards test).
 - **Web** (headless Brave over the DevTools protocol, screenshots read): phone width and 1100 px wide,
   light and dark. Question, answer, rating, the next card, the Sound deck with audio (the autoplay
   refusal message is gone with `allow="autoplay"`), counts, undo button, and the answer buttons at the
