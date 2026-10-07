@@ -1648,8 +1648,8 @@ to `fc-core`, no new dependency. All of it is in `crates/fc-cli`.
   between "wrong number of arguments" and "unknown command". The old list lacked the media
   commands, `fake` and `bench`, so a wrong call to one of them said "Unknown command". `add-note`
   now parses `Field=value` with the same function as `edit-note`.
-- **Verified.** 22 new CLI tests (`notetype` 5, `decks` 4, `edit` 6, `coverage` 3, and the shared
-  `common` helper), 107 CLI tests in all, all passing; each group has a round trip through the real
+- **Verified.** 18 new CLI tests (`notetype` 5, `decks` 4, `edit` 6, `coverage` 3, with a shared
+  `common` helper), 63 CLI tests in all (45 before), all passing; each group has a round trip through the real
   binary (change, read back, restore) and its error cases (wrong names, the Default deck and
   preset, a template with a syntax error, the last template, a cloze note type's only template,
   a used media file, bad numbers). `cargo xtask check` passes and clippy is clean. A smoke run of
@@ -1663,8 +1663,8 @@ to `fc-core`, no new dependency. All of it is in `crates/fc-cli`.
 - The change is about 1,950 lines, of which 890 are tests. The plan said to stop at about 1,500
   and propose a split. It was built in two commits that could be two PRs: note types, decks and
   presets (with the shared test helper), then notes, tags, media, searches, settings and the check.
-- The plan had five commits: the build made two for code (the first three groups of commands were
-  one commit with the second, which holds notes, tags, media, searches, settings and the check).
+- The plan had four code commits and a docs commit. The build has two code commits (the first
+  holds note types, fields, templates, decks, presets and `move-cards`) and a docs commit.
 - `fc tagged` and the `info` migration line are not in the plan (see above).
 - `template set` takes `--front` and `--back` options. The plan said "takes the front, back or both
   from a file" and did not say how.

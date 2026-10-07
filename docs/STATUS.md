@@ -6,7 +6,7 @@ Kept current by every session. A new session reads this first.
 
 1.14b Developer CLI: the missing commands, built, awaiting Anthony's review. Branch `step/1.14b-cli-commands`, from `master`. Results, "not verified" and the deviations list are in ADR 0006, "Build notes, step 1.14b". It is the last step of Phase 1. Next: Phase 2 (`docs/phases/02-study-loop.md`).
 
-Verified: `cargo xtask check` passes, clippy is clean, 22 new CLI tests (107 in all), a coverage test that fails when a public `Collection` operation has no command or written reason (checked by adding one), a smoke run on a `fc fake` collection.
+Verified: `cargo xtask check` passes, clippy is clean, 18 new CLI tests (63 in all, 45 before), a coverage test that fails when a public `Collection` operation has no command or written reason (checked by adding one), a smoke run on a `fc fake` collection.
 
 Not verified: the phone and the web (the CLI is desktop only), Windows, the new commands on a copy of the real desktop collection.
 
