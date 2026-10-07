@@ -7,8 +7,9 @@ use std::collections::{HashMap, HashSet};
 
 use super::read::{Snapshot, clean, is_within, key};
 use super::{NOTE_TAG, PRESENT, SEPARATOR, TagError};
-use crate::collection::Collection;
+use crate::collection::{Collection, CollectionError};
 use crate::id::Id;
+use crate::sync::WriteTx;
 
 /// One change to one `(note, tag)` register.
 struct Change {
@@ -48,6 +49,25 @@ impl Collection {
             }
             Ok(())
         })?)
+    }
+
+    /// Checks tags for a note that is about to be added and spells them the way the collection
+    /// already spells them, each once. Nothing is written. A bad tag refuses all of them.
+    pub(crate) fn tags_for_new_note(&self, tags: &[&str]) -> Result<Vec<String>, TagError> {
+        let tags = tags
+            .iter()
+            .map(|tag| clean(tag))
+            .collect::<Result<Vec<_>, _>>()?;
+        if tags.is_empty() {
+            return Ok(Vec::new());
+        }
+        let snapshot = Snapshot::load(&self.conn)?;
+        let mut seen = HashSet::new();
+        Ok(tags
+            .iter()
+            .map(|tag| snapshot.display(tag))
+            .filter(|tag| seen.insert(key(tag)))
+            .collect())
     }
 
     /// Gives every note the tags it does not have yet. A tag is spelled the way the collection
@@ -276,4 +296,17 @@ impl Collection {
             .collect();
         Ok(live.len())
     }
+}
+
+/// Gives a note that was just added in this transaction its tags, as returned by
+/// `tags_for_new_note`. The note has no tag rows yet, so every tag is a new row.
+pub(crate) fn write_new_note_tags(
+    w: &mut WriteTx<'_>,
+    note: Id,
+    tags: &[String],
+) -> Result<(), CollectionError> {
+    for tag in tags {
+        w.set_text_value(NOTE_TAG.entity, note, tag, PRESENT)?;
+    }
+    Ok(())
 }
