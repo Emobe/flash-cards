@@ -20,8 +20,8 @@ Previous step: 2.3 Review screen, merged (PR #36, PR #37). Still not run on the 
 
 ## Done
 
-- 2.4b Add screen and editor (ADR 0011 build notes, step 2.4b): ProseMirror (`prosemirror-*`, exact versions), `packages/ui/src/editor/`, `AddScreen`. Not merged yet.
-- 2.4a Note API (ADR 0011 build notes, step 2.4a): `add_note_with`, `getNoteTypes`, `getTags`, `findDuplicates`, `addNote`, `addMedia`. The note and media methods earlier lines gave to 3.1 were built here; 3.1 keeps search and the browser's methods. Not merged yet.
+- 2.4b Add screen and editor (ADR 0011 build notes, step 2.4b): ProseMirror (`prosemirror-*`, exact versions), `packages/ui/src/editor/`, `AddScreen`.
+- 2.4a Note API (ADR 0011 build notes, step 2.4a): `add_note_with`, `getNoteTypes`, `getTags`, `findDuplicates`, `addNote`, `addMedia`. The note and media methods earlier lines gave to 3.1 were built here; 3.1 keeps search and the browser's methods. Merged (PR #39).
 - 2.1 App shell and design direction (ADR 0010 build notes, step 2.1): tokens and Paper styles with a contrast test, theme (System, Light, Dark) with `theme-boot.js`, hash router, `AppShell` (bottom bar, rail, insets, keyboard inset, `BottomAction`, shortcuts), placeholder screens, Settings, collection problem screen, Developer screen in debug builds only, `Core` remembers the failed open. Deviations: the list at the end of the ADR notes. Merged (PR #33).
 - 2.2 Home and deck list (ADR 0010 build notes, step 2.2): `getDeckList`, `DecksScreen`. Merged (PR #35).
 - 2.1b System bars and title bar follow the theme (ADR 0010 build notes, step 2.1b): `set_system_theme`, the `appearance` plugin and `AppearancePlugin.kt`, `Window::set_theme` on desktop, ADR 0005 amendment line. Merged (PR #34).
