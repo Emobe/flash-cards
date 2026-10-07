@@ -238,14 +238,8 @@ export function BackupsSection() {
         <p className="options-help">
           {BACKUP_HELP.restore} {BACKUP_HELP.import}
         </p>
-        <input
-          ref={fileInput}
-          type="file"
-          accept=".fcbackup,.zip"
-          hidden
-          aria-label="Backup file"
-          onChange={fileChosen}
-        />
+        {/* No `accept`: Android's picker cannot match .fcbackup and then shows only zips. The file is checked when it is read. */}
+        <input ref={fileInput} type="file" hidden aria-label="Backup file" onChange={fileChosen} />
       </div>
       {problem && (
         <p role="alert" className="dialog-error">

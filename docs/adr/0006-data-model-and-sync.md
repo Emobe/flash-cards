@@ -1702,3 +1702,4 @@ Built to the plan approved in chat (2026-10-07). No ADR: it uses ADR 0006's back
 - Desktop and phone checks of the screen were not done (see Not verified). The plan promised them.
 - `restoreListedBackup` keeps at least 2 backups when it makes its safety backup (not in the plan).
 - `clock_reading` is listed in the CLI coverage table as having no command (not in the plan).
+- **Found by Anthony testing Export and Restore (not in the plan):** the file picker had `accept=".fcbackup,.zip"`, and the Android picker showed only zips because it cannot match `.fcbackup`. The `accept` filter is removed; a wrong file gets the readable error from reading it.
