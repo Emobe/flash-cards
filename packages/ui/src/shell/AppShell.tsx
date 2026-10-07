@@ -10,16 +10,18 @@ import "./shell.css";
 
 /**
  * Owns the navigation, the system-bar and cutout insets, and the keyboard inset, so no screen
- * does (ADR 0010 decisions 2 and 4). Screens render as `children`.
+ * does (ADR 0010 decisions 2 and 4). Screens render as `children`. `bare` drops the navigation and
+ * the back control, for the collection problem screen.
  */
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, bare = false }: { children: ReactNode; bare?: boolean }) {
   const { route, navigate, back } = useRouter();
   const keyboardInset = useKeyboardInset();
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
 
-  // Study is full screen: no navigation, a back control instead.
-  const fullScreen = route.name === "study";
+  // Study is full screen: no navigation, a back control instead. `bare` (the collection could not
+  // be opened) has neither.
+  const fullScreen = bare || route.name === "study";
 
   const goTo = useCallback(
     (letter: string) => {
@@ -58,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       )}
       <main className="shell-main">
-        {fullScreen && (
+        {fullScreen && !bare && (
           <button type="button" className="shell-back" onClick={back} aria-label="Back">
             <BackIcon />
           </button>

@@ -1,128 +1,62 @@
-import { CoreError } from "core-client";
-import { type FormEvent, useEffect, useState } from "react";
-import "./styles/spikes.css";
-import { CardSandboxSpike } from "./CardSandboxSpike";
-import { useCore } from "./core";
-import { SchedulingSpike } from "./SchedulingSpike";
+import type { ReactNode } from "react";
+import "./components/components.css";
+import { RouterProvider, useRouter } from "./router";
+import { CollectionProblem } from "./screens/CollectionProblem";
+import { DeveloperScreen } from "./screens/DeveloperScreen";
+import { AddScreen, BrowseScreen, DecksScreen, StudyScreen } from "./screens/placeholders";
+import { SettingsScreen } from "./screens/SettingsScreen";
+import { AppShell } from "./shell/AppShell";
 import { ThemeProvider } from "./theme";
+import { useCollectionState } from "./useCollectionState";
 
 /**
- * Placeholder root screen. Shared by every platform, so it must not import
- * Tauri or any other platform API (see docs/adr/0001-workspace-layout.md).
+ * The root of the UI. Shared by every platform, so it must not import Tauri or any other platform
+ * API (see docs/adr/0001-workspace-layout.md).
  */
 export function App() {
   return (
     <ThemeProvider>
-      <main className="app">
-        <h1>Flash cards</h1>
-        <p>Placeholder screen. Nothing to study yet.</p>
-        <CoreVersion />
-        <CollectionStatus />
-        <DivideForm />
-        <SchedulingSpike />
-        <CardSandboxSpike />
-      </main>
+      <RouterProvider>
+        <Screens />
+      </RouterProvider>
     </ThemeProvider>
   );
 }
 
-function message(error: unknown): string {
-  return error instanceof CoreError ? error.message : "Something went wrong. Try again.";
-}
+function Screens() {
+  const collection = useCollectionState();
+  const { route } = useRouter();
 
-function CoreVersion() {
-  const core = useCore();
-  const [text, setText] = useState("Loading core version...");
-
-  useEffect(() => {
-    let current = true;
-    core
-      .call("getCoreInfo", null)
-      .then((info) => current && setText(`Core version ${info.coreVersion}`))
-      .catch((error: unknown) => current && setText(message(error)));
-    return () => {
-      current = false;
-    };
-  }, [core]);
-
-  return <p>{text}</p>;
-}
-
-/** Shows that the collection is open and its storage version. A real screen replaces it (2.1). */
-function CollectionStatus() {
-  const core = useCore();
-  const [state, setState] = useState<{ ok: boolean; text: string }>({
-    ok: true,
-    text: "Opening the collection...",
-  });
-
-  useEffect(() => {
-    let current = true;
-    core
-      .call("getCollectionInfo", null)
-      .then(
-        (info) =>
-          current &&
-          setState({
-            ok: true,
-            text: `Collection storage version ${info.schemaVersion} (this build supports up to ${info.supportedSchemaVersion}).`,
-          }),
-      )
-      .catch((error: unknown) => current && setState({ ok: false, text: message(error) }));
-    return () => {
-      current = false;
-    };
-  }, [core]);
-
-  return state.ok ? <p>{state.text}</p> : <p role="alert">{state.text}</p>;
-}
-
-/** Temporary demo of a call and an error path (step 0.3). Removed with the example methods. */
-function DivideForm() {
-  const core = useCore();
-  const [dividend, setDividend] = useState("10");
-  const [divisor, setDivisor] = useState("4");
-  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    try {
-      const out = await core.call("exampleDivide", {
-        dividend: Number(dividend),
-        divisor: Number(divisor),
-      });
-      setResult({ ok: true, text: `${dividend} ÷ ${divisor} = ${out.quotient}` });
-    } catch (error) {
-      setResult({ ok: false, text: message(error) });
-    }
+  if (collection.status === "problem") {
+    return (
+      <AppShell bare>
+        <CollectionProblem error={collection.error} />
+      </AppShell>
+    );
   }
+  if (collection.status === "opening") {
+    return (
+      <AppShell bare>
+        <p role="status">Opening your cards...</p>
+      </AppShell>
+    );
+  }
+  return <AppShell>{screenFor(route)}</AppShell>;
+}
 
-  return (
-    <form onSubmit={submit} className="divide">
-      <label>
-        Dividend
-        <input
-          type="number"
-          inputMode="decimal"
-          value={dividend}
-          onChange={(e) => setDividend(e.target.value)}
-        />
-      </label>
-      <label>
-        Divisor
-        <input
-          type="number"
-          inputMode="decimal"
-          value={divisor}
-          onChange={(e) => setDivisor(e.target.value)}
-        />
-      </label>
-      <button type="submit">Divide</button>
-      {result && (
-        <p role={result.ok ? "status" : "alert"} className={result.ok ? "ok" : "error"}>
-          {result.text}
-        </p>
-      )}
-    </form>
-  );
+function screenFor(route: ReturnType<typeof useRouter>["route"]): ReactNode {
+  switch (route.name) {
+    case "decks":
+      return <DecksScreen />;
+    case "add":
+      return <AddScreen />;
+    case "browse":
+      return <BrowseScreen />;
+    case "settings":
+      return <SettingsScreen developerTools />;
+    case "developer":
+      return <DeveloperScreen />;
+    case "study":
+      return <StudyScreen deckId={route.deckId} />;
+  }
 }

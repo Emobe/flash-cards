@@ -1,0 +1,117 @@
+/* Shared components (ADR 0010). Tokens only: no literal colours. */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--target);
+  padding: 0 var(--space-4);
+  background: var(--surface);
+  color: var(--text);
+  border: var(--border-control);
+  border-radius: var(--radius);
+  text-decoration: none;
+  transition: background-color var(--motion);
+}
+
+.button-primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  color: var(--muted);
+}
+
+.empty-state .icon {
+  width: 3rem;
+  height: 3rem;
+}
+
+.empty-state p {
+  max-width: 24rem;
+}
+
+.group {
+  margin: 0;
+  padding: var(--space-4);
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+.group legend {
+  padding: 0 var(--space-2);
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.group .hint {
+  margin-top: var(--space-2);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--target);
+}
+
+.choice input {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--accent);
+}
+
+.row-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--target);
+  padding: 0 var(--space-4);
+  background: var(--surface);
+  color: var(--text);
+  border: var(--border);
+  border-radius: var(--radius);
+  text-decoration: none;
+}
+
+.problem {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+.problem .icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  color: var(--danger);
+}
+
+.dev-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.dev-section input {
+  min-height: var(--target);
+  padding: 0 var(--space-3);
+  background: var(--surface);
+  border: var(--border-control);
+  border-radius: var(--radius);
+}
