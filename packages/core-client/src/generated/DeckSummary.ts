@@ -26,6 +26,10 @@ export type DeckSummary = {
    */
   isDefault: boolean;
   /**
+   * The options preset it uses.
+   */
+  presetId: string;
+  /**
    * What is left to study today in this deck and the decks inside it.
    */
   newCount: number;

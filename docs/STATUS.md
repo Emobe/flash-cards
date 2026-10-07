@@ -6,8 +6,8 @@ Kept current by every session. A new session reads this first.
 
 2.5 Deck management, as two stacked PRs. No new ADR: the data rules are ADR 0006 (built in 1.5), the screens follow ADR 0010.
 
-- **2.5a decks: built, PR to open for Anthony.** Branch `step/2.5a-decks`. Done: `fc-api` `createDeck`, `renameDeck`, `moveDeck`, `deleteDeck` (answers how many decks and cards went), `restoreDeck`, `isDefault` on `DeckSummary`; the Decks screen has Add deck and a Manage mode (rename, move, add inside, delete with a confirmation and Undo) in a native `dialog`. Android Back closes a dialog (found on the phone, fixed). `cargo xtask check` passes (303 Vitest tests). Checked on the web at 390 and 1100 px and on the phone (Manage mode, Move window, Back). Not checked: the real desktop app, changing a deck on the phone. Build notes: ADR 0010, step 2.5a.
-- **2.5b presets: not started.** `fc-api` preset methods, a preset editor with plain-language help on every setting, choosing a deck's preset.
+- **2.5a decks: merged (PR #42).** Branch `step/2.5a-decks`. Done: `fc-api` `createDeck`, `renameDeck`, `moveDeck`, `deleteDeck` (answers how many decks and cards went), `restoreDeck`, `isDefault` on `DeckSummary`; the Decks screen has Add deck and a Manage mode (rename, move, add inside, delete with a confirmation and Undo) in a native `dialog`. Android Back closes a dialog (found on the phone, fixed). `cargo xtask check` passes (303 Vitest tests). Checked on the web at 390 and 1100 px and on the phone (Manage mode, Move window, Back). Not checked: the real desktop app, changing a deck on the phone. Build notes: ADR 0010, step 2.5a.
+- **2.5b presets: in progress.** Branch `step/2.5b-presets`. Done: `fc-api` `getPresets`, `createPreset`, `renamePreset`, `setPresetOptions`, `deletePreset`, `restorePreset`, `setDeckPreset`, `presetId` on `DeckSummary`. Left: the options screen (route `#/options/<deckId>`, an Options button in Manage mode), tests, checks on the web and the phone, build notes, PR. `fc-api` preset methods, a preset editor with plain-language help on every setting, choosing a deck's preset.
 
 2.4 Add note is merged (2.4a PR #39, 2.4b PR #40, 2.4c PR #41). Anthony's phone findings on 2.4c (Take photo opens the gallery, no microphone option, pictures overflow the card) are postponed, see Open items. Not checked on the phone: the draft after Android closes the app while the camera is open. Anthony said (2026-10-07) his phone may be used for gestures in a session when needed, while it is free and unlocked; CLAUDE.md's rule otherwise stands.
 
@@ -15,7 +15,7 @@ Previous step: 2.3 Review screen, merged (PR #36, PR #37). Still not run on the 
 
 ## Branch
 
-`step/2.5a-decks`.
+`step/2.5b-presets`.
 
 ## Done
 

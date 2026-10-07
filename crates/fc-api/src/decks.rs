@@ -28,6 +28,8 @@ pub struct DeckSummary {
     pub depth: u32,
     /// The Default deck, which cannot be deleted.
     pub is_default: bool,
+    /// The options preset it uses.
+    pub preset_id: String,
     /// What is left to study today in this deck and the decks inside it.
     pub new_count: u32,
     pub learning_count: u32,
@@ -77,6 +79,7 @@ impl Method for GetDeckList {
                     parent_id: deck.parent.map(|p| p.to_string()),
                     depth: u32::try_from(deck.depth).unwrap_or(u32::MAX),
                     is_default: deck.id == fc_core::deck::default_deck(),
+                    preset_id: deck.preset.to_string(),
                     new_count: counts.new,
                     learning_count: counts.learning,
                     review_count: counts.review,
