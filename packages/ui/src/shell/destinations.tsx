@@ -20,7 +20,7 @@ export const destinations: readonly Destination[] = [
     icon: <DecksIcon />,
     path: "/decks",
     shortcut: "d",
-    routes: ["decks"],
+    routes: ["decks", "options"],
   },
   { id: "add", label: "Add", icon: <AddIcon />, path: "/add", shortcut: "a", routes: ["add"] },
   {

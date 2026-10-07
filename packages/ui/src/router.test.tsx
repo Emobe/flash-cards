@@ -1,6 +1,14 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { Link, PageHeading, parseRoute, RouterProvider, studyPath, useRouter } from "./router";
+import {
+  Link,
+  optionsPath,
+  PageHeading,
+  parseRoute,
+  RouterProvider,
+  studyPath,
+  useRouter,
+} from "./router";
 
 function Screens() {
   const { route, navigate, back } = useRouter();
@@ -52,6 +60,12 @@ describe("parseRoute", () => {
     for (const path of ["", "/", "/nope", "/study", "/decks/1", "/settings/x", "/study/%E0%A4%A"]) {
       expect(parseRoute(path)).toBeNull();
     }
+  });
+
+  test("options routes carry the deck id", () => {
+    expect(parseRoute("/options/42")).toMatchObject({ name: "options", deckId: "42" });
+    expect(parseRoute("/options")).toBeNull();
+    expect(parseRoute(optionsPath("a/b c"))).toMatchObject({ deckId: "a/b c" });
   });
 
   test("study ids round-trip through encoding", () => {

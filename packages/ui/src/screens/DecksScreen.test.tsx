@@ -19,6 +19,7 @@ function deck(
     parentId,
     depth,
     isDefault: id === "d-default",
+    presetId: "p-default",
     newCount,
     learningCount,
     reviewCount,
@@ -217,6 +218,13 @@ describe("Managing decks", () => {
     expect(screen.getByRole("button", { name: "Rename Polish" })).toBeDefined();
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
     expect(screen.getByRole("link", { name: /^Polish/ })).toBeDefined();
+  });
+
+  test("Options opens the options of that deck", async () => {
+    renderManage();
+    await manage();
+    const link = screen.getByRole("link", { name: "Options Words" }) as HTMLAnchorElement;
+    expect(link.getAttribute("href")).toBe("#/options/d-words");
   });
 
   test("the Default deck has no Delete", async () => {

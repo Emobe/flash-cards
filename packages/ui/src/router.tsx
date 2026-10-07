@@ -17,7 +17,7 @@ import {
 
 export type Route =
   | { name: "decks" | "add" | "browse" | "settings" | "developer"; path: string; title: string }
-  | { name: "study"; path: string; title: string; deckId: string };
+  | { name: "study" | "options"; path: string; title: string; deckId: string };
 
 const DEFAULT_PATH = "/decks";
 
@@ -28,10 +28,15 @@ const titles = {
   settings: "Settings",
   developer: "Developer tools",
   study: "Study",
+  options: "Deck options",
 } as const;
 
 export function studyPath(deckId: string): string {
   return `/study/${encodeURIComponent(deckId)}`;
+}
+
+export function optionsPath(deckId: string): string {
+  return `/options/${encodeURIComponent(deckId)}`;
 }
 
 /** The route for a path such as `/decks` or `/study/42`, or `null` when there is none. */
@@ -49,14 +54,16 @@ export function parseRoute(path: string): Route | null {
   if (first === "settings" && second === "developer" && !extra) {
     return { name: "developer", path: "/settings/developer", title: titles.developer };
   }
-  if (first === "study" && second && !extra) {
+  if ((first === "study" || first === "options") && second && !extra) {
     let deckId: string;
     try {
       deckId = decodeURIComponent(second);
     } catch {
       return null;
     }
-    return { name: "study", path: studyPath(deckId), title: titles.study, deckId };
+    return first === "study"
+      ? { name: "study", path: studyPath(deckId), title: titles.study, deckId }
+      : { name: "options", path: optionsPath(deckId), title: titles.options, deckId };
   }
   return null;
 }

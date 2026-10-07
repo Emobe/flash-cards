@@ -3,7 +3,7 @@ import { CoreError } from "core-client";
 import { useCallback, useEffect, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
 import { useCore } from "../core";
-import { Link, PageHeading, studyPath, useRouter } from "../router";
+import { Link, optionsPath, PageHeading, studyPath, useRouter } from "../router";
 import { ChevronIcon, WarningIcon } from "../shell/icons";
 import { type DeckAction, DeckDialog } from "./DeckDialog";
 
@@ -288,6 +288,9 @@ function DeckRow({
             >
               Add inside<span className="visually-hidden"> {deck.name}</span>
             </button>
+            <Link path={optionsPath(deck.id)} className="button">
+              Options<span className="visually-hidden"> {deck.name}</span>
+            </Link>
             <button
               type="button"
               className="button"
