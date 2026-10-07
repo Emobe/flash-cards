@@ -3,10 +3,12 @@
 
 mod backup;
 mod bench;
+mod deck;
 mod fake;
 mod host;
 mod media;
 mod merge;
+mod notetype;
 mod search;
 mod stats;
 mod study;
@@ -28,6 +30,50 @@ Usage:
   fc add-note <file> <note type> [--deck <deck>] [--tag <tag>]... <Field=value>...
                    Add a note to a deck (the Default deck if none is given). Fields left out are
                    empty. Warns about duplicates
+  fc notetype <file> add <name> [--cloze]
+  fc notetype <file> rename <note type> <new name>
+  fc notetype <file> css <note type> <css or @path>
+  fc notetype <file> sort-field <note type> <field>
+  fc notetype <file> delete <note type>
+  fc notetype <file> restore <note type>
+                   Change note types. A note type, field or template is given by name or by ID.
+                   Deleting a note type deletes its notes and cards, and restoring brings them back
+  fc field <file> <note type> add <name>
+  fc field <file> <note type> rename <field> <new name>
+  fc field <file> <note type> move <field> <position>
+  fc field <file> <note type> remove <field>
+  fc field <file> <note type> restore <field>
+                   Change the fields of a note type. Positions start at 1. Renaming a field rewrites
+                   the templates that use it. A removed field keeps its values and can be restored
+  fc template <file> <note type> add <name> <front> <back>
+  fc template <file> <note type> rename <template> <new name>
+  fc template <file> <note type> set <template> [--front <text>] [--back <text>]
+  fc template <file> <note type> move <template> <position>
+  fc template <file> <note type> remove <template>
+  fc template <file> <note type> restore <template>
+                   Change the card templates of a note type. Text is given as it is, or as @path to
+                   read it from a file. A template with a mistake in it is refused
+  fc deck <file> rename <deck> <new name>
+  fc deck <file> move <deck> (<new parent> | --top)
+  fc deck <file> delete <deck>
+  fc deck <file> restore <deck or ID>
+  fc deck <file> limits <deck> (on | off)
+                   Change decks. Deleting a deck deletes its sub-decks, cards and notes left with
+                   no card, and restoring brings them back. limits says whether the deck's daily
+                   limits also count the cards of its sub-decks
+  fc move-cards <file> <deck> <card ID>...
+                   Move cards to a deck
+  fc preset <file> add <name>
+  fc preset <file> rename <preset> <new name>
+  fc preset <file> set <preset> [--new-per-day <n>] [--reviews-per-day <n>]
+                   [--learning-steps '1 10'|none] [--relearning-steps '10'|none]
+                   [--retention <0.7 to 0.99>] [--space-siblings on|off]
+                   [--fsrs-parameters '<17, 19 or 21 numbers>'|default]
+  fc preset <file> delete <preset>
+  fc preset <file> restore <preset>
+  fc preset <file> assign <deck> <preset>
+                   Change option presets and which deck uses which. A deleted preset sends its
+                   decks to the Default preset
   fc tags <file>   List the tags as a tree with the number of notes
   fc tag <file> <note ID> <tag>...
                    Add tags to a note. Use parent::child to put a tag inside another
@@ -326,6 +372,18 @@ fn take_deck_option(args: &[String]) -> Result<(Option<String>, Vec<String>), Fa
     Ok((deck, rest))
 }
 
+/// "Name (ID), Name (ID)" for a list of things that can be restored by ID.
+fn named<T>(items: &[T], parts: impl Fn(&T) -> (&String, fc_core::id::Id)) -> String {
+    items
+        .iter()
+        .map(|item| {
+            let (name, id) = parts(item);
+            format!("{name} ({id})")
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 fn plural(count: usize, word: &str) -> String {
     format!("{count} {word}{}", if count == 1 { "" } else { "s" })
 }
@@ -366,10 +424,23 @@ fn run(args: &[String]) -> Result<String, Failure> {
             let deleted = collection
                 .deleted_note_types()
                 .map_err(|error| Failure::Core(error.to_string()))?;
-            collection.close()?;
             let mut text = format!("Note types in {file}:");
             for note_type in live {
                 text.push_str(&describe(&note_type));
+                let fields = collection.removed_fields(note_type.id)?;
+                if !fields.is_empty() {
+                    text.push_str(&format!(
+                        "\n  Removed fields: {}",
+                        named(&fields, |f| (&f.name, f.id))
+                    ));
+                }
+                let templates = collection.removed_templates(note_type.id)?;
+                if !templates.is_empty() {
+                    text.push_str(&format!(
+                        "\n  Removed templates: {}",
+                        named(&templates, |t| (&t.name, t.id))
+                    ));
+                }
             }
             if !deleted.is_empty() {
                 text.push_str("\n\nDeleted (can be restored):");
@@ -377,6 +448,7 @@ fn run(args: &[String]) -> Result<String, Failure> {
                     text.push_str(&describe(&note_type));
                 }
             }
+            collection.close()?;
             Ok(text)
         }
         [command, file] if command == "notes" => {
@@ -406,6 +478,14 @@ fn run(args: &[String]) -> Result<String, Failure> {
                     if !tags.is_empty() {
                         text.push_str(&format!("\n  Tags: {}", tags.join(" ")));
                     }
+                }
+            }
+            let trashed = collection.deleted_notes()?;
+            if !trashed.is_empty() {
+                text.push_str("\n\nDeleted (can be restored):");
+                for note in trashed {
+                    let first = note.fields.first().map_or("", |f| f.value.as_str());
+                    text.push_str(&format!("\n{}  {first}", note.id));
                 }
             }
             collection.close()?;
@@ -445,6 +525,20 @@ fn run(args: &[String]) -> Result<String, Failure> {
                     },
                     preset.desired_retention,
                     plural(preset.decks, "deck"),
+                ));
+            }
+            let deleted_decks = collection.deleted_decks()?;
+            if !deleted_decks.is_empty() {
+                text.push_str(&format!(
+                    "\n\nDeleted decks (can be restored): {}",
+                    named(&deleted_decks, |d| (&d.path, d.id))
+                ));
+            }
+            let deleted_presets = collection.deleted_presets()?;
+            if !deleted_presets.is_empty() {
+                text.push_str(&format!(
+                    "\n\nDeleted presets (can be restored): {}",
+                    named(&deleted_presets, |p| (&p.name, p.id))
                 ));
             }
             collection.close()?;
@@ -636,6 +730,14 @@ fn run(args: &[String]) -> Result<String, Failure> {
             collection.close()?;
             Ok(text.trim_end().to_owned())
         }
+        [command, file, rest @ ..] if command == "notetype" => notetype::notetype(file, rest),
+        [command, file, rest @ ..] if command == "field" => notetype::field(file, rest),
+        [command, file, rest @ ..] if command == "template" => notetype::template(file, rest),
+        [command, file, rest @ ..] if command == "deck" => deck::deck(file, rest),
+        [command, file, rest @ ..] if command == "preset" => deck::preset(file, rest),
+        [command, file, target, cards @ ..] if command == "move-cards" => {
+            deck::move_cards(file, target, cards)
+        }
         [command, from, into] if command == "merge" => merge::merge(from, into),
         [command, file] if command == "bench" => bench::bench(file),
         [command, file, rest @ ..] if command == "fake" => {
@@ -790,6 +892,12 @@ fn run(args: &[String]) -> Result<String, Failure> {
                     | "restore"
                     | "import"
                     | "backup-info"
+                    | "notetype"
+                    | "field"
+                    | "template"
+                    | "deck"
+                    | "preset"
+                    | "move-cards"
                     | "help"
             ) =>
         {

@@ -74,7 +74,9 @@ fn a_backup_restores_after_the_collection_changed_and_never_overwrites_a_file() 
     assert!(report.contains("Removed (to the trash"), "{report}");
     let notes = out(&fc(&["notes", db.path()]));
     assert!(notes.contains("before"), "{notes}");
-    assert!(!notes.contains("after"), "{notes}");
+    // It is in the trash, which `notes` lists after the live notes.
+    let live = notes.split("Deleted (can be restored)").next().unwrap();
+    assert!(!live.contains("after"), "{notes}");
 
     // Restoring it again finds nothing to do.
     let report = out(&fc(&["restore", db.path(), backup.path()]));

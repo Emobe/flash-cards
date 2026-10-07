@@ -4,19 +4,21 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.14a Developer CLI: large fake collection and timing (the first half of 1.14, split in two as agreed in chat): built, awaiting Anthony's review. Branch `step/1.14a-fake-collection`, from `master`. Results, "not verified" and the deviations list are in ADR 0006, "Build notes, step 1.14a". Next: 1.14b (the missing commands).
+1.14b Developer CLI: the missing commands, in progress. Branch `step/1.14b-cli-commands`, from `master`. Plan as agreed in chat on 2026-10-07: grouped commands by noun (`notetype`, `field`, `template`, `deck`, `preset`), then notes, tags, media and saved searches, then settings, then a test that every public `Collection` operation has a command (or a written reason it has none), then the ADR 0006 build notes.
 
-Verified: `cargo xtask check` passes, clippy is clean, 8 new CLI tests. `fc fake` and `fc bench` run on a 10,000-note collection (13,629 cards, 30 days of history): every timing is under 1 s (the slowest are export 600 ms and merge into a new collection 766 ms); the list is in the ADR notes.
+Done so far: note types, fields, templates, decks, presets and `move-cards` (`crates/fc-cli/src/notetype.rs`, `deck.rs`, tests in `tests/notetype.rs` and `tests/decks.rs`). The `notes`, `decks` and `notetypes` listings now also show what is deleted or removed, with IDs, so it can be restored. `cargo xtask check` passes.
 
-Not verified: the phone and the web (the CLI is desktop only), Windows, 50,000 notes. Generating is slow and grows with the square of the notes (10,000 notes take 76 s) because `add_note` scans for duplicates every time; a batch path in the core would fix it and was not built.
+Remaining: `edit-note`, `delete-note`, `restore-note`, `find-duplicates`, `delete-tag`, `set-tags`, `delete-media`, `restore-media`, `update-search`; `day-start-hour`, `backup-settings`, `device-id`, `rebuild-schedule`; the coverage test and one `COMMANDS` list in `main.rs`; ADR 0006 build notes (step 1.14b) with a deviations list; phase file status.
 
-Previous step: 1.13b Backup, export and restore (API, native automatic backup, web export), merged (PR #29). Its "not verified" list and the rules for Anthony to confirm are in ADR 0006, "Build notes, step 1.13b".
+Previous step: 1.14a Developer CLI: large fake collection and timing, merged (PR #30). Results, "not verified" and the deviations list are in ADR 0006, "Build notes, step 1.14a".
 
 ## Branch
 
-`step/1.14a-fake-collection`, from `master`. Not pushed.
+`step/1.14b-cli-commands`, from `master`. Not pushed.
 
 ## Done
+
+- 1.14a Developer CLI: large fake collection and timing (ADR 0006 build notes, step 1.14a). `fc fake` makes a large invented collection (seeded, nested decks, three note types, tags, media, a review history made through the core); `fc bench` times the operations earlier notes asked to measure, on a copy. At 10,000 notes every timing is under 1 s. Not verified: the phone, the web, Windows, 50,000 notes. Generating grows with the square of the notes (`add_note` scans for duplicates every time); a core batch path would fix it and was not built. Merged (PR #30).
 
 - 1.13b Backup API, automatic backup and web export (ADR 0006 build notes, step 1.13b). `fc_core::backup` settings in `meta` (`backup_settings`, `set_backup_settings`, `set_backup_error`), `Collection::pending_migration`. `fc-api`: `exportBackup`, `restoreBackup`, `importBackup`, `readBackupInfo` (attachments), `exportBackupToFile`, `restoreBackupFromFile`, `importBackupFromFile`, `readBackupFileInfo` (native only, a new `native:` list in the method macro), `getBackupSettings`, `setBackupSettings`; `fc_api::autobackup` (`run_if_due`, `copy_before_migration`), used by `apps/native` on start. A temporary `BackupPanel` in `apps/web`. No new dependencies. Deviations: the list at the end of the ADR notes.
 
