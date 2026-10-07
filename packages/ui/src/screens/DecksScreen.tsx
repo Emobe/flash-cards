@@ -123,8 +123,8 @@ function DeckTree({ decks }: { decks: DeckSummary[] }) {
       )}
       <div className="deck-head" aria-hidden="true">
         <span>New</span>
-        <span>Learning</span>
-        <span>To review</span>
+        <span>Learn</span>
+        <span>Review</span>
       </div>
       <ul className="deck-list">
         {rows.map((deck) => (

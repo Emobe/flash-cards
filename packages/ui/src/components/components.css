@@ -134,13 +134,15 @@
 
 .deck-head,
 .deck-link {
-  --count-width: 3.5rem;
+  --count-width: 3.25rem;
 }
 
 .deck-head {
   display: flex;
   justify-content: flex-end;
-  padding: 0 var(--space-4) var(--space-1);
+  /* Lines up with the counts: a row has a 1px border and the link's right padding. */
+  padding: 0 calc(var(--space-4) + 1px) var(--space-1) 0;
+  white-space: nowrap;
   color: var(--muted);
   font-size: var(--text-sm);
 }
