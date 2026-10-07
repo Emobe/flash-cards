@@ -3,8 +3,6 @@ import type { AnswerCardInput } from "./AnswerCardInput";
 import type { AnswerCardOutput } from "./AnswerCardOutput";
 import type { BackupInfo } from "./BackupInfo";
 import type { BackupSettingsOutput } from "./BackupSettingsOutput";
-import type { CardMediaInput } from "./CardMediaInput";
-import type { CardMediaOutput } from "./CardMediaOutput";
 import type { CollectionInfo } from "./CollectionInfo";
 import type { CoreInfo } from "./CoreInfo";
 import type { DeckList } from "./DeckList";
@@ -42,12 +40,6 @@ export type Methods = {
   exampleDivide: { input: DivideInput; output: DivideOutput; bytesIn: false; bytesOut: false };
   getCollectionInfo: { input: null; output: CollectionInfo; bytesIn: false; bytesOut: false };
   getDeckList: { input: null; output: DeckList; bytesIn: false; bytesOut: false };
-  spikeCardMedia: {
-    input: CardMediaInput;
-    output: CardMediaOutput;
-    bytesIn: false;
-    bytesOut: true;
-  };
   startStudySession: {
     input: StartSessionInput;
     output: StartSessionOutput;
@@ -110,7 +102,6 @@ export type Methods = {
 };
 
 export const bytesOutMethods: ReadonlySet<string> = new Set([
-  "spikeCardMedia",
   "getMedia",
   "exportBackup",
   "debugEchoBytes",

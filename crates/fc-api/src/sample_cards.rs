@@ -12,8 +12,8 @@ use ts_rs::TS;
 use crate::collection::not_open;
 use crate::{ApiError, Method, OpContext};
 
-const SAMPLE_PNG: &[u8] = include_bytes!("spike_media/sample.png");
-const SAMPLE_WAV: &[u8] = include_bytes!("spike_media/sample.wav");
+const SAMPLE_PNG: &[u8] = include_bytes!("sample_media/sample.png");
+const SAMPLE_WAV: &[u8] = include_bytes!("sample_media/sample.wav");
 
 #[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]

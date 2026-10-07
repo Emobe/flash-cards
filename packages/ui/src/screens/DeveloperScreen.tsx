@@ -1,6 +1,5 @@
 import { CoreError } from "core-client";
 import { type ReactNode, useEffect, useState } from "react";
-import { CardSandboxSpike } from "../CardSandboxSpike";
 import { useCore } from "../core";
 import { DivideForm } from "../DivideForm";
 import { Link, PageHeading } from "../router";
@@ -9,8 +8,8 @@ import { BottomAction } from "../shell/slot";
 import "../styles/spikes.css";
 
 /**
- * The spikes from Phase 0 and 1, kept as test rigs until their replacements land (2.3 for the
- * card frame, 2.6 for backups). Only debug builds link here (ADR 0010 decision 7).
+ * The spikes from Phase 0 and 1, kept as test rigs until their replacements land (the card
+ * sandbox spike went in 2.3, backups follow in 2.6). Only debug builds link here (ADR 0010 decision 7).
  */
 export function DeveloperScreen({ extraTools }: { extraTools?: ReactNode }) {
   return (
@@ -22,7 +21,6 @@ export function DeveloperScreen({ extraTools }: { extraTools?: ReactNode }) {
       <SampleCards />
       <DivideForm />
       <SchedulingSpike />
-      <CardSandboxSpike />
       {extraTools}
     </>
   );
