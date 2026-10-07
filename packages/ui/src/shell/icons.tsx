@@ -94,3 +94,11 @@ export function EmptyIcon() {
     </Svg>
   );
 }
+
+export function ChevronIcon() {
+  return (
+    <Svg>
+      <path d="m9 6 6 6-6 6" />
+    </Svg>
+  );
+}

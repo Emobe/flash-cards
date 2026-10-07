@@ -10,6 +10,7 @@ mod collection;
 mod context;
 #[cfg(debug_assertions)]
 mod debug;
+mod decks;
 mod error;
 mod examples;
 mod notice;
@@ -133,6 +134,7 @@ methods! {
         examples::GetCoreInfo,
         examples::ExampleDivide,
         collection::GetCollectionInfo,
+        decks::GetDeckList,
         spike_card::SpikeCardMedia,
         spike_scheduling::SpikeSchedule,
         spike_scheduling::SpikeOptimise,

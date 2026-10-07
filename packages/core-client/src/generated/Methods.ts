@@ -5,6 +5,7 @@ import type { CardMediaInput } from "./CardMediaInput";
 import type { CardMediaOutput } from "./CardMediaOutput";
 import type { CollectionInfo } from "./CollectionInfo";
 import type { CoreInfo } from "./CoreInfo";
+import type { DeckList } from "./DeckList";
 import type { DivideInput } from "./DivideInput";
 import type { DivideOutput } from "./DivideOutput";
 import type { EchoOutput } from "./EchoOutput";
@@ -26,6 +27,7 @@ export type Methods = {
   getCoreInfo: { input: null; output: CoreInfo; bytesIn: false; bytesOut: false };
   exampleDivide: { input: DivideInput; output: DivideOutput; bytesIn: false; bytesOut: false };
   getCollectionInfo: { input: null; output: CollectionInfo; bytesIn: false; bytesOut: false };
+  getDeckList: { input: null; output: DeckList; bytesIn: false; bytesOut: false };
   spikeCardMedia: {
     input: CardMediaInput;
     output: CardMediaOutput;

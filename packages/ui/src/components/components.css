@@ -115,3 +115,110 @@
   border: var(--border-control);
   border-radius: var(--radius);
 }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The deck list (step 2.2). One row per deck: a toggle for the decks inside it, then a link that
+   starts studying. Counts are three equal columns so they line up down the list. */
+.deck-done {
+  margin-bottom: var(--space-3);
+  color: var(--muted);
+}
+
+.deck-head,
+.deck-link {
+  --count-width: 3.25rem;
+}
+
+.deck-head {
+  display: flex;
+  justify-content: flex-end;
+  /* Lines up with the counts: a row has a 1px border and the link's right padding. */
+  padding: 0 calc(var(--space-4) + 1px) var(--space-1) 0;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.deck-head span {
+  width: var(--count-width);
+  text-align: right;
+}
+
+.deck-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.deck-row {
+  display: flex;
+  align-items: center;
+  padding-left: calc(var(--depth) * var(--space-4));
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+.deck-toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--target);
+  min-height: var(--target);
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--muted);
+}
+
+.deck-toggle .icon {
+  transition: transform var(--motion);
+}
+
+.deck-toggle[aria-expanded="true"] .icon {
+  transform: rotate(90deg);
+}
+
+.deck-link {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  min-height: var(--target);
+  padding-right: var(--space-4);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.deck-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: var(--space-2) 0;
+}
+
+.deck-count {
+  width: var(--count-width);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-count[data-zero="true"] {
+  color: var(--muted);
+}
+
+.deck-link:hover .deck-name {
+  text-decoration: underline;
+}

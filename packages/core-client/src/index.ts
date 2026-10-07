@@ -4,6 +4,8 @@ export type { ApiError } from "./generated/ApiError";
 export type { BackupInfo } from "./generated/BackupInfo";
 export type { CoreEvent } from "./generated/CoreEvent";
 export type { CoreInfo } from "./generated/CoreInfo";
+export type { DeckList } from "./generated/DeckList";
+export type { DeckSummary } from "./generated/DeckSummary";
 export type { DivideInput } from "./generated/DivideInput";
 export type { DivideOutput } from "./generated/DivideOutput";
 export type { ErrorKind } from "./generated/ErrorKind";
