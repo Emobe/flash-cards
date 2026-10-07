@@ -185,6 +185,12 @@ previews, and in the editor. No card HTML is ever inserted into the app's own DO
 - **Element.** `<iframe sandbox="allow-scripts">`. Never `allow-same-origin` (with `allow-scripts`
   it removes the sandbox), `allow-top-navigation*`, `allow-popups`, `allow-forms` or `allow-modals`.
   No `allow` attribute, so the frame gets no camera, microphone, geolocation, clipboard or fullscreen.
+  *(Amendment, step 2.3a, approved by Anthony: the one attribute is `allow="autoplay"`. Chromium
+  refuses `play()` in a cross-origin sandboxed frame unless autoplay is delegated to it, even right
+  after a real click on the page (`navigator.userActivation` in the frame stays false). The attribute
+  delegates autoplay and nothing else: camera, microphone, geolocation, clipboard and fullscreen
+  stay off, and a card can already start its own audio by script. No other `allow` value is
+  accepted.)*
 - **The card-frame page** (`frame.html`). One static file, trusted, written by us, and the same for
   every platform. It includes:
   - A CSP:
@@ -493,7 +499,7 @@ Built to the plan Anthony approved in chat (no plan file). The CSP, the message 
 ## Build notes (step 2.3a)
 
 The frame changes of step 2.3a (theme, autoplay and replay, the `audio` and `autoplay-blocked`
-messages) are in the amendments above. Their build notes, checks and deviations are in ADR 0010,
-"Build notes (step 2.3a)". Result worth knowing here: on Chromium, autoplay and replay inside the
-sandboxed frame work after a real click on the page **without** an `allow` attribute, so the rule
-"no `allow` attribute" is unchanged.
+messages, and `allow="autoplay"` on the iframe) are in the amendments above. Their build notes, checks
+and deviations are in ADR 0010, "Build notes (step 2.3a)". Result worth knowing here: on Chromium,
+autoplay and replay inside the sandboxed frame are refused even after a real click unless the iframe
+has `allow="autoplay"`; with it they work.

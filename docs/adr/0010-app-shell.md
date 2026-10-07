@@ -764,10 +764,12 @@ is 2.3b.
   - the frame sets `color-scheme: dark` and the `night` class for `dark`, and `light` without it for
     `light` and for a made-up theme;
   - it reports one `<audio>` element;
-  - with **no click** on the page, autoplay and replay were refused (`autoplay-blocked`);
-  - after a **real click** on the page (input events through the protocol), autoplay started the audio
-    and a later `play` message started it again, with the iframe having **no `allow` attribute**, so
-    ADR 0005's "no `allow`" stands. `allow="autoplay"` gave the same result;
+  - **autoplay and replay are refused on Chromium without `allow="autoplay"`**, with or without a
+    real click on the page: in the real screen, `play()` in the frame failed with `NotAllowedError`
+    and `navigator.userActivation.hasBeenActive` was false inside it. With `allow="autoplay"` on the
+    iframe the audio played (`played` length 1, no refusal). An earlier version of this note said no
+    attribute was needed. That came from a test harness whose iframe was not built like the app's, and
+    it was wrong. Anthony approved the attribute in chat (ADR 0005 amendment);
   - the 54-attempt malicious card: **38 blocked, 0 SUCCEEDED, 16 other, 19 CSP violations**, no alarm,
     the core still answered and the page was not reloaded. Same as 0.6 and 1.10b. Both navigating cards
     were stopped with the message, and the Media card works.
@@ -791,6 +793,8 @@ is 2.3b.
   `SessionSummary | null` and `card | null`. The bindings generator does not import the type inside an
   `Option` output, and every other method answers a struct.
 - **`EventRating` also derives `Deserialize`**, so `answerCard` takes the rating the events already use.
+- **The iframe gets `allow="autoplay"`**, which the plan said might be needed and asked Anthony about
+  (approved). ADR 0005's "no `allow` attribute" is amended.
 - **The frame sends two more messages than the plan listed** (`audio`, `autoplay-blocked`), so the
   screen can show Replay only when there is sound and say so when autoplay is refused. Both are in the
   ADR 0005 amendment.

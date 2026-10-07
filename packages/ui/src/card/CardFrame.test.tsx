@@ -32,11 +32,12 @@ function messageFrom(source: Window | null, data: unknown) {
   });
 }
 
-test("the iframe is sandboxed with exactly allow-scripts and has no permissions", () => {
+test("the iframe is sandboxed with exactly allow-scripts and may only autoplay", () => {
   setup();
   const el = frame();
   expect(el.getAttribute("sandbox")).toBe("allow-scripts");
-  expect(el.hasAttribute("allow")).toBe(false);
+  // Chromium refuses audio in a sandboxed frame unless autoplay is delegated. Nothing else may be.
+  expect(el.getAttribute("allow")).toBe("autoplay");
   expect(el.getAttribute("src")).toBe("about:blank");
 });
 

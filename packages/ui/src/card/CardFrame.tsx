@@ -146,6 +146,7 @@ function CardFrameInstance(props: Props) {
       title="Card"
       src={cardFrameUrl}
       sandbox="allow-scripts"
+      allow="autoplay"
       referrerPolicy="no-referrer"
       style={{ display: "block", width: "100%", border: 0, height }}
     />

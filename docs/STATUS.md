@@ -6,7 +6,7 @@ Kept current by every session. A new session reads this first.
 
 2.3 Review screen, split in two PRs (Anthony agreed to the plan in chat, defaults on all three questions: split, a debug-only "Add sample cards" on the Developer screen, delete the 0.6 sandbox spike at the end of 2.3b).
 
-**2.3a Study API and frame** (branch `step/2.3a-study-api`), done and waiting for Anthony's review. `fc-api` `startStudySession`, `endStudySession`, `nextCard`, `renderCard`, `getMedia`, `answerCard`, `undoAnswer`; `Collection::now_ms`; the frame takes `theme` and `autoplay` and reports audio. Verified in headless Brave (theme, autoplay after a click, replay, the 54-attempt card: 38 / 0 / 16). Not verified: desktop and phone (moved to 2.3b). Build notes and deviations: ADR 0010 "Build notes (step 2.3a)".
+**2.3a Study API and frame** (branch `step/2.3a-study-api`), done and waiting for Anthony's review. `fc-api` `startStudySession`, `endStudySession`, `nextCard`, `renderCard`, `getMedia`, `answerCard`, `undoAnswer`; `Collection::now_ms`; the frame takes `theme` and `autoplay` and reports audio. Verified in headless Brave (theme, autoplay and replay with `allow="autoplay"` on the iframe, which Chromium needs and Anthony approved, the 54-attempt card: 38 / 0 / 16). Not verified: desktop and phone (moved to 2.3b). Build notes and deviations: ADR 0010 "Build notes (step 2.3a)".
 
 **2.3b Review screen** (not started): `StudyScreen`, interval formatting, shortcuts, end screen, debug "Add sample cards", delete the 0.6 spike.
 
