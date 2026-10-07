@@ -4,19 +4,23 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.14a Developer CLI: large fake collection and timing (the first half of 1.14, split in two as agreed in chat): built, awaiting Anthony's review. Branch `step/1.14a-fake-collection`, from `master`. Results, "not verified" and the deviations list are in ADR 0006, "Build notes, step 1.14a". Next: 1.14b (the missing commands).
+1.14b Developer CLI: the missing commands, built, awaiting Anthony's review. Branch `step/1.14b-cli-commands`, from `master`. Results, "not verified" and the deviations list are in ADR 0006, "Build notes, step 1.14b". It is the last step of Phase 1. Next: Phase 2 (`docs/phases/02-study-loop.md`).
 
-Verified: `cargo xtask check` passes, clippy is clean, 8 new CLI tests. `fc fake` and `fc bench` run on a 10,000-note collection (13,629 cards, 30 days of history): every timing is under 1 s (the slowest are export 600 ms and merge into a new collection 766 ms); the list is in the ADR notes.
+Verified: `cargo xtask check` passes, clippy is clean, 18 new CLI tests (63 in all, 45 before), a coverage test that fails when a public `Collection` operation has no command or written reason (checked by adding one), a smoke run on a `fc fake` collection.
 
-Not verified: the phone and the web (the CLI is desktop only), Windows, 50,000 notes. Generating is slow and grows with the square of the notes (10,000 notes take 76 s) because `add_note` scans for duplicates every time; a batch path in the core would fix it and was not built.
+Not verified: the phone and the web (the CLI is desktop only), Windows, the new commands on a copy of the real desktop collection.
 
-Previous step: 1.13b Backup, export and restore (API, native automatic backup, web export), merged (PR #29). Its "not verified" list and the rules for Anthony to confirm are in ADR 0006, "Build notes, step 1.13b".
+Previous step: 1.14a Developer CLI: large fake collection and timing, merged (PR #30).
 
 ## Branch
 
-`step/1.14a-fake-collection`, from `master`. Not pushed.
+`step/1.14b-cli-commands`, from `master`. Not pushed.
 
 ## Done
+
+- 1.14b Developer CLI: the missing commands (ADR 0006 build notes, step 1.14b). `fc notetype | field | template | deck | preset` with verbs, `move-cards`, `edit-note`, `delete-note`, `restore-note`, `find-duplicates`, `set-tags`, `delete-tag`, `delete-media`, `restore-media`, `update-search`, `tagged`, `day-start-hour`, `backup-settings`, `device-id`, `rebuild-schedule`; `notes`, `decks` and `notetypes` list what can be restored. `crates/fc-cli/tests/coverage.rs` checks every public `Collection` operation against the commands. No core change, no new dependency. Deviations: the list at the end of the ADR notes (about 1,950 lines against the 1,500 limit in the plan).
+
+- 1.14a Developer CLI: large fake collection and timing (ADR 0006 build notes, step 1.14a). `fc fake` makes a large invented collection (seeded, nested decks, three note types, tags, media, a review history made through the core); `fc bench` times the operations earlier notes asked to measure, on a copy. At 10,000 notes every timing is under 1 s. Not verified: the phone, the web, Windows, 50,000 notes. Generating grows with the square of the notes (`add_note` scans for duplicates every time); a core batch path would fix it and was not built. Merged (PR #30).
 
 - 1.13b Backup API, automatic backup and web export (ADR 0006 build notes, step 1.13b). `fc_core::backup` settings in `meta` (`backup_settings`, `set_backup_settings`, `set_backup_error`), `Collection::pending_migration`. `fc-api`: `exportBackup`, `restoreBackup`, `importBackup`, `readBackupInfo` (attachments), `exportBackupToFile`, `restoreBackupFromFile`, `importBackupFromFile`, `readBackupFileInfo` (native only, a new `native:` list in the method macro), `getBackupSettings`, `setBackupSettings`; `fc_api::autobackup` (`run_if_due`, `copy_before_migration`), used by `apps/native` on start. A temporary `BackupPanel` in `apps/web`. No new dependencies. Deviations: the list at the end of the ADR notes.
 
@@ -61,6 +65,8 @@ Previous step: 1.13b Backup, export and restore (API, native automatic backup, w
 
 ## Open items
 
+- **1.14b choices for Anthony to confirm:** `start_study_session` and `end_study_session` have no CLI command (a session lives in one process and only emits events, ADR 0009); eight sync-plumbing operations have none either (reasons in the table in `tests/coverage.rs`); `fc notes` now also prints the trash, which changes its output; `template set` and `notetype css` read a file with `@path`.
+- **1.14b not verified:** the phone, the web, Windows, the new commands on a copy of the real desktop collection.
 - **Step 2.6 builds on 1.13b:** `listBackups`, `backupNow`, choosing a folder, restore from the list, showing `last_error`, and deleting the temporary `BackupPanel` in `apps/web`. The backups folder on Android is private to the app, so an uninstall removes it.
 - **Merge speed on the phone and in wasm** is not measured (ADR 0008 build notes, "Measured"). Do it when Phase 4 first calls `merge`. If a new device is too slow, chunk the batch (it is idempotent).
 

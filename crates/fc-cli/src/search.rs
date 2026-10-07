@@ -178,6 +178,47 @@ pub fn save(file: &str, name: &str, query: &str, options: &Options) -> Result<St
     Ok(format!("Saved \"{}\".", name.trim()))
 }
 
+/// `fc update-search`: changes what is given, and keeps the rest.
+pub fn update(file: &str, name: &str, options: &[String]) -> Result<String, Failure> {
+    let mut change = fc_core::search::SavedSearchChange::default();
+    let mut options = options.iter();
+    while let Some(option) = options.next() {
+        let mut value = |what: &str| {
+            options
+                .next()
+                .cloned()
+                .ok_or_else(|| Failure::Usage(format!("{what} needs a value.")))
+        };
+        match option.as_str() {
+            "--name" => change.name = Some(value("--name")?),
+            "--query" => change.query = Some(value("--query")?),
+            "--sort" => {
+                let text = value("--sort")?;
+                change.sort = Some(Sort::parse(&text).map_err(|e| Failure::Usage(e.to_string()))?);
+            }
+            "--notes" => change.mode = Some(Mode::Notes),
+            "--cards" => change.mode = Some(Mode::Cards),
+            other => return Err(Failure::Usage(format!("Unknown option \"{other}\"."))),
+        }
+    }
+    if change == fc_core::search::SavedSearchChange::default() {
+        return Err(Failure::Usage(
+            "update-search needs --name, --query, --sort, --notes or --cards.".to_owned(),
+        ));
+    }
+    let open = open(file)?;
+    let saved = find(&open, name)?;
+    open.collection.update_saved_search(saved.id, &change)?;
+    let now = find(&open, change.name.as_deref().unwrap_or(&saved.name).trim())?;
+    Ok(format!(
+        "Updated \"{}\": {} ({}, sorted by {})",
+        now.name,
+        now.query,
+        now.mode.name(),
+        now.sort.key.name()
+    ))
+}
+
 pub fn delete(file: &str, name: &str) -> Result<String, Failure> {
     let open = open(file)?;
     let saved = find(&open, name)?;

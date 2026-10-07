@@ -3,11 +3,15 @@
 
 mod backup;
 mod bench;
+mod deck;
+mod edit;
 mod fake;
 mod host;
 mod media;
 mod merge;
+mod notetype;
 mod search;
+mod settings;
 mod stats;
 mod study;
 
@@ -28,6 +32,80 @@ Usage:
   fc add-note <file> <note type> [--deck <deck>] [--tag <tag>]... <Field=value>...
                    Add a note to a deck (the Default deck if none is given). Fields left out are
                    empty. Warns about duplicates
+  fc notetype <file> add <name> [--cloze]
+  fc notetype <file> rename <note type> <new name>
+  fc notetype <file> css <note type> <css or @path>
+  fc notetype <file> sort-field <note type> <field>
+  fc notetype <file> delete <note type>
+  fc notetype <file> restore <note type>
+                   Change note types. A note type, field or template is given by name or by ID.
+                   Deleting a note type deletes its notes and cards, and restoring brings them back
+  fc field <file> <note type> add <name>
+  fc field <file> <note type> rename <field> <new name>
+  fc field <file> <note type> move <field> <position>
+  fc field <file> <note type> remove <field>
+  fc field <file> <note type> restore <field>
+                   Change the fields of a note type. Positions start at 1. Renaming a field rewrites
+                   the templates that use it. A removed field keeps its values and can be restored
+  fc template <file> <note type> add <name> <front> <back>
+  fc template <file> <note type> rename <template> <new name>
+  fc template <file> <note type> set <template> [--front <text>] [--back <text>]
+  fc template <file> <note type> move <template> <position>
+  fc template <file> <note type> remove <template>
+  fc template <file> <note type> restore <template>
+                   Change the card templates of a note type. Text is given as it is, or as @path to
+                   read it from a file. A template with a mistake in it is refused
+  fc deck <file> rename <deck> <new name>
+  fc deck <file> move <deck> (<new parent> | --top)
+  fc deck <file> delete <deck>
+  fc deck <file> restore <deck or ID>
+  fc deck <file> limits <deck> (on | off)
+                   Change decks. Deleting a deck deletes its sub-decks, cards and notes left with
+                   no card, and restoring brings them back. limits says whether the deck's daily
+                   limits also count the cards of its sub-decks
+  fc move-cards <file> <deck> <card ID>...
+                   Move cards to a deck
+  fc preset <file> add <name>
+  fc preset <file> rename <preset> <new name>
+  fc preset <file> set <preset> [--new-per-day <n>] [--reviews-per-day <n>]
+                   [--learning-steps '1 10'|none] [--relearning-steps '10'|none]
+                   [--retention <0.7 to 0.99>] [--space-siblings on|off]
+                   [--fsrs-parameters '<17, 19 or 21 numbers>'|default]
+  fc preset <file> delete <preset>
+  fc preset <file> restore <preset>
+  fc preset <file> assign <deck> <preset>
+                   Change option presets and which deck uses which. A deleted preset sends its
+                   decks to the Default preset
+  fc edit-note <file> <note ID> <Field=value>...
+                   Change fields of a note. Fields left out stay as they are. Cards are made or
+                   removed to match, and a duplicate of the first field is warned about
+  fc delete-note <file> <note ID>...
+                   Move notes and their cards to the trash
+  fc restore-note <file> <note ID>
+                   Bring a note back from the trash (the notes command lists the trash)
+  fc find-duplicates <file> <note type> <text>
+                   List the notes of a note type whose first field is <text>, ignoring case, tags
+                   and spacing
+  fc set-tags <file> <note ID> [tag]...
+                   Make these the note's tags (none takes them all off)
+  fc delete-tag <file> <tag>
+                   Take a tag, and the tags inside it, off every note
+  fc delete-media <file> <name>
+                   Delete a media file that no note uses. The bytes are kept
+  fc restore-media <file> <name>
+                   Bring a deleted media file back
+  fc update-search <file> <name> [--name <new name>] [--query <query>] [--sort <key>[:desc]]
+                   [--notes | --cards]
+                   Change a saved search. What is left out stays as it is
+  fc day-start-hour <file> [hour]
+                   Show the hour the study day starts (0 to 23, local time), or set it
+  fc backup-settings <file> [--interval <hours>] [--keep <n>]
+                   Show the automatic backup settings (0 hours is off), or change them. They are
+                   kept in the collection but belong to this device
+  fc device-id <file> [--regenerate]
+                   Show this copy's device ID, or give it a new one
+  fc rebuild-schedule <file>
+                   Throw the schedule cache away and fold it again from the answers
   fc tags <file>   List the tags as a tree with the number of notes
   fc tag <file> <note ID> <tag>...
                    Add tags to a note. Use parent::child to put a tag inside another
@@ -35,6 +113,8 @@ Usage:
                    Take tags off a note
   fc rename-tag <file> <tag> <new name>
                    Rename a tag on every note, together with the tags inside it
+  fc tagged <file> <tag> [--no-children]
+                   List the notes with a tag, and with the tags inside it unless --no-children is given
   fc render <file> <note ID>
                    Print the front and back HTML of each card of a note, and its media
   fc add-media <file> <path>
@@ -121,6 +201,74 @@ Options for any command:
                    in the time is used unless --utc-offset is given. Step through days with it
   --utc-offset <minutes>
                    Pretend the device's time zone is this many minutes ahead of UTC";
+
+/// Every command, for telling "wrong number of arguments" from "unknown command". The test
+/// `tests/coverage.rs` checks it against the help text and the core operations.
+const COMMANDS: &[&str] = &[
+    "new",
+    "info",
+    "notetypes",
+    "notes",
+    "decks",
+    "add-deck",
+    "add-note",
+    "tags",
+    "tag",
+    "untag",
+    "rename-tag",
+    "tagged",
+    "render",
+    "add-media",
+    "media",
+    "media-get",
+    "media-check",
+    "delete-unused-media",
+    "answer",
+    "undo",
+    "schedule",
+    "due",
+    "next",
+    "suspend",
+    "unsuspend",
+    "bury",
+    "unbury",
+    "history",
+    "stats",
+    "forecast",
+    "optimise",
+    "search",
+    "searches",
+    "save-search",
+    "run-search",
+    "delete-search",
+    "merge",
+    "export",
+    "restore",
+    "import",
+    "backup-info",
+    "notetype",
+    "field",
+    "template",
+    "deck",
+    "preset",
+    "move-cards",
+    "edit-note",
+    "delete-note",
+    "restore-note",
+    "find-duplicates",
+    "set-tags",
+    "delete-tag",
+    "delete-media",
+    "restore-media",
+    "update-search",
+    "day-start-hour",
+    "backup-settings",
+    "device-id",
+    "rebuild-schedule",
+    "fake",
+    "bench",
+    "help",
+];
 
 /// Takes `--now` and `--utc-offset` (anywhere on the line) out of the arguments.
 fn take_clock_options(args: Vec<String>) -> Result<Vec<String>, Failure> {
@@ -326,6 +474,18 @@ fn take_deck_option(args: &[String]) -> Result<(Option<String>, Vec<String>), Fa
     Ok((deck, rest))
 }
 
+/// "Name (ID), Name (ID)" for a list of things that can be restored by ID.
+fn named<T>(items: &[T], parts: impl Fn(&T) -> (&String, fc_core::id::Id)) -> String {
+    items
+        .iter()
+        .map(|item| {
+            let (name, id) = parts(item);
+            format!("{name} ({id})")
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 fn plural(count: usize, word: &str) -> String {
     format!("{count} {word}{}", if count == 1 { "" } else { "s" })
 }
@@ -341,6 +501,11 @@ fn run(args: &[String]) -> Result<String, Failure> {
         [command, file] if command == "info" => {
             let persist = std::path::Path::new(file).exists();
             let host = host::host_for(file, persist).map_err(Failure::Core)?;
+            let migration = if persist {
+                Collection::pending_migration(file)?
+            } else {
+                None
+            };
             let collection = Collection::open(file, host)?;
             let info = collection.info()?;
             collection.close()?;
@@ -348,6 +513,12 @@ fn run(args: &[String]) -> Result<String, Failure> {
                 "Collection: {file}\nStorage version: {} (this build understands up to {})\nCreated by core: {}\nDevice ID: {}",
                 info.schema_version, info.supported_schema_version, info.created_by, info.device_id
             );
+            if let Some(migration) = migration {
+                text.push_str(&format!(
+                    "\nOpening it moved the storage from version {} to {}.",
+                    migration.from, migration.to
+                ));
+            }
             if !info.unsupported_features.is_empty() {
                 text.push_str(&format!(
                     "\nNeeds features this build lacks (sync stays paused): {}",
@@ -366,10 +537,23 @@ fn run(args: &[String]) -> Result<String, Failure> {
             let deleted = collection
                 .deleted_note_types()
                 .map_err(|error| Failure::Core(error.to_string()))?;
-            collection.close()?;
             let mut text = format!("Note types in {file}:");
             for note_type in live {
                 text.push_str(&describe(&note_type));
+                let fields = collection.removed_fields(note_type.id)?;
+                if !fields.is_empty() {
+                    text.push_str(&format!(
+                        "\n  Removed fields: {}",
+                        named(&fields, |f| (&f.name, f.id))
+                    ));
+                }
+                let templates = collection.removed_templates(note_type.id)?;
+                if !templates.is_empty() {
+                    text.push_str(&format!(
+                        "\n  Removed templates: {}",
+                        named(&templates, |t| (&t.name, t.id))
+                    ));
+                }
             }
             if !deleted.is_empty() {
                 text.push_str("\n\nDeleted (can be restored):");
@@ -377,6 +561,7 @@ fn run(args: &[String]) -> Result<String, Failure> {
                     text.push_str(&describe(&note_type));
                 }
             }
+            collection.close()?;
             Ok(text)
         }
         [command, file] if command == "notes" => {
@@ -405,6 +590,25 @@ fn run(args: &[String]) -> Result<String, Failure> {
                     let tags = collection.note_tags(note.id)?;
                     if !tags.is_empty() {
                         text.push_str(&format!("\n  Tags: {}", tags.join(" ")));
+                    }
+                }
+            }
+            let trashed = collection.deleted_notes()?;
+            if !trashed.is_empty() {
+                text.push_str("\n\nDeleted (can be restored):");
+                for note in trashed {
+                    let first = note.fields.first().map_or("", |f| f.value.as_str());
+                    text.push_str(&format!("\n{}  {first}", note.id));
+                    let cards = collection.deleted_cards_of_note(note.id)?;
+                    if !cards.is_empty() {
+                        text.push_str(&format!(
+                            "\n  Cards: {}",
+                            cards
+                                .iter()
+                                .map(|card| card.id.to_string())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ));
                     }
                 }
             }
@@ -445,6 +649,20 @@ fn run(args: &[String]) -> Result<String, Failure> {
                     },
                     preset.desired_retention,
                     plural(preset.decks, "deck"),
+                ));
+            }
+            let deleted_decks = collection.deleted_decks()?;
+            if !deleted_decks.is_empty() {
+                text.push_str(&format!(
+                    "\n\nDeleted decks (can be restored): {}",
+                    named(&deleted_decks, |d| (&d.path, d.id))
+                ));
+            }
+            let deleted_presets = collection.deleted_presets()?;
+            if !deleted_presets.is_empty() {
+                text.push_str(&format!(
+                    "\n\nDeleted presets (can be restored): {}",
+                    named(&deleted_presets, |p| (&p.name, p.id))
                 ));
             }
             collection.close()?;
@@ -500,6 +718,28 @@ fn run(args: &[String]) -> Result<String, Failure> {
                 } else {
                     now.join(" ")
                 }
+            ))
+        }
+        [command, file, tag, rest @ ..] if command == "tagged" => {
+            let children = match rest {
+                [] => true,
+                [option] if option == "--no-children" => false,
+                _ => {
+                    return Err(Failure::Usage(
+                        "tagged takes only --no-children.".to_owned(),
+                    ));
+                }
+            };
+            let collection = open(file)?;
+            let notes = collection.notes_with_tag(tag, children)?;
+            collection.close()?;
+            Ok(format!(
+                "{} with {tag}{}",
+                plural(notes.len(), "note"),
+                notes
+                    .iter()
+                    .map(|note| format!("\n  {note}"))
+                    .collect::<String>()
             ))
         }
         [command, file, from, to] if command == "rename-tag" => {
@@ -562,26 +802,11 @@ fn run(args: &[String]) -> Result<String, Failure> {
                     names.join(", ")
                 )));
             };
-            let mut given = Vec::new();
-            for value in &values {
-                let (name, text) = value
-                    .split_once('=')
-                    .ok_or_else(|| Failure::Usage(format!("\"{value}\" is not Field=value.")))?;
-                let field = found
-                    .fields
-                    .iter()
-                    .find(|f| f.name == name)
-                    .ok_or_else(|| {
-                        let names: Vec<&str> =
-                            found.fields.iter().map(|f| f.name.as_str()).collect();
-                        Failure::Core(format!(
-                            "{} has no field \"{name}\". Its fields are: {}.",
-                            found.name,
-                            names.join(", ")
-                        ))
-                    })?;
-                given.push((field.id, text));
-            }
+            let given = edit::field_values(found, &values)?;
+            let given: Vec<(fc_core::id::Id, &str)> = given
+                .iter()
+                .map(|(id, text)| (*id, text.as_str()))
+                .collect();
             let added = collection.add_note_to_deck(deck, found.id, &given)?;
             collection.add_tags(&[added.id], &tag_names)?;
             collection.close()?;
@@ -636,6 +861,43 @@ fn run(args: &[String]) -> Result<String, Failure> {
             collection.close()?;
             Ok(text.trim_end().to_owned())
         }
+        [command, file, rest @ ..] if command == "notetype" => notetype::notetype(file, rest),
+        [command, file, rest @ ..] if command == "field" => notetype::field(file, rest),
+        [command, file, rest @ ..] if command == "template" => notetype::template(file, rest),
+        [command, file, rest @ ..] if command == "deck" => deck::deck(file, rest),
+        [command, file, rest @ ..] if command == "preset" => deck::preset(file, rest),
+        [command, file, target, cards @ ..] if command == "move-cards" => {
+            deck::move_cards(file, target, cards)
+        }
+        [command, file, note, values @ ..] if command == "edit-note" => {
+            edit::edit_note(file, note, values)
+        }
+        [command, file, notes @ ..] if command == "delete-note" => edit::delete_notes(file, notes),
+        [command, file, note] if command == "restore-note" => edit::restore_note(file, note),
+        [command, file, note_type, text] if command == "find-duplicates" => {
+            edit::find_duplicates(file, note_type, text)
+        }
+        [command, file, note, tags @ ..] if command == "set-tags" => {
+            edit::set_tags(file, note, tags)
+        }
+        [command, file, tag] if command == "delete-tag" => edit::delete_tag(file, tag),
+        [command, file, name] if command == "delete-media" => edit::delete_media(file, name),
+        [command, file, name] if command == "restore-media" => edit::restore_media(file, name),
+        [command, file, name, options @ ..] if command == "update-search" => {
+            search::update(file, name, options)
+        }
+        [command, file] if command == "day-start-hour" => settings::day_start_hour(file, None),
+        [command, file, hour] if command == "day-start-hour" => {
+            settings::day_start_hour(file, Some(hour))
+        }
+        [command, file, options @ ..] if command == "backup-settings" => {
+            settings::backup_settings(file, options)
+        }
+        [command, file] if command == "device-id" => settings::device_id(file, false),
+        [command, file, option] if command == "device-id" && option == "--regenerate" => {
+            settings::device_id(file, true)
+        }
+        [command, file] if command == "rebuild-schedule" => settings::rebuild_schedule(file),
         [command, from, into] if command == "merge" => merge::merge(from, into),
         [command, file] if command == "bench" => bench::bench(file),
         [command, file, rest @ ..] if command == "fake" => {
@@ -752,51 +1014,9 @@ fn run(args: &[String]) -> Result<String, Failure> {
             study::hide(file, what, &cards, deck.as_deref())
         }
         [] => Err(Failure::Usage("No command given.".to_owned())),
-        [command, ..]
-            if matches!(
-                command.as_str(),
-                "new"
-                    | "info"
-                    | "notetypes"
-                    | "notes"
-                    | "decks"
-                    | "add-deck"
-                    | "add-note"
-                    | "tags"
-                    | "tag"
-                    | "untag"
-                    | "rename-tag"
-                    | "render"
-                    | "answer"
-                    | "undo"
-                    | "schedule"
-                    | "due"
-                    | "next"
-                    | "suspend"
-                    | "unsuspend"
-                    | "bury"
-                    | "unbury"
-                    | "history"
-                    | "stats"
-                    | "forecast"
-                    | "optimise"
-                    | "search"
-                    | "searches"
-                    | "save-search"
-                    | "run-search"
-                    | "delete-search"
-                    | "merge"
-                    | "export"
-                    | "restore"
-                    | "import"
-                    | "backup-info"
-                    | "help"
-            ) =>
-        {
-            Err(Failure::Usage(format!(
-                "Wrong number of arguments for \"{command}\"."
-            )))
-        }
+        [command, ..] if COMMANDS.contains(&command.as_str()) => Err(Failure::Usage(format!(
+            "Wrong number of arguments for \"{command}\"."
+        ))),
         [command, ..] => Err(Failure::Usage(format!("Unknown command \"{command}\"."))),
     }
 }

@@ -16,6 +16,7 @@ Docs live in `docs/`: start with `docs/README.md`. `PRODUCT.md` is the source of
 - Use Bun for all Node-related work (installs, scripts, tests, dev servers). No npm, yarn or pnpm, and no lockfiles from them. If something does not work with Bun, ask before falling back (see "Tooling constraints" in `docs/PRODUCT.md`).
 - Nothing besides Anthony's Claude subscription may cost money: no paid CI, hosting, services or certificates. Flag anything that could incur charges before using it (see `docs/PRODUCT.md`).
 - If the docs contradict themselves or look wrong, say so instead of guessing.
+- Every step ends with an explicit "Deviations from the plan" list: in the ADR build notes (linked from `docs/STATUS.md`) and in the final report. Say "none" if there are none. A deviation is anything that differs from the plan approved in chat, including size, commit structure, extra or missing items and how an unspecified detail was decided.
 
 ## Commands
 
@@ -47,7 +48,7 @@ Work through a step without asking, except stop and ask if:
 - Pin exact versions of key tools.
 - Ask before adding dependencies that are not in the plan.
 - Never touch Anthony's phone beyond installing the app and taking screenshots. Never unlock it.
-- Use the `gh` CLI for everything that goes to GitHub: pushing a branch (through `gh pr create`), opening, merging and checking PRs. Never run `git push` yourself.
+- Use the `gh` CLI for everything that goes to GitHub: opening, merging and checking PRs. `gh pr create` cannot push without a terminal prompt, so push the branch first over HTTPS with `gh` as the credential helper, which needs no config change: `git -c credential.helper= -c credential.helper='!gh auth git-credential' push -u https://github.com/Emobe/flash-cards.git <branch>`. Never push over SSH (the `origin` remote) or with a plain `git push`.
 
 ## Usage
 
