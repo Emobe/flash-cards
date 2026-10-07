@@ -4,20 +4,22 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-2.1b System bars and title bar follow the theme: **built, waiting for Anthony's review** on `step/2.1b-system-bars`. The fifth command `set_system_theme(token, dark, followSystem)`, the Kotlin `AppearancePlugin`, desktop `Window::set_theme`, `Platform.setSystemTheme(theme, followSystem)` wired in `apps/native`. Checked on the phone (override opposite to the system changes the bar icons, back through routes). Not verified: the desktop title bar (i3 draws it), Windows, gesture navigation, landscape, keyboard. Build notes, deviations and not verified: ADR 0010 "Build notes (step 2.1b)". 2.3 must pass the effective theme into the card frame (ADR 0005 amendment).
+2.2 Home and deck list: **in progress** on `step/2.2-deck-list`. Done: `getDeckList` (fc-api, tested), the Decks screen with collapse, empty state, "done for now" line, refresh on focus (Vitest). Remaining: desktop check against a `fc fake` collection, phone screenshot (empty state only), ADR 0010 build notes with deviations, then the PR.
 
-Next: 2.2 Home and deck list.
+2.1b System bars and title bar follow the theme: merged (PR #34).
 
-Previous step: 2.1 App shell and design direction, merged (PR #33).
+Next: 2.3 Review screen.
+
+Previous step: 2.1b, merged (PR #34).
 
 ## Branch
 
-`step/2.1b-system-bars`.
+`step/2.2-deck-list`.
 
 ## Done
 
 - 2.1 App shell and design direction (ADR 0010 build notes, step 2.1): tokens and Paper styles with a contrast test, theme (System, Light, Dark) with `theme-boot.js`, hash router, `AppShell` (bottom bar, rail, insets, keyboard inset, `BottomAction`, shortcuts), placeholder screens, Settings, collection problem screen, Developer screen in debug builds only, `Core` remembers the failed open. Deviations: the list at the end of the ADR notes. Merged (PR #33).
-- 2.1b System bars and title bar follow the theme (ADR 0010 build notes, step 2.1b): `set_system_theme`, the `appearance` plugin and `AppearancePlugin.kt`, `Window::set_theme` on desktop, ADR 0005 amendment line. PR open for review.
+- 2.1b System bars and title bar follow the theme (ADR 0010 build notes, step 2.1b): `set_system_theme`, the `appearance` plugin and `AppearancePlugin.kt`, `Window::set_theme` on desktop, ADR 0005 amendment line. Merged (PR #34).
 
 - 1.14b Developer CLI: the missing commands (ADR 0006 build notes, step 1.14b). `fc notetype | field | template | deck | preset` with verbs, `move-cards`, `edit-note`, `delete-note`, `restore-note`, `find-duplicates`, `set-tags`, `delete-tag`, `delete-media`, `restore-media`, `update-search`, `tagged`, `day-start-hour`, `backup-settings`, `device-id`, `rebuild-schedule`; `notes`, `decks` and `notetypes` list what can be restored. `crates/fc-cli/tests/coverage.rs` checks every public `Collection` operation against the commands. No core change, no new dependency. Deviations: the list at the end of the ADR notes (about 1,950 lines against the 1,500 limit in the plan). Merged (PR #31).
 
