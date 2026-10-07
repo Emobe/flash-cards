@@ -26,6 +26,7 @@ import type { PathInput } from "./PathInput";
 import type { RenderCardInput } from "./RenderCardInput";
 import type { RenderedCardOutput } from "./RenderedCardOutput";
 import type { RestoreOutput } from "./RestoreOutput";
+import type { SampleCardsOutput } from "./SampleCardsOutput";
 import type { ScheduleInput } from "./ScheduleInput";
 import type { ScheduleOutput } from "./ScheduleOutput";
 import type { SetBackupSettingsInput } from "./SetBackupSettingsInput";
@@ -41,6 +42,12 @@ export type Methods = {
   exampleDivide: { input: DivideInput; output: DivideOutput; bytesIn: false; bytesOut: false };
   getCollectionInfo: { input: null; output: CollectionInfo; bytesIn: false; bytesOut: false };
   getDeckList: { input: null; output: DeckList; bytesIn: false; bytesOut: false };
+  spikeCardMedia: {
+    input: CardMediaInput;
+    output: CardMediaOutput;
+    bytesIn: false;
+    bytesOut: true;
+  };
   startStudySession: {
     input: StartSessionInput;
     output: StartSessionOutput;
@@ -63,12 +70,6 @@ export type Methods = {
   getMedia: { input: GetMediaInput; output: GetMediaOutput; bytesIn: false; bytesOut: true };
   answerCard: { input: AnswerCardInput; output: AnswerCardOutput; bytesIn: false; bytesOut: false };
   undoAnswer: { input: null; output: UndoAnswerOutput; bytesIn: false; bytesOut: false };
-  spikeCardMedia: {
-    input: CardMediaInput;
-    output: CardMediaOutput;
-    bytesIn: false;
-    bytesOut: true;
-  };
   spikeSchedule: { input: ScheduleInput; output: ScheduleOutput; bytesIn: false; bytesOut: false };
   spikeOptimise: { input: OptimiseInput; output: OptimiseOutput; bytesIn: false; bytesOut: false };
   exportBackup: { input: ExportInput; output: ExportOutput; bytesIn: false; bytesOut: true };
@@ -105,11 +106,12 @@ export type Methods = {
   debugEchoBytes: { input: null; output: EchoOutput; bytesIn: true; bytesOut: true };
   debugEmitEvent: { input: EmitInput; output: null; bytesIn: false; bytesOut: false };
   debugPanic: { input: null; output: null; bytesIn: false; bytesOut: false };
+  debugAddSampleCards: { input: null; output: SampleCardsOutput; bytesIn: false; bytesOut: false };
 };
 
 export const bytesOutMethods: ReadonlySet<string> = new Set([
-  "getMedia",
   "spikeCardMedia",
+  "getMedia",
   "exportBackup",
   "debugEchoBytes",
 ]);

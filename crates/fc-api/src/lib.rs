@@ -14,6 +14,8 @@ mod decks;
 mod error;
 mod examples;
 mod notice;
+#[cfg(debug_assertions)]
+mod sample_cards;
 mod spike_card;
 mod spike_scheduling;
 mod study;
@@ -136,6 +138,7 @@ methods! {
         examples::ExampleDivide,
         collection::GetCollectionInfo,
         decks::GetDeckList,
+        spike_card::SpikeCardMedia,
         study::StartStudySession,
         study::EndStudySession,
         study::NextCard,
@@ -143,7 +146,6 @@ methods! {
         study::GetMedia,
         study::AnswerCard,
         study::UndoAnswer,
-        spike_card::SpikeCardMedia,
         spike_scheduling::SpikeSchedule,
         spike_scheduling::SpikeOptimise,
         backup::ExportBackup,
@@ -164,6 +166,7 @@ methods! {
         debug::DebugEchoBytes,
         debug::DebugEmitEvent,
         debug::DebugPanic,
+        sample_cards::DebugAddSampleCards,
     ],
 }
 
