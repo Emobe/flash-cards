@@ -5,7 +5,7 @@
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { APP_ID, adb, fail } from "./lib/adb";
+import { ACTIVITY, APP_ID, adb, fail } from "./lib/adb";
 
 const SCRIPT = "android-install";
 const APK = join(
@@ -18,4 +18,4 @@ if (!existsSync(APK)) {
 }
 
 adb(SCRIPT, ["install", "-r", APK]);
-adb(SCRIPT, ["shell", "am", "start", "-n", `${APP_ID}/.MainActivity`]);
+adb(SCRIPT, ["shell", "am", "start", "-n", `${APP_ID}/${ACTIVITY}`]);

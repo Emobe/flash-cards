@@ -1,4 +1,4 @@
-package dev.placeholder.flashcards
+package io.github.emobe.flashcards
 
 import android.os.Bundle
 import android.os.Environment

@@ -3,7 +3,10 @@
 import { join } from "node:path";
 import { spawnSync } from "bun";
 
-export const APP_ID = "dev.placeholder.flashcards";
+/** The debug build's ID: `bundle > android > debugApplicationIdSuffix` in tauri.conf.json adds `.dev`. */
+export const APP_ID = "io.github.emobe.flashcards.dev";
+/** The Kotlin package (`namespace`): the activity class keeps it when the debug ID gains `.dev`. */
+export const ACTIVITY = "io.github.emobe.flashcards.MainActivity";
 
 export function fail(script: string, message: string): never {
   console.error(`${script}: ${message}`);
