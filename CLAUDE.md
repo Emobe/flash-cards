@@ -47,6 +47,7 @@ Work through a step without asking, except stop and ask if:
 - Pin exact versions of key tools.
 - Ask before adding dependencies that are not in the plan.
 - Never touch Anthony's phone beyond installing the app and taking screenshots. Never unlock it.
+- Use the `gh` CLI for everything that goes to GitHub: pushing a branch (through `gh pr create`), opening, merging and checking PRs. Never run `git push` yourself.
 
 ## Usage
 

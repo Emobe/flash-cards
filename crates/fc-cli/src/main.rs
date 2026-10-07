@@ -2,6 +2,8 @@
 //! terminal before any UI exists. Step 1.14 grows it into the full tool.
 
 mod backup;
+mod bench;
+mod fake;
 mod host;
 mod media;
 mod merge;
@@ -101,6 +103,17 @@ Usage:
                    Add what a backup (a deck, or a whole one) holds, and keep what the collection has
   fc backup-info <backup>
                    Say what a backup file holds, without opening any collection
+  fc fake <file> [--notes <n>] [--decks <n>] [--media <n>] [--review-days <n>]
+                 [--new-per-day <n>] [--reviews-per-day <n>] [--seed <n>]
+                   Make a collection of invented notes for performance testing: nested decks, Basic,
+                   Basic and reversed and Cloze notes, tags, media, and a review history made by
+                   answering cards day by day up to now. The same seed gives the same notes and answers
+                   (due dates can differ a little).
+                   Defaults: 1000 notes, 20 decks, notes/50 media files, no history, 20 new and
+                   100 due cards a day, seed 1. Never overwrites a file
+  fc bench <file>  Time the operations that matter at scale (deck counts, queue, searches, tags,
+                   stats, export, merge, adding a template, ...) on a copy of the collection. The
+                   collection itself is not changed
   fc help          Show this text
 
 Options for any command:
@@ -624,6 +637,10 @@ fn run(args: &[String]) -> Result<String, Failure> {
             Ok(text.trim_end().to_owned())
         }
         [command, from, into] if command == "merge" => merge::merge(from, into),
+        [command, file] if command == "bench" => bench::bench(file),
+        [command, file, rest @ ..] if command == "fake" => {
+            fake::fake(file, &fake::Options::parse(rest)?)
+        }
         [command, file, backup, rest @ ..] if command == "export" => {
             let mut deck = None;
             let mut history = true;

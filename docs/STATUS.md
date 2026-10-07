@@ -4,19 +4,17 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.13b Backup, export and restore (API, native automatic backup, web export): built, awaiting Anthony's review. Branch `step/1.13b-backup-api`. Built to the plan approved in chat (no ADR). Results, the rules to confirm, what was not verified and the deviations list are in ADR 0006, "Build notes, step 1.13b". 1.13 is complete with this step. Next: 1.14 (Developer CLI).
+1.14a Developer CLI: large fake collection and timing (the first half of 1.14, split in two as agreed in chat): built, awaiting Anthony's review. Branch `step/1.14a-fake-collection`, from `master`. Results, "not verified" and the deviations list are in ADR 0006, "Build notes, step 1.14a". Next: 1.14b (the missing commands).
 
-Verified: `cargo xtask check` passes (wasm build included). New tests: 3 settings and 2 `pending_migration` in `fc-core`, 9 API method tests and 9 `autobackup` tests in `fc-api`, 3 in `apps/web`. Desktop (debug app, throwaway data folders): first start wrote a backup, the second start wrote none, and a collection set back one version was copied to `backups/before-update-...db` before the open. Web (headless Brave, debug wasm): export downloads a file, import and restore of a CLI backup, restoring an older export trashes what it lacks, junk gives a readable error, and the downloaded export restores in the CLI with both notes.
+Verified: `cargo xtask check` passes, clippy is clean, 8 new CLI tests. `fc fake` and `fc bench` run on a 10,000-note collection (13,629 cards, 30 days of history): every timing is under 1 s (the slowest are export 600 ms and merge into a new collection 766 ms); the list is in the ADR notes.
 
-Not verified: the phone (no screen shows backups, no APK built), Windows, Firefox, Safari, the release wasm in a browser, a migration that succeeds in the desktop app, a large file on the web, how long the start-up backup holds the collection on a large collection (estimate 3.5 s at 50,000 notes, not measured).
+Not verified: the phone and the web (the CLI is desktop only), Windows, 50,000 notes. Generating is slow and grows with the square of the notes (10,000 notes take 76 s) because `add_note` scans for duplicates every time; a batch path in the core would fix it and was not built.
 
-Rules for Anthony to confirm (details in the ADR notes): backup settings are per device and not synced or backed up; the automatic backup runs on every start when the newest is older than the interval, including for an empty collection; the copy before a migration is a raw file copy of `collection.db` (newest 2 kept, not counted in the 5); if that copy fails the migration still runs and the failure is shown as the settings' last error; the file methods never replace an existing file.
-
-Merged: 1.13a Backup core (PR #28), 1.12 Extension points (PR #27, ADR 0009) and 1.11a Merge (PR #25, ADR 0008). Their "not verified" lists are kept below under Done.
+Previous step: 1.13b Backup, export and restore (API, native automatic backup, web export), merged (PR #29). Its "not verified" list and the rules for Anthony to confirm are in ADR 0006, "Build notes, step 1.13b".
 
 ## Branch
 
-`step/1.13b-backup-api`, from `master`. Not pushed.
+`step/1.14a-fake-collection`, from `master`. Not pushed.
 
 ## Done
 
