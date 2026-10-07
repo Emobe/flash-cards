@@ -8,11 +8,21 @@ Kept current by every session. A new session reads this first.
 
 Anthony checked Export, Restore from a file and the file picker in the web client (qutebrowser, Linux). Still not checked: the Settings screen in the real desktop app and on the phone (Back up now, the list, Restore, Export from the native webviews). See Open items.
 
-Next: 2.7 Dogfood builds (`/step 2.7`; check the brief for a design decision first).
+2.7 Dogfood builds: design session done. **ADR 0012 is Proposed, waiting for Anthony's review**; plan
+in `docs/plans/2.7-dogfood-builds.md`. Questions for Anthony are at the end of the ADR: the app ID
+(his choice, needed before the build), Windows via a hand-started GitHub Actions run, a pacman
+package for Linux, the release key he makes and backs up, one `unsafe` exception for the Linux blank
+window. Nothing is built.
+
+The design session left a test app, `dev.placeholder.flashcards.relexp` ("Flash cards", empty), on
+the phone. Anthony removes it; sessions do not uninstall.
+
+Next: Anthony reviews ADR 0012; then `/step 2.7` (two PRs, 2.7a and 2.7b).
 
 ## Branch
 
-`master`.
+`step/2.7-dogfood-builds` (ADR and plan only; based on `step/2.6-status`, whose STATUS commit is not
+on `master` yet).
 
 ## Done
 
