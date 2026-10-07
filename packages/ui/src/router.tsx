@@ -85,7 +85,12 @@ export function RouterProvider({ children }: { children: ReactNode }) {
     if (!parseRoute(currentPath())) {
       window.history.replaceState(null, "", `#${DEFAULT_PATH}`);
     }
-    const onChange = () => setRoute(parseRoute(currentPath()) ?? defaultRoute());
+    // Same route (a dialog's history entry coming and going): keep the object, so nothing re-renders.
+    const onChange = () =>
+      setRoute((previous) => {
+        const next = parseRoute(currentPath()) ?? defaultRoute();
+        return next.path === previous.path ? previous : next;
+      });
     window.addEventListener("popstate", onChange);
     window.addEventListener("hashchange", onChange);
     return () => {

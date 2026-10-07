@@ -4,23 +4,23 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-2.4 Add note, built as three stacked PRs (ADR 0011, Accepted; plan in `docs/plans/2.4-add-note.md`).
+2.5 Deck management, as two stacked PRs. No new ADR: the data rules are ADR 0006 (built in 1.5), the screens follow ADR 0010.
 
-- **2.4a note API: merged (PR #39).** `Collection::add_note_with` (a note and its tags in one write), `fc-api` `getNoteTypes`, `getTags`, `findDuplicates`, `addNote`, `addMedia`, bindings. Build notes: ADR 0011.
-- **2.4b Add screen and editor: merged (PR #40).**
-- **2.4c media: built, PR open for Anthony.** Branch `step/2.4c-media`. Pictures (`prepareImage`, `blob:` node views) and sounds in the Add screen, `addMedia` when picked, CSP `blob:`, Android clean-up of old camera files. `cargo xtask check` passes (246 Vitest tests). Checked on the web (real codec, EXIF removed, rotated upright), on desktop (GTK dialog from the real app, picture and sound play) and on the phone (toolbar, Photo Picker opens). **Anthony tried it on the phone: pictures and sounds from the gallery and files work; Take photo opens the gallery instead of the camera and there is no microphone option; pictures overflow the card (all postponed, see Open items). Not checked: the draft after Android closes the app while the camera is open.** About 49% over the planned size (ADR 0011 build notes). Findings: big pictures overflow a phone card (no `img { max-width }`), and the toolbar needs a sideways swipe in portrait.
+- **2.5a decks: built, PR to open for Anthony.** Branch `step/2.5a-decks`. Done: `fc-api` `createDeck`, `renameDeck`, `moveDeck`, `deleteDeck` (answers how many decks and cards went), `restoreDeck`, `isDefault` on `DeckSummary`; the Decks screen has Add deck and a Manage mode (rename, move, add inside, delete with a confirmation and Undo) in a native `dialog`. Android Back closes a dialog (found on the phone, fixed). `cargo xtask check` passes (303 Vitest tests). Checked on the web at 390 and 1100 px and on the phone (Manage mode, Move window, Back). Not checked: the real desktop app, changing a deck on the phone. Build notes: ADR 0010, step 2.5a.
+- **2.5b presets: not started.** `fc-api` preset methods, a preset editor with plain-language help on every setting, choosing a deck's preset.
 
-Next: Anthony reviews 2.4c and checks pictures, Take photo and a sound on the phone; then mark 2.4 done. Anthony said (2026-10-07) his phone may be used for gestures in a session when needed, while it is free and unlocked; CLAUDE.md's rule otherwise stands.
+2.4 Add note is merged (2.4a PR #39, 2.4b PR #40, 2.4c PR #41). Anthony's phone findings on 2.4c (Take photo opens the gallery, no microphone option, pictures overflow the card) are postponed, see Open items. Not checked on the phone: the draft after Android closes the app while the camera is open. Anthony said (2026-10-07) his phone may be used for gestures in a session when needed, while it is free and unlocked; CLAUDE.md's rule otherwise stands.
 
 Previous step: 2.3 Review screen, merged (PR #36, PR #37). Still not run on the phone: the 0.6 sandbox card with `allow="autoplay"` (the spike is deleted).
 
 ## Branch
 
-`step/2.4c-media`.
+`step/2.5a-decks`.
 
 ## Done
 
-- 2.4c Media (ADR 0011 build notes, step 2.4c): `editor/media.ts`, `editor/mediaViews.ts`, Image, Take photo and Sound buttons, CSP `blob:`, Android clean-up of old camera files. Not merged yet.
+- 2.5a Deck management: decks (ADR 0010 build notes, step 2.5a): `createDeck`, `renameDeck`, `moveDeck`, `deleteDeck`, `restoreDeck`, Manage mode, `Dialog`.
+- 2.4c Media (ADR 0011 build notes, step 2.4c): `editor/media.ts`, `editor/mediaViews.ts`, Image, Take photo and Sound buttons, CSP `blob:`, Android clean-up of old camera files. Merged (PR #41).
 - 2.4b Add screen and editor (ADR 0011 build notes, step 2.4b): ProseMirror (`prosemirror-*`, exact versions), `packages/ui/src/editor/`, `AddScreen`.
 - 2.4a Note API (ADR 0011 build notes, step 2.4a): `add_note_with`, `getNoteTypes`, `getTags`, `findDuplicates`, `addNote`, `addMedia`. The note and media methods earlier lines gave to 3.1 were built here; 3.1 keeps search and the browser's methods. Merged (PR #39).
 - 2.1 App shell and design direction (ADR 0010 build notes, step 2.1): tokens and Paper styles with a contrast test, theme (System, Light, Dark) with `theme-boot.js`, hash router, `AppShell` (bottom bar, rail, insets, keyboard inset, `BottomAction`, shortcuts), placeholder screens, Settings, collection problem screen, Developer screen in debug builds only, `Core` remembers the failed open. Deviations: the list at the end of the ADR notes. Merged (PR #33).

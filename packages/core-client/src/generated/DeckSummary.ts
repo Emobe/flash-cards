@@ -22,6 +22,10 @@ export type DeckSummary = {
    */
   depth: number;
   /**
+   * The Default deck, which cannot be deleted.
+   */
+  isDefault: boolean;
+  /**
    * What is left to study today in this deck and the decks inside it.
    */
   newCount: number;

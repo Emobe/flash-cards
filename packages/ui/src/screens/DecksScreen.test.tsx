@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { CoreClient, createFakeTransport, type DeckList, type DeckSummary } from "core-client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { CoreProvider } from "../core";
@@ -12,7 +12,17 @@ function deck(
   parentId: string | null,
   [newCount, learningCount, reviewCount]: [number, number, number] = [0, 0, 0],
 ): DeckSummary {
-  return { id, name, path: name, parentId, depth, newCount, learningCount, reviewCount };
+  return {
+    id,
+    name,
+    path: name,
+    parentId,
+    depth,
+    isDefault: id === "d-default",
+    newCount,
+    learningCount,
+    reviewCount,
+  };
 }
 
 const polish: DeckList = {
@@ -164,5 +174,188 @@ describe("Decks", () => {
     });
     expect(screen.getByRole("link", { name: /^Polish/ })).toBeDefined();
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("Managing decks", () => {
+  function renderManage(overrides: Record<string, (input: never) => unknown> = {}) {
+    const calls: { method: string; input: unknown }[] = [];
+    const record = (method: string, result: unknown) => (input: never) => {
+      calls.push({ method, input });
+      const custom = overrides[method];
+      return custom ? custom(input) : result;
+    };
+    const client = new CoreClient(
+      createFakeTransport({
+        getDeckList: (input: never) =>
+          overrides.getDeckList ? overrides.getDeckList(input) : polish,
+        createDeck: record("createDeck", { id: "d-new" }),
+        renameDeck: record("renameDeck", null),
+        moveDeck: record("moveDeck", null),
+        deleteDeck: record("deleteDeck", { decks: 3, cards: 9 }),
+        restoreDeck: record("restoreDeck", null),
+      } as never),
+    );
+    render(
+      <CoreProvider client={client}>
+        <RouterProvider>
+          <DecksScreen />
+        </RouterProvider>
+      </CoreProvider>,
+    );
+    return calls;
+  }
+
+  async function manage() {
+    fireEvent.click(await screen.findByRole("button", { name: "Manage" }));
+  }
+
+  test("Manage swaps the study links for actions, and Done swaps them back", async () => {
+    renderManage();
+    await manage();
+    expect(screen.queryByRole("link", { name: /^Polish/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Rename Polish" })).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(screen.getByRole("link", { name: /^Polish/ })).toBeDefined();
+  });
+
+  test("the Default deck has no Delete", async () => {
+    renderManage();
+    await manage();
+    expect(screen.getByRole("button", { name: "Rename Default" })).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Delete Default" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Delete Polish" })).toBeDefined();
+  });
+
+  test("Add deck creates a deck inside the chosen parent and reads the list again", async () => {
+    const calls = renderManage();
+    fireEvent.click(await screen.findByRole("button", { name: "Add deck" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Czech" } });
+    fireEvent.change(screen.getByLabelText("Inside"), { target: { value: "d-polish" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(calls).toEqual([
+      { method: "createDeck", input: { name: "Czech", parentId: "d-polish" } },
+    ]);
+  });
+
+  test("Add inside starts with that deck as the parent", async () => {
+    renderManage();
+    await manage();
+    fireEvent.click(screen.getByRole("button", { name: "Add inside Verbs" }));
+    expect((screen.getByLabelText("Inside") as HTMLSelectElement).value).toBe("d-verbs");
+  });
+
+  test("Rename starts with the current name", async () => {
+    const calls = renderManage();
+    await manage();
+    fireEvent.click(screen.getByRole("button", { name: "Rename Words" }));
+    const name = screen.getByLabelText("Name") as HTMLInputElement;
+    expect(name.value).toBe("Words");
+    fireEvent.change(name, { target: { value: "Nouns" } });
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(calls).toEqual([{ method: "renameDeck", input: { deckId: "d-words", name: "Nouns" } }]);
+  });
+
+  test("Move does not offer the deck itself or the decks inside it", async () => {
+    const calls = renderManage();
+    await manage();
+    fireEvent.click(screen.getByRole("button", { name: "Move Verbs" }));
+    const options = within(screen.getByLabelText("Move to")).getAllByRole("option");
+    expect(options.map((o) => o.textContent?.trim())).toEqual([
+      "Top level",
+      "Default",
+      "Polish",
+      "Words",
+    ]);
+    expect((screen.getByLabelText("Move to") as HTMLSelectElement).value).toBe("d-polish");
+    fireEvent.change(screen.getByLabelText("Move to"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Move" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(calls).toEqual([{ method: "moveDeck", input: { deckId: "d-verbs", parentId: null } }]);
+  });
+
+  test("a refused name shows the reason and keeps the window open with the text", async () => {
+    renderManage({
+      createDeck: () => {
+        throw { kind: "invalidInput", message: 'There is already one called "Polish" here.' };
+      },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Add deck" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Polish" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("There is already one");
+    expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe("Polish");
+    expect((screen.getByRole("button", { name: "Add" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  test("Delete asks first, says what goes, and offers Undo afterwards", async () => {
+    const calls = renderManage();
+    await manage();
+    fireEvent.click(screen.getByRole("button", { name: "Delete Polish" }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.textContent).toContain("and the 3 decks inside it");
+    expect(calls).toEqual([]);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+    const notice = await screen.findByText('Deleted "Polish", with 3 decks inside and 9 cards.');
+    expect(notice).toBeDefined();
+    expect(calls).toEqual([{ method: "deleteDeck", input: { deckId: "d-polish" } }]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    await waitFor(() => expect(screen.queryByText(/^Deleted "Polish"/)).toBeNull());
+    expect(calls.at(-1)).toEqual({ method: "restoreDeck", input: { deckId: "d-polish" } });
+  });
+
+  test("the back button closes a window and stays on the Decks screen", async () => {
+    renderManage();
+    await manage();
+    fireEvent.click(screen.getByRole("button", { name: "Delete Polish" }));
+    expect(screen.getByRole("dialog")).toBeDefined();
+    act(() => window.history.back());
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(window.location.hash).toBe("#/decks");
+    expect(screen.getByRole("button", { name: "Done" })).toBeDefined();
+  });
+
+  test("closing a window with a button leaves no extra history entry", async () => {
+    renderManage();
+    await manage();
+    const before = window.history.length;
+    fireEvent.click(screen.getByRole("button", { name: "Rename Polish" }));
+    expect(window.history.state?.fcDialog).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(window.history.state?.fcDialog).toBeFalsy());
+    expect(window.history.length).toBe(before + 1);
+  });
+
+  test("Cancel changes nothing", async () => {
+    const calls = renderManage();
+    await manage();
+    fireEvent.click(screen.getByRole("button", { name: "Delete Polish" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(calls).toEqual([]);
+  });
+
+  test("a failed Undo says why and keeps the Undo button", async () => {
+    renderManage({
+      restoreDeck: () => {
+        throw { kind: "invalidInput", message: 'There is already one called "Polish" here.' };
+      },
+    });
+    await manage();
+    fireEvent.click(screen.getByRole("button", { name: "Delete Polish" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
+    expect(await screen.findByText(/There is already one called/)).toBeDefined();
+    expect(screen.getByRole("button", { name: "Undo" })).toBeDefined();
+  });
+
+  test("a collection with only the Default deck can still add a deck", async () => {
+    renderManage({
+      getDeckList: () => ({ totalCards: 0, decks: [deck("d-default", "Default", 0, null)] }),
+    });
+    expect(await screen.findByRole("button", { name: "Add deck" })).toBeDefined();
   });
 });
