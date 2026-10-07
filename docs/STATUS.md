@@ -6,11 +6,11 @@ Kept current by every session. A new session reads this first.
 
 2.4 Add note, built as three stacked PRs (ADR 0011, Accepted; plan in `docs/plans/2.4-add-note.md`).
 
-- **2.4a note API: built, PR open for Anthony.** Branch `step/2.4a-note-api`. `Collection::add_note_with` (a note and its tags in one write), `fc-api` `getNoteTypes`, `getTags`, `findDuplicates`, `addNote`, `addMedia`, bindings. `cargo xtask check` passes. No UI, so nothing to run on the phone. Build notes and deviations: end of ADR 0011.
-- **2.4b Add screen and editor (ProseMirror, no media): in progress** on `step/2.4b-add-screen` (from `master`, 2.4a merged as PR #39). Done: ProseMirror dependency (exact versions, `bun.lock` only), `packages/ui/src/editor/` `schema.ts`, `html.ts` (`loadField`, `saveField`, `roundTrips`), `commands.ts` (marks, lists, Enter as line break, cloze, `highestCloze`), with tests. Also done: `FieldEditor.tsx`, `Toolbar.tsx`, `AddScreen.tsx` with `TagInput` (replaces the placeholder), the shell's `useShellKeyboardInset`, and a web check in headless Brave (add with bold, a list and tags, Ctrl+Enter, the duplicate warning, a cloze note, the draft across a reload, the notes in Decks and Study, dark and 1100 px). Screen tests done (`AddScreen.test.tsx`, a text area stands in for the editor; 247 Vitest tests in all). `cargo xtask check` passes. Remaining: desktop app check (`bun run dev`, keyboard only), phone check (APK, screenshot, keyboard in view), build notes, PR.
+- **2.4a note API: merged (PR #39).** `Collection::add_note_with` (a note and its tags in one write), `fc-api` `getNoteTypes`, `getTags`, `findDuplicates`, `addNote`, `addMedia`, bindings. Build notes: ADR 0011.
+- **2.4b Add screen and editor (ProseMirror, no media): built, PR open for Anthony.** Branch `step/2.4b-add-screen`. `editor/` (schema, `loadField`, `saveField`, `roundTrips`, commands, `FieldEditor`, `Toolbar`), `AddScreen` with `TagInput`, the shell's `useShellKeyboardInset`. `cargo xtask check` passes (247 Vitest tests). Checked on the web (headless Brave), desktop (keyboard only) and the phone (landscape, Gboard: the field and toolbar stay above the keyboard). **Not checked: real typing on the phone's keyboards, portrait, which Anthony does.** About 58% over the planned size: see the deviations in the ADR 0011 build notes.
 - **2.4c media (pickers, image processing, CSP, Android clean-up): not started.**
 
-Next: Anthony reviews 2.4a, then `/step 2.4` builds 2.4b. Anthony said (2026-10-07) his phone may be used for gestures in a session when needed, while it is free and unlocked; CLAUDE.md's rule otherwise stands.
+Next: Anthony reviews 2.4b and tries typing on the phone, then `/step 2.4` builds 2.4c (media). Anthony said (2026-10-07) his phone may be used for gestures in a session when needed, while it is free and unlocked; CLAUDE.md's rule otherwise stands.
 
 Previous step: 2.3 Review screen, merged (PR #36, PR #37). Still not run on the phone: the 0.6 sandbox card with `allow="autoplay"` (the spike is deleted).
 
@@ -20,6 +20,7 @@ Previous step: 2.3 Review screen, merged (PR #36, PR #37). Still not run on the 
 
 ## Done
 
+- 2.4b Add screen and editor (ADR 0011 build notes, step 2.4b): ProseMirror (`prosemirror-*`, exact versions), `packages/ui/src/editor/`, `AddScreen`. Not merged yet.
 - 2.4a Note API (ADR 0011 build notes, step 2.4a): `add_note_with`, `getNoteTypes`, `getTags`, `findDuplicates`, `addNote`, `addMedia`. The note and media methods earlier lines gave to 3.1 were built here; 3.1 keeps search and the browser's methods. Not merged yet.
 - 2.1 App shell and design direction (ADR 0010 build notes, step 2.1): tokens and Paper styles with a contrast test, theme (System, Light, Dark) with `theme-boot.js`, hash router, `AppShell` (bottom bar, rail, insets, keyboard inset, `BottomAction`, shortcuts), placeholder screens, Settings, collection problem screen, Developer screen in debug builds only, `Core` remembers the failed open. Deviations: the list at the end of the ADR notes. Merged (PR #33).
 - 2.2 Home and deck list (ADR 0010 build notes, step 2.2): `getDeckList`, `DecksScreen`. Merged (PR #35).
