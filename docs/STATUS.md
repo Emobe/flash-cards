@@ -4,17 +4,17 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-2.3 Review screen, split in two PRs (Anthony agreed to the plan in chat, defaults on all three questions: split, a debug-only "Add sample cards" on the Developer screen, delete the 0.6 sandbox spike at the end of 2.3b).
+2.3 Review screen, two PRs. **2.3a** Study API and frame (PR #36, `step/2.3a-study-api`) and **2.3b** the screen (`step/2.3b-review-screen`, stacked on 2.3a), both waiting for Anthony's review. Build notes and deviations: ADR 0010 "Build notes (step 2.3a)" and "(step 2.3b)".
 
-**2.3a Study API and frame** (branch `step/2.3a-study-api`), done and waiting for Anthony's review. `fc-api` `startStudySession`, `endStudySession`, `nextCard`, `renderCard`, `getMedia`, `answerCard`, `undoAnswer`; `Collection::now_ms`; the frame takes `theme` and `autoplay` and reports audio. Verified in headless Brave (theme, autoplay and replay with `allow="autoplay"` on the iframe, which Chromium needs and Anthony approved, the 54-attempt card: 38 / 0 / 16). Not verified: desktop and phone (moved to 2.3b). Build notes and deviations: ADR 0010 "Build notes (step 2.3a)".
+What exists: `fc-api` study methods, the card frame with theme, autoplay and replay (`allow="autoplay"` on the iframe, ADR 0005 amended, approved), `StudyScreen` (answer buttons with intervals, keys, undo, replay, end screen), a debug-only "Add sample cards" on the Developer screen, the 0.6 sandbox spike deleted. Verified on the web and on desktop. **Not verified: studying on the phone** (no cards there, I may not tap): Anthony adds sample cards from Settings, Developer tools and checks the screen, the sound and Android back. The sandbox card was not re-run on the phone with the new iframe attribute (spike deleted in its own commit).
 
-**2.3b Review screen** (branch `step/2.3b-review-screen`, stacked on 2.3a / PR #36), in progress. Done: `debugAddSampleCards` (debug builds), `formatInterval`/`formatSpan`, `useStudy`, `StudyScreen` (question, answer with four intervals, keys, undo, replay, end screen, Waiting), Developer "Add sample cards" button, tests. `cargo xtask check` passes. Remaining: look at it on the desktop, the phone and the web (dark and light, narrow and wide, audio, keys, the sandbox card on desktop and phone), delete the 0.6 sandbox spike, ADR 0010 build notes, PR.
+Next after review: 2.4 Add note.
 
 Previous step: 2.2 Home and deck list, merged (PR #35).
 
 ## Branch
 
-`step/2.3a-study-api`.
+`step/2.3b-review-screen` (2.3a is PR #36).
 
 ## Done
 
@@ -146,7 +146,7 @@ Previous step: 2.2 Home and deck list, merged (PR #35).
 - Android: call path, progress, cancel, events and attachments verified (0.3a, 0.3b). Reload behaviour of the notice channel on the phone is not.
 - The phone has the debug APK built on 2026-10-06 (reinstalled after the 2.1 design probe).
 - 0.6 not verified: Windows (Tauri may expose IPC to card frames there, the token covers it), Firefox, Safari, a main-frame reload on Android. Freeze recovery for looping cards is Phase 2 (a looping card freezes the app, checked on desktop).
-- Temporary code to delete (the notes spike is already gone; `BackupPanel` in `apps/web` goes with step 2.6): `CardSandboxSpike`, its cards file, `spikeCardMedia` and the sample media (1.10). Lasting: the gate, `handshake`, the `card` scheme, `frame.html`, `CardFrame`, `PlatformContext`.
+- Temporary code to delete (the notes spike and the card sandbox spike are gone; `BackupPanel` in `apps/web` goes with step 2.6). Lasting: the gate, `handshake`, the `card` scheme, `frame.html`, `CardFrame`, `PlatformContext`.
 - Windows: desktop launch and `cargo xtask check` from step 0.1 are unverified and deferred to a manual check by Anthony.
 - Step 2.1 must handle edge-to-edge drawing and safe areas (status bar, navigation bar, cutout, keyboard) once in the app shell (ADR 0010 decision 4).
 - Step 2.3 must pass the effective theme into the card frame: a frame follows the system colour scheme, not the app's override (ADR 0010 decision 3; an ADR 0005 amendment).
@@ -155,3 +155,6 @@ Previous step: 2.2 Home and deck list, merged (PR #35).
 - Standing rule from ADR 0005 (Accepted): never grant Tauri plugin permissions to the main window, and every bridge command must check the session token. On Android card frames can call anything the main window can.
 - 0.7 experiments (scratch, outside the repo): register merge, event union, FSRS replay and IDs verified natively on Linux; IDs and `getrandom` on wasm under Bun only, not in a browser. Step 1.1 checks `getrandom` in the browser.
 - App/bundle ID is still the placeholder `dev.placeholder.flashcards`. Pick it before step 2.7.
+
+- **Freeze recovery for a looping card** (ADR 0005, "Consequences") is not built and no step has it. A card with `while(true){}` still freezes the app. Add a step before shared decks or Anki import (Phase 5). The "due tomorrow" forecast on the study end screen is also not built (3.7).
+- **2.3 autoplay:** each side autoplays its audio when shown, so a back that repeats the front plays the front's sound again. There is no setting to turn autoplay off.
