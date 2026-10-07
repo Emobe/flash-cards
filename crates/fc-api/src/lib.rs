@@ -16,6 +16,7 @@ mod examples;
 mod notice;
 mod spike_card;
 mod spike_scheduling;
+mod study;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod autobackup;
@@ -135,6 +136,13 @@ methods! {
         examples::ExampleDivide,
         collection::GetCollectionInfo,
         decks::GetDeckList,
+        study::StartStudySession,
+        study::EndStudySession,
+        study::NextCard,
+        study::RenderCard,
+        study::GetMedia,
+        study::AnswerCard,
+        study::UndoAnswer,
         spike_card::SpikeCardMedia,
         spike_scheduling::SpikeSchedule,
         spike_scheduling::SpikeOptimise,
