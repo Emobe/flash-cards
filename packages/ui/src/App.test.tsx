@@ -88,11 +88,11 @@ describe("Settings", () => {
     fireEvent.click(screen.getByRole("radio", { name: "Dark" }));
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
     expect(localStorage.getItem("fc.theme")).toBe("dark");
-    expect(setSystemTheme).toHaveBeenLastCalledWith("dark");
+    expect(setSystemTheme).toHaveBeenLastCalledWith("dark", false);
 
     fireEvent.click(screen.getByRole("radio", { name: "Light" }));
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
-    expect(setSystemTheme).toHaveBeenLastCalledWith("light");
+    expect(setSystemTheme).toHaveBeenLastCalledWith("light", false);
 
     fireEvent.click(screen.getByRole("radio", { name: "System" }));
     expect(document.documentElement.hasAttribute("data-theme")).toBe(false);

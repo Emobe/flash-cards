@@ -211,3 +211,30 @@ test("a failed handshake rejects calls with its message and never reaches the co
   });
   expect(commands).toEqual(["handshake"]);
 });
+
+test("setSystemTheme sends the token with the theme and whether the system is followed", async () => {
+  const seen: { cmd: string; payload: unknown }[] = [];
+  mockTauri((cmd, payload) => {
+    seen.push({ cmd, payload });
+    return null;
+  });
+  const transport = createTauriTransport();
+  transport.setSystemTheme("dark", false);
+  transport.setSystemTheme("light", true);
+  await vi.waitFor(() => expect(seen.length).toBe(2));
+  expect(seen).toEqual([
+    { cmd: "set_system_theme", payload: { token: TOKEN, dark: true, followSystem: false } },
+    { cmd: "set_system_theme", payload: { token: TOKEN, dark: false, followSystem: true } },
+  ]);
+});
+
+test("a failed setSystemTheme is logged and does not throw", async () => {
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  mockTauri(() => {
+    throw { kind: "internal", message: "no" };
+  });
+  const transport = createTauriTransport();
+  expect(() => transport.setSystemTheme("dark", false)).not.toThrow();
+  await vi.waitFor(() => expect(log).toHaveBeenCalled());
+  log.mockRestore();
+});
