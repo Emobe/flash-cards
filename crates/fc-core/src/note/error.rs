@@ -14,6 +14,8 @@ pub enum NoteError {
     NoCards {
         cloze: bool,
     },
+    /// A tag is not valid. Nothing was written.
+    Tag(crate::tag::TagError),
     Collection(CollectionError),
 }
 
@@ -33,6 +35,7 @@ impl fmt::Display for NoteError {
                 "This note would make no cards. Fill in a field that the front of a card template \
                  uses.",
             ),
+            Self::Tag(error) => error.fmt(f),
             Self::Collection(error) => error.fmt(f),
         }
     }
@@ -66,6 +69,15 @@ impl From<crate::deck::DeckError> for NoteError {
         match error {
             crate::deck::DeckError::Collection(error) => Self::Collection(error),
             _ => Self::NotFound,
+        }
+    }
+}
+
+impl From<crate::tag::TagError> for NoteError {
+    fn from(error: crate::tag::TagError) -> Self {
+        match error {
+            crate::tag::TagError::Collection(error) => Self::Collection(error),
+            error => Self::Tag(error),
         }
     }
 }

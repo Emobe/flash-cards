@@ -13,6 +13,7 @@ mod debug;
 mod decks;
 mod error;
 mod examples;
+mod notes;
 mod notice;
 #[cfg(debug_assertions)]
 mod sample_cards;
@@ -142,6 +143,11 @@ methods! {
         study::NextCard,
         study::RenderCard,
         study::GetMedia,
+        notes::GetNoteTypes,
+        notes::GetTags,
+        notes::FindDuplicates,
+        notes::AddNote,
+        notes::AddMedia,
         study::AnswerCard,
         study::UndoAnswer,
         spike_scheduling::SpikeSchedule,

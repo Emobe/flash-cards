@@ -4,22 +4,23 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-2.4 Add note: **ADR 0011 Accepted** (2026-10-07, Anthony agreed to all six questions). ADR (`docs/adr/0011-add-note-editor-and-media.md`) and the build plan (`docs/plans/2.4-add-note.md`) are on branch `step/2.4-add-note`. Nothing is built yet.
+2.4 Add note, built as three stacked PRs (ADR 0011, Accepted; plan in `docs/plans/2.4-add-note.md`).
 
-The ADR decides: ProseMirror as the field editor (a new dependency, about 65 KB gzipped), with its schema as the allowlist for field HTML; `<input type="file">` for images and audio on every platform (no native picker code; the Android WebView already opens the camera and the content picker); JPEG re-encoded at most 1600 px; media saved when picked; five `fc-api` methods and a core `add_note_with` so a note and its tags are one write; the Add screen layout, draft and remembered choices. The plan splits the build into three stacked PRs (2.4a note API, 2.4b screen and editor, 2.4c media).
+- **2.4a note API: built, PR open for Anthony.** Branch `step/2.4a-note-api`. `Collection::add_note_with` (a note and its tags in one write), `fc-api` `getNoteTypes`, `getTags`, `findDuplicates`, `addNote`, `addMedia`, bindings. `cargo xtask check` passes. No UI, so nothing to run on the phone. Build notes and deviations: end of ADR 0011.
+- **2.4b Add screen and editor (ProseMirror, no media): not started.** Branch `step/2.4b-add-screen` from 2.4a (or from `master` once 2.4a is merged). Adds the ProseMirror dependency (pinned, approved in ADR 0011).
+- **2.4c media (pickers, image processing, CSP, Android clean-up): not started.**
 
-Throwaway experiments for the ADR ran in the job's temp folder, outside the repo: WebKitGTK MiniBrowser (file dialog, EXIF rotation, JPEG and WebP encoding, inert `DOMParser`, `execCommand`), ProseMirror's schema as a sanitiser in happy-dom, and bundle sizes of ProseMirror and Lexical. Not verified: anything on the phone (pickers, camera, keyboards), Windows, the Tauri app itself.
+Next: Anthony reviews 2.4a, then `/step 2.4` builds 2.4b. Anthony said (2026-10-07) his phone may be used for gestures in a session when needed, while it is free and unlocked; CLAUDE.md's rule otherwise stands.
 
-Next: `/step 2.4` builds 2.4a (note API) first, on `step/2.4a-note-api` from this branch.
-
-Previous step: 2.3 Review screen, merged (PR #36, PR #37). Anthony reports he tested the sample cards on his phone after the merge (2026-10-07), which covers the "studying on the phone" check the 2.3b notes left to him. Still not run on the phone: the 0.6 sandbox card with `allow="autoplay"` (the spike is deleted).
+Previous step: 2.3 Review screen, merged (PR #36, PR #37). Still not run on the phone: the 0.6 sandbox card with `allow="autoplay"` (the spike is deleted).
 
 ## Branch
 
-`step/2.4-add-note` (ADR 0011 and the plan, docs only).
+`step/2.4a-note-api`.
 
 ## Done
 
+- 2.4a Note API (ADR 0011 build notes, step 2.4a): `add_note_with`, `getNoteTypes`, `getTags`, `findDuplicates`, `addNote`, `addMedia`. The note and media methods earlier lines gave to 3.1 were built here; 3.1 keeps search and the browser's methods. Not merged yet.
 - 2.1 App shell and design direction (ADR 0010 build notes, step 2.1): tokens and Paper styles with a contrast test, theme (System, Light, Dark) with `theme-boot.js`, hash router, `AppShell` (bottom bar, rail, insets, keyboard inset, `BottomAction`, shortcuts), placeholder screens, Settings, collection problem screen, Developer screen in debug builds only, `Core` remembers the failed open. Deviations: the list at the end of the ADR notes. Merged (PR #33).
 - 2.2 Home and deck list (ADR 0010 build notes, step 2.2): `getDeckList`, `DecksScreen`. Merged (PR #35).
 - 2.1b System bars and title bar follow the theme (ADR 0010 build notes, step 2.1b): `set_system_theme`, the `appearance` plugin and `AppearancePlugin.kt`, `Window::set_theme` on desktop, ADR 0005 amendment line. Merged (PR #34).

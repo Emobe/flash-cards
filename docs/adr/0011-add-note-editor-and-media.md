@@ -361,3 +361,56 @@ Anthony accepted the ADR on 2026-10-07 and agreed to all six questions as writte
 4. Media saved as soon as it is picked.
 5. Tags stay after Add; deck and note type remembered per device.
 6. Three stacked PRs: 2.4a note API, 2.4b Add screen and editor, 2.4c media.
+
+## Build notes (step 2.4a)
+
+Built on `step/2.4a-note-api`, from `master` (the plan was already merged there). First of three PRs.
+About 820 lines of code and tests (about 400 of them tests) and 130 lines of generated bindings,
+against the plan's 700. No migration, no new dependency.
+
+### What was built
+
+- **`Collection::add_note_with(&NewNote { deck, note_type, values, tags })`** (`note/ops.rs`). The tags
+  are checked and spelled first (`tags_for_new_note` in `tag/ops.rs`: `tag::check`, then the spelling the
+  collection already uses, each tag once). Then the note, its cards and its tag rows are one `write`
+  (`write_new_note_tags`, which takes the same `WriteTx`; no tag rule is duplicated). `add_note_to_deck`
+  calls it with no tags. `NewNote` is exported from `fc_core::note`.
+- **A tag error is its own `NoteError::Tag(TagError)`** (a wrapped `TagError::Collection` becomes
+  `NoteError::Collection`). Its text is the tag error's text.
+- **CLI:** `fc add-note --tag` uses `add_note_with`, so the tags are one write with the note. The
+  `fc-cli` coverage table lists `add_note_with` under `add-note`. No other CLI change.
+- **Five `fc-api` methods** (`crates/fc-api/src/notes.rs`): `getNoteTypes` (`id`, `name`, `kind` as
+  `"standard" | "cloze"`, `fields` in order), `getTags` (every tag name, parents included),
+  `findDuplicates`, `addNote` (`noteId`, `cardCount`, `duplicates`) and `addMedia` (the file as the
+  request attachment; `name`, `new`). No or an empty attachment is `invalidInput`.
+- **Error messages:** no cards ("This note would make no cards. Fill in the front." and, for Cloze,
+  "Add a cloze with the Cloze button."), a missing deck or note type (`notFound`, "The deck or note
+  type was deleted. Choose another and try again."), a bad tag (`invalidInput`, the tag error's text), a
+  field of another note type (`invalidInput`).
+- **Bindings** regenerated; `core-client` exports `NoteTypeList`, `NoteTypeSummary`, `FieldSummary`,
+  `NoteTypeKind`, `TagList`, `AddNoteOutput`, `AddMediaOutput`.
+- **Tests:** 7 core tests (`note/with_tags_tests.rs`): tags written with the note, no tags, spelling
+  and dedupe, a bad tag writes nothing (digest, row counts and no event), no cards writes no tags,
+  `NoteAdded` once, a `changes(All)` replay into another device has the tags and the same digest. 13
+  `fc-api` tests through `dispatch`: every method, the error mappings, `addMedia` twice, no collection.
+
+### Verified
+
+`cargo xtask check` passes (656 core tests, 74 `fc-api` tests, the wasm build, 165 Vitest tests).
+
+### Not verified
+
+Nothing in this PR shows in a UI, so nothing was run in the app, the web client or the phone. The
+methods are reachable from the web build (they are in the `always` list, and the wasm build compiles),
+but no screen calls them yet.
+
+### Deviations from the plan
+
+- **`addMedia` is in `notes.rs`,** not `media.rs` or next to `getMedia`. `study.rs` is already 670
+  lines. `parse_id` and `internal` in `study.rs` became `pub(crate)` so `notes.rs` can use them.
+- **The same bytes under another file name** give a different name (the stem is kept) with `new: false`.
+  The plan's "same bytes gives the same name" holds for the same file name, which is what the test uses.
+  The bytes are still stored once.
+- **`getTags` returns `{ tags: string[] }`** and `findDuplicates` returns `{ noteIds }`, wrapped in
+  objects like the other methods. The ADR only said "every tag name".
+- **Size:** about 820 lines against 700 (17% over, inside the 30% limit).

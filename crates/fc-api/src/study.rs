@@ -15,12 +15,12 @@ use ts_rs::TS;
 use crate::collection::not_open;
 use crate::{ApiError, ErrorKind, EventRating, Method, OpContext, SessionSummary};
 
-fn parse_id(text: &str) -> Result<Id, ApiError> {
+pub(crate) fn parse_id(text: &str) -> Result<Id, ApiError> {
     Id::from_str(text).map_err(|_| ApiError::invalid_input("That is not a valid ID."))
 }
 
 /// Details of an unexpected failure go to the log, never to the user.
-fn internal(what: &str, error: impl std::fmt::Debug) -> ApiError {
+pub(crate) fn internal(what: &str, error: impl std::fmt::Debug) -> ApiError {
     eprintln!("Could not {what}: {error:?}");
     ApiError::internal()
 }

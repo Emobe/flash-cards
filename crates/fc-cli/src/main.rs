@@ -807,8 +807,12 @@ fn run(args: &[String]) -> Result<String, Failure> {
                 .iter()
                 .map(|(id, text)| (*id, text.as_str()))
                 .collect();
-            let added = collection.add_note_to_deck(deck, found.id, &given)?;
-            collection.add_tags(&[added.id], &tag_names)?;
+            let added = collection.add_note_with(&fc_core::note::NewNote {
+                deck,
+                note_type: found.id,
+                values: &given,
+                tags: &tag_names,
+            })?;
             collection.close()?;
             let mut text = format!(
                 "Added note {} with {} card{}",

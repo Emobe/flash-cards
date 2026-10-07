@@ -21,13 +21,15 @@ mod read;
 mod render;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod with_tags_tests;
 
 use crate::id::Id;
 use crate::sync::{DynamicTable, SyncedTable};
 
 pub use error::NoteError;
 pub use generate::card_id;
-pub use ops::{AddedNote, NoteChange};
+pub use ops::{AddedNote, NewNote, NoteChange};
 
 /// The sync entity types and register names are part of the sync format and never change (ADR 0006,
 /// section 10). A note's field values are registers of the entity `note` too, named by field ID.

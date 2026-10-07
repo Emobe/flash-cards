@@ -33,6 +33,17 @@ pub struct AddedNote {
     pub duplicates: Vec<Id>,
 }
 
+/// A note to add: `Collection::add_note_with`.
+#[derive(Debug, Clone, Copy)]
+pub struct NewNote<'a> {
+    pub deck: Id,
+    pub note_type: Id,
+    /// Values by field ID. A field left out is empty.
+    pub values: &'a [(Id, &'a str)],
+    /// Tags for the new note, in the form `tag::check` accepts.
+    pub tags: &'a [&'a str],
+}
+
 /// What `set_note_fields` and `restore_note` did to a note's cards.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct NoteChange {
@@ -78,6 +89,25 @@ impl Collection {
         note_type: Id,
         values: &[(Id, &str)],
     ) -> Result<AddedNote, NoteError> {
+        self.add_note_with(&NewNote {
+            deck,
+            note_type,
+            values,
+            tags: &[],
+        })
+    }
+
+    /// Like `add_note_to_deck`, with tags. The note, its cards and its tags are one write: a tag
+    /// that is not valid (`tag::check`) refuses the whole note and nothing is written. A tag is
+    /// spelled the way the collection already spells it.
+    pub fn add_note_with(&self, new: &NewNote<'_>) -> Result<AddedNote, NoteError> {
+        let NewNote {
+            deck,
+            note_type,
+            values,
+            tags,
+        } = *new;
+        let tags = self.tags_for_new_note(tags)?;
         if self.deck(deck)?.is_none_or(|found| found.deleted) {
             return Err(NoteError::NotFound);
         }
@@ -118,6 +148,7 @@ impl Collection {
             }
             state.id = id;
             let done = reconcile(w, &plan, &state, &HashSet::new())?;
+            crate::tag::write_new_note_tags(w, id, &tags)?;
             w.emit(Event::NoteAdded {
                 note: id,
                 note_type,
