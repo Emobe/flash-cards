@@ -368,7 +368,10 @@ export function AddScreen() {
             </span>
             <FieldEditor
               value={fieldHtml(field.name)}
-              onChange={(html) => setValues((v) => ({ ...v, [field.name]: html }))}
+              onChange={(html) => {
+                setValues((v) => ({ ...v, [field.name]: html }));
+                setStatus("");
+              }}
               labelId={labelId}
               cloze={isCloze}
               highestCloze={highest}

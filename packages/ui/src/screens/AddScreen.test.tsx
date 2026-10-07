@@ -201,6 +201,16 @@ describe("Add", () => {
     expect(focusSpies.get(first ?? "")).toHaveBeenCalled();
   });
 
+  test("the added line goes away when the next note is started", async () => {
+    setup();
+    await ready();
+    type("Front", "x");
+    fireEvent.click(addButton());
+    await waitFor(() => expect(screen.getByRole("status").textContent).toContain("Added"));
+    type("Front", "y");
+    expect(screen.getByRole("status").textContent).toBe("");
+  });
+
   test("says one card, not 1 cards", async () => {
     setup();
     await ready();
