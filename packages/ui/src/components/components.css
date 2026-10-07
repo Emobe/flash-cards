@@ -341,3 +341,71 @@
   justify-content: flex-end;
   gap: var(--space-2);
 }
+
+/* The options screen (step 2.5b). */
+.back-link {
+  margin-bottom: var(--space-3);
+}
+
+.options-section,
+.options-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+.options-section h2,
+.options-form h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.options-section select,
+.options-field input:not([type="checkbox"], [type="range"]) {
+  min-height: var(--target);
+  padding: 0 var(--space-3);
+  background: var(--bg);
+  border: var(--border-control);
+  border-radius: var(--radius);
+}
+
+.options-buttons,
+.options-save {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.options-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-3);
+  border-top: var(--border);
+}
+
+.options-field input[type="range"] {
+  min-height: var(--target);
+}
+
+.options-field input[type="checkbox"] {
+  align-self: flex-start;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.options-help {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.options-field input[type="range"],
+.options-field input[type="checkbox"] {
+  accent-color: var(--accent);
+}

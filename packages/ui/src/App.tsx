@@ -6,6 +6,7 @@ import { AddScreen } from "./screens/AddScreen";
 import { CollectionProblem } from "./screens/CollectionProblem";
 import { DecksScreen } from "./screens/DecksScreen";
 import { DeveloperScreen } from "./screens/DeveloperScreen";
+import { OptionsScreen } from "./screens/OptionsScreen";
 import { BrowseScreen } from "./screens/placeholders";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { StudyScreen } from "./screens/StudyScreen";
@@ -71,5 +72,7 @@ function screenFor(
       );
     case "study":
       return <StudyScreen deckId={route.deckId} />;
+    case "options":
+      return <OptionsScreen deckId={route.deckId} />;
   }
 }

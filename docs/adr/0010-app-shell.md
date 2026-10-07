@@ -954,3 +954,58 @@ screens follow this ADR.
 - **The New/Learn/Review header and the "done for now" line are hidden in Manage mode** (found by looking).
 - **`bun run android:build` needed `NDK_HOME` and `JAVA_HOME`,** which this shell does not set. I set them
   for the commands only, and changed no shell config.
+
+## Build notes (step 2.5b)
+
+Built on `step/2.5b-presets`, the second PR of step 2.5, after 2.5a (PR #42). No migration, no new
+dependency, no change to `fc-core`. No ADR of its own (the rules for presets are ADR 0006, built in 1.5).
+
+### What was built
+
+- **`fc-api`** (`crates/fc-api/src/presets.rs`): `getPresets` (each with `isDefault`, the limits, the steps
+  as lists of minutes, desired retention as a fraction, `spaceSiblings` and `deckCount`), `createPreset`,
+  `renamePreset`, `setPresetOptions` (every field optional, a bad value changes nothing),
+  `deletePreset` (answers how many decks went back to the Default preset), `restorePreset`,
+  `setDeckPreset`. `DeckSummary` gained `presetId`. The FSRS parameters are not offered: the optimiser owns
+  them (1.8).
+- **Options screen** (`OptionsScreen.tsx`, route `#/options/<deckId>`, under Decks in the navigation). It
+  has an Options link on each row in Manage mode, and a Decks button at the top that goes back. Part one
+  picks the preset the deck uses (the names say how many decks use each), with New preset (it is given to
+  this deck), Rename and Delete (not on Default). Part two edits the settings of that preset:
+  new cards per day, maximum reviews per day, learning steps, relearning steps, desired retention (a slider
+  from 70% to 99%) and "Delay sibling cards". Each has a sentence or two of plain explanation under it, always
+  visible (`PRESET_HELP`, and a test checks that every field points at its own text with `aria-describedby`).
+  A wrong value is explained under its field and nothing is sent; a refusal from the core shows in an alert.
+  Save sends all settings in one call.
+- The type names `NewPreset` and `AddPresetInput` are chosen so the generator's import order and Biome's
+  agree (`CreatedPreset` before `CreatePresetInput` made the bindings check fail).
+
+### Verified
+
+- `cargo xtask check` passes (317 Vitest tests, 9 `fc-api` preset tests).
+- **Web** (headless Brave over CDP, 390 px): Manage, Options on a new deck, bad values explained under
+  their fields, a good save says "Saved.", New preset is created and used by the deck, switching back to
+  Default shows the values saved there, no sideways scroll, Back closes the Rename window and stays on
+  the screen. Screenshots read.
+- **Phone** (debug APK, my taps and swipes with Anthony's permission): the Options buttons in Manage mode,
+  the options screen for the Sound deck (preset part, new cards, reviews, steps, the slider), Back returns to
+  Decks. I changed nothing on the phone.
+
+### Not verified
+
+- Saving, creating and deleting a preset on the phone (typing on its keyboard).
+- The real desktop app (`bun run dev`); the screen is the web code.
+- Light theme on the phone.
+
+### Deviations from the plan
+
+- **The route is `#/options/<deckId>`,** not `#/presets/:id` as the plan said, and there is no link from
+  Settings. A preset is chosen and edited from a deck, which is how it is used.
+- **Settings are saved with a Save button,** not as each field changes (the plan did not say).
+- **Errors:** the screen checks the numbers itself and shows the sentence under the field; the core's
+  refusal is also shown, in an alert under the form.
+- **Desired retention is a slider** with the percentage in its label, no separate number box.
+- **Extras:** `presetId` on `DeckSummary`, the Options link in Manage mode, "Delay sibling cards" (the plan's
+  list did not name it), a Decks button at the top of the screen.
+- **Not done:** the per-deck "limits include sub-decks" switch (core has it; the brief asked for presets only).
+- **No size estimate,** as agreed.

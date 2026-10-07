@@ -15,6 +15,7 @@ mod error;
 mod examples;
 mod notes;
 mod notice;
+mod presets;
 #[cfg(debug_assertions)]
 mod sample_cards;
 mod spike_scheduling;
@@ -148,6 +149,13 @@ methods! {
         study::NextCard,
         study::RenderCard,
         study::GetMedia,
+        presets::GetPresets,
+        presets::CreatePreset,
+        presets::RenamePreset,
+        presets::SetPresetOptions,
+        presets::DeletePreset,
+        presets::RestorePreset,
+        presets::SetDeckPreset,
         notes::GetNoteTypes,
         notes::GetTags,
         notes::FindDuplicates,
