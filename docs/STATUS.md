@@ -8,15 +8,9 @@ Kept current by every session. A new session reads this first.
 
 Anthony checked Export, Restore from a file and the file picker in the web client (qutebrowser, Linux). Still not checked: the Settings screen in the real desktop app and on the phone (Back up now, the list, Restore, Export from the native webviews). See Open items.
 
-2.7 Dogfood builds: ADR 0012 Accepted (2026-10-07); plan in `docs/plans/2.7-dogfood-builds.md`. Two PRs.
-**2.7a (app identity) is merged (PR #46).** Anthony still has to look at the About line in the "Flash cards dev" app on the phone.
-**2.7b (release builds) is in progress** on `step/2.7b-release-builds`, commit by commit:
-- done: Linux blank-window fix in `main.rs` (`unsafe_code = "deny"` for `fc-native`), removed from `scripts/dev.ts`, README troubleshooting.
-- done: bundle metadata (`mainBinaryName`, descriptions, category) and `bun run dist:linux` (`packaging/arch/PKGBUILD`, `scripts/dist-linux.ts`, `scripts/lib/dist.ts`); the package builds, the release binary renders with no variable and shows Version 0.1.0 in Settings. Anthony still installs it with pacman and checks the menu entry and card sound.
-- done: Android release signing (the debug key, `signingConfigs.getByName("debug")`), `bun run dist:android` and `dist:android:install`. Verified on the phone: installed as `io.github.emobe.flashcards`, not debuggable, APK certificate equals `~/.android/debug.keystore`, About shows 0.1.0, switching the theme works under R8 (Claude tapped it, with Anthony's permission).
-- done: `bun run dist:windows` (`scripts/dist-windows.ts`; refuses on other systems, checked; not run on Windows).
-- left: README "Dogfood builds", build notes in ADR 0012, checks on Linux and the phone, Anthony's Windows build.
-Anthony said (2026-10-07, in chat) that Claude Code may tap and do gestures on the phone; unlocking is not covered, and `CLAUDE.md` still says "never touch" (a deviation to list).
+2.7 Dogfood builds is **built** (ADR 0012, Accepted 2026-10-07; plan in `docs/plans/2.7-dogfood-builds.md`). 2.7a (app identity) is merged (PR #46). **2.7b (release builds)** is built on `step/2.7b-release-builds`; its PR is open for review. Build notes: ADR 0012, step 2.7b.
+Anthony still has to: install the pacman package (`bun run dist:linux`, then `sudo pacman -U release/…`) and check the menu entry and a card with sound; build and try the installer on his Windows machine (`bun run dist:windows`); keep a copy of `~/.android/debug.keystore`. Phase 2 is then complete (exit criteria in `docs/phases/02-study-loop.md`).
+Anthony said (2026-10-07, in chat) that Claude Code may tap and do gestures on the phone; unlocking is not covered, and `CLAUDE.md` still says "never touch" (listed as a deviation).
 
 The design session left a test app, `dev.placeholder.flashcards.relexp` ("Flash cards", empty), on
 the phone. Anthony removes it, and the old `dev.placeholder.flashcards` app; sessions do not uninstall.
@@ -27,7 +21,8 @@ the phone. Anthony removes it, and the old `dev.placeholder.flashcards` app; ses
 
 ## Done
 
-- 2.7a App identity (ADR 0012 build notes, step 2.7a): workspace version `0.1.0` (Gradle reads it for Android), About in Settings (version and build ID), app ID `io.github.emobe.flashcards`, `.dev` desktop and Android debug builds. PR open.
+- 2.7b Release builds (ADR 0012 build notes, step 2.7b): Linux blank-window fix in `main.rs`, `dist:linux` (pacman package from the `.deb`), Android release build signed with the debug key and `dist:android`, `dist:android:install`, `dist:windows`, README "Dogfood builds". PR open.
+- 2.7a App identity (ADR 0012 build notes, step 2.7a): workspace version `0.1.0` (Gradle reads it for Android), About in Settings (version and build ID), app ID `io.github.emobe.flashcards`, `.dev` desktop and Android debug builds. Merged (PR #46).
 - 2.6 Settings and local backups (ADR 0006 build notes, step 2.6): `listBackups`, `backupNow`, `restoreListedBackup`, Backups section in Settings, `BackupPanel` deleted. Merged (PR #44).
 - 2.5b Option presets (ADR 0010 build notes, step 2.5b): preset methods in `fc-api`, `OptionsScreen`. Merged (PR #43).
 - 2.5a Deck management: decks (ADR 0010 build notes, step 2.5a): `createDeck`, `renameDeck`, `moveDeck`, `deleteDeck`, `restoreDeck`, Manage mode, `Dialog`.

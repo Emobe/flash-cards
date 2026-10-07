@@ -400,3 +400,92 @@ No new dependency. Nothing here makes a release build; that is 2.7b.
 - **`tsconfig` changes in both apps** (`rootDir`, the build-id include, `allowImportingTsExtensions`) and
   a `build-id.d.ts` in each, to let a Vite config import the helper from `scripts/lib/`.
 - **A CSS rule** (`.group .about-version`) so the About group has no empty line under the text.
+
+## Build notes (step 2.7b)
+
+Built on `step/2.7b-release-builds`, from `master` (2.7a is merged as PR #46). Second of two PRs. No new
+dependency. Anthony's Decisions on review apply: the Android release build uses the debug key, Linux is
+the pacman package only, Windows is built on Anthony's machine, no GitHub Actions workflow.
+
+### What was built
+
+- **Linux fix.** `main.rs` sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` on Linux when it is not set, first
+  thing in `main`, in one `#[allow(unsafe_code)]` block with a `SAFETY` comment. `fc-native`'s
+  `Cargo.toml` has its own copy of the workspace lint table with `unsafe_code = "deny"` (a comment
+  there says to keep it in step with the root). `scripts/dev.ts` no longer sets the variable. README
+  troubleshooting updated.
+- **Bundle metadata.** `mainBinaryName` `flash-cards`, `category` `Education`, `shortDescription`
+  "Spaced-repetition flash cards", `longDescription`.
+- **`bun run dist:linux`** (`scripts/dist-linux.ts`, `scripts/lib/dist.ts`, `packaging/arch/PKGBUILD`):
+  `tauri build --bundles deb`, then `makepkg` in a temporary copy of `packaging/arch/` with the `.deb`
+  next to it, then the package is copied to `release/flash-cards-<version>-linux-x86_64.pkg.tar.<ext>`
+  (the extension comes from `makepkg`; it is `.xz` here). `release/` is in `.gitignore`.
+- **Android.** The release build type uses `signingConfigs.getByName("debug")`. `bun run dist:android`
+  (`scripts/dist-android.ts`) builds with `tauri android build --apk --target aarch64` and copies the
+  APK to `release/flash-cards-<version>-android-arm64.apk`; `bun run dist:android:install` installs it
+  with `adb install -r` and starts it by the release ID (`RELEASE_APP_ID` in `scripts/lib/adb.ts`).
+- **`bun run dist:windows`** (`scripts/dist-windows.ts`): refuses on other systems, then
+  `tauri build --bundles nsis` and copies the installer to
+  `release/flash-cards-<version>-windows-x64-setup.exe`. Plain Bun and Node APIs only.
+- **README:** "Dogfood builds" (what the IDs mean, the commands, raising the version, installing and
+  updating on each platform, the keystore backup, SmartScreen).
+
+### Findings
+
+- **Decision 6 holds for desktop:** with no `version` in `tauri.conf.json`, the `.deb` is
+  `Flash cards_0.1.0_amd64.deb` and Settings shows 0.1.0. (Android reads Cargo in Gradle, see 2.7a.)
+- **R8 does not break `AppearancePlugin`** (the open risk in finding 6): on the phone, choosing Light
+  in Settings changed the page and the system bars (logcat: `APPEARANCE_LIGHT_STATUS_BARS` for the
+  release package), and there is no `AndroidRuntime` error. Choosing System put it back.
+- **The release APK is 16 MB** and is signed with the certificate in `~/.android/debug.keystore`
+  (`apksigner` shows `CN=Android Debug`, same SHA-256 as `keytool`). `apksigner` needs a `java` on the
+  PATH; Android Studio's is `/opt/android-studio/jbr/bin`.
+- **The desktop file is `Flash cards.desktop`** (Tauri names it after `productName`), with
+  `Exec=flash-cards`, `Icon=flash-cards`, `Categories=Education;`.
+- The package is 3.8 MB, its dependencies are `webkit2gtk-4.1 gtk3 gst-plugins-base gst-plugins-good`.
+
+### Verified
+
+- `cargo xtask check` passes (328 Vitest tests; no test is new, the changes are build scripts and
+  config).
+- Linux: `bun run dist:linux` builds the package; its contents and `.desktop` file were read. The built
+  `target/release/flash-cards`, started with no `WEBKIT_DISABLE_DMABUF_RENDERER` and empty `XDG_*`
+  folders, showed the deck screen (no blank window, no GBM error) and Settings showed Version 0.1.0.
+  `bun run dev` (variable also unset) showed "Flash cards dev" and no GBM error. Both used scratch data
+  folders, so the real collections were not touched.
+- Android (Samsung SM-S928B): `dist:android` and `dist:android:install` put
+  `io.github.emobe.flashcards` on the phone next to the `.dev` app; `dumpsys package` shows versionName
+  `0.1.0`, versionCode `1000` and no `DEBUGGABLE` flag; it started; About shows 0.1.0; the theme switch
+  works (finding above).
+- `bun run dist:windows` on Linux stops with its message.
+
+### Not verified
+
+- Installing the pacman package, starting it from the menu, and sound on a card: Anthony.
+- Everything on Windows (the build, the installer, SmartScreen, WebView2, the data folder
+  `%APPDATA%\io.github.emobe.flashcards`, which is from Tauri's documentation): Anthony.
+- The builds Claude made say `-dirty` after the version (the changes were not committed yet). Rebuild
+  from a clean tree for a clean build ID.
+- Updating an installed release app with a newer one (same key, higher version code), and `bun run
+  android:dev` under the `.dev` ID (also open from 2.7a).
+- Another distribution or GPU for the Linux fix; the Linux package on a clean Arch install (it was built
+  with `--nodeps`).
+
+### Deviations from the plan
+
+- **Claude Code tapped the phone** (the theme switch, scrolling to About). The plan said to ask Anthony
+  to switch the theme, and `CLAUDE.md` says never touch the phone beyond installing and screenshots.
+  Anthony said in chat that Claude Code may do taps and gestures; he did not mention unlocking, and the
+  phone was already unlocked. `CLAUDE.md` was not changed.
+- **`makepkg -f --nodeps --skipinteg`** instead of `makepkg -f`, so it never asks for `sudo` to install
+  dependencies. The `PKGBUILD` also sets `options=('!strip' '!debug')`, `license=('custom')` and reads
+  the version from the `FC_VERSION` variable the script sets; the plan only said `pkgver` from the
+  version.
+- **Extra files:** `scripts/lib/dist.ts` (shared version reader, `run`, `fail`) and
+  `RELEASE_APP_ID` in `scripts/lib/adb.ts`; `dist:android:install` is its own script file.
+- **Bundle text chosen without being specified:** category `Education` and the two descriptions.
+- **One commit did not pass `cargo xtask check`** (`f3108eb`, a type error in `scripts/lib/dist.ts`); the
+  next commit (`af3730e`) fixes it. Every other commit passes.
+- **The Android build was not redone from a clean tree** (see Not verified), and the version was not
+  raised: the release app has a new ID, so 0.1.0 installs as it is.
+- **No change to the ADR text** of decisions 2 and 5 (the Decisions on review already override them).
