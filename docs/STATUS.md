@@ -4,13 +4,13 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-2.4 Add note: **design session done, waiting for Anthony's review.** ADR 0011 (`docs/adr/0011-add-note-editor-and-media.md`, Proposed) and the build plan (`docs/plans/2.4-add-note.md`) are on branch `step/2.4-add-note`. Nothing is built. Nothing may be built until ADR 0011 is Accepted.
+2.4 Add note: **ADR 0011 Accepted** (2026-10-07, Anthony agreed to all six questions). ADR (`docs/adr/0011-add-note-editor-and-media.md`) and the build plan (`docs/plans/2.4-add-note.md`) are on branch `step/2.4-add-note`. Nothing is built yet.
 
-The ADR decides: ProseMirror as the field editor (a new dependency, about 65 KB gzipped), with its schema as the allowlist for field HTML; `<input type="file">` for images and audio on every platform (no native picker code; the Android WebView already opens the camera and the content picker); JPEG re-encoded at most 1600 px; media saved when picked; five `fc-api` methods and a core `add_note_with` so a note and its tags are one write; the Add screen layout, draft and remembered choices. It asks Anthony six questions at the end. The plan splits the build into three stacked PRs (2.4a note API, 2.4b screen and editor, 2.4c media).
+The ADR decides: ProseMirror as the field editor (a new dependency, about 65 KB gzipped), with its schema as the allowlist for field HTML; `<input type="file">` for images and audio on every platform (no native picker code; the Android WebView already opens the camera and the content picker); JPEG re-encoded at most 1600 px; media saved when picked; five `fc-api` methods and a core `add_note_with` so a note and its tags are one write; the Add screen layout, draft and remembered choices. The plan splits the build into three stacked PRs (2.4a note API, 2.4b screen and editor, 2.4c media).
 
 Throwaway experiments for the ADR ran in the job's temp folder, outside the repo: WebKitGTK MiniBrowser (file dialog, EXIF rotation, JPEG and WebP encoding, inert `DOMParser`, `execCommand`), ProseMirror's schema as a sanitiser in happy-dom, and bundle sizes of ProseMirror and Lexical. Not verified: anything on the phone (pickers, camera, keyboards), Windows, the Tauri app itself.
 
-Next: Anthony reviews ADR 0011. Once it is Accepted, `/step 2.4` builds 2.4a first.
+Next: `/step 2.4` builds 2.4a (note API) first, on `step/2.4a-note-api` from this branch.
 
 Previous step: 2.3 Review screen, merged (PR #36, PR #37). Anthony reports he tested the sample cards on his phone after the merge (2026-10-07), which covers the "studying on the phone" check the 2.3b notes left to him. Still not run on the phone: the 0.6 sandbox card with `allow="autoplay"` (the spike is deleted).
 

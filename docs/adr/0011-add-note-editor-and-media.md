@@ -1,7 +1,8 @@
 # 0011: Add note: field editor, media and the note API
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-07
+Accepted: 2026-10-07 (Anthony agreed to every question, see Decisions on review)
 
 ## Context
 
@@ -349,3 +350,14 @@ Layout, compact (top to bottom; one column at every width, at most 46 rem as els
 4. Media is saved as soon as it is picked (an abandoned draft leaves an unused file).
 5. Tags stay after Add, and the deck and note type are remembered per device.
 6. The split into three PRs in the plan (`docs/plans/2.4-add-note.md`).
+
+## Decisions on review
+
+Anthony accepted the ADR on 2026-10-07 and agreed to all six questions as written:
+
+1. ProseMirror as a new dependency.
+2. `<input type="file">` on every platform, no native picker code, no audio recording.
+3. JPEG re-encoded at most 1600 px on the longest side (location data removed).
+4. Media saved as soon as it is picked.
+5. Tags stay after Add; deck and note type remembered per device.
+6. Three stacked PRs: 2.4a note API, 2.4b Add screen and editor, 2.4c media.
