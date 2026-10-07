@@ -1,0 +1,430 @@
+import { CoreError, type DeckSummary, type NoteTypeSummary } from "core-client";
+import type { EditorView } from "prosemirror-view";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useCore } from "../core";
+import { highestCloze } from "../editor/commands";
+import { FieldEditor } from "../editor/FieldEditor";
+import { Toolbar } from "../editor/Toolbar";
+import { PageHeading } from "../router";
+import { WarningIcon } from "../shell/icons";
+import { BottomAction, useShellKeyboardInset } from "../shell/slot";
+import { TagInput, withTyped } from "./add/TagInput";
+import "./add/add.css";
+
+const LAST_KEY = "fc.add.last";
+const DRAFT_KEY = "fc.add.draft";
+const DRAFT_DELAY_MS = 300;
+const DUPLICATE_DELAY_MS = 400;
+
+type Draft = {
+  deckId: string | null;
+  noteTypeId: string | null;
+  /** Field HTML by field name, so a note type with the same names keeps what was typed. */
+  fields: Record<string, string>;
+  tags: string[];
+};
+
+function read<T>(key: string): Partial<T> | null {
+  try {
+    const text = localStorage.getItem(key);
+    const value: unknown = text ? JSON.parse(text) : null;
+    return value && typeof value === "object" ? (value as Partial<T>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function write(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // The draft only lasts until the app closes.
+  }
+}
+
+function readDraft(): Draft {
+  const last = read<{ deckId: string; noteTypeId: string }>(LAST_KEY);
+  const draft = read<Draft>(DRAFT_KEY);
+  const fields: Record<string, string> = {};
+  for (const [name, html] of Object.entries(draft?.fields ?? {})) {
+    if (typeof html === "string") fields[name] = html;
+  }
+  return {
+    deckId: draft?.deckId ?? last?.deckId ?? null,
+    noteTypeId: draft?.noteTypeId ?? last?.noteTypeId ?? null,
+    fields,
+    tags: Array.isArray(draft?.tags) ? draft.tags.filter((t) => typeof t === "string") : [],
+  };
+}
+
+type Loaded =
+  | { status: "loading" }
+  | { status: "failed"; error: CoreError }
+  | {
+      status: "ready";
+      decks: DeckSummary[];
+      noteTypes: NoteTypeSummary[];
+      knownTags: string[];
+    };
+
+function asCoreError(error: unknown, fallback: string): CoreError {
+  return error instanceof CoreError ? error : new CoreError("internal", fallback);
+}
+
+function fieldKey(type: NoteTypeSummary, fieldId: string): string {
+  return `${type.id}:${fieldId}`;
+}
+
+function cardsText(count: number): string {
+  return `${count} ${count === 1 ? "card" : "cards"}`;
+}
+
+/**
+ * Add a note (step 2.4, ADR 0011 decision 5): deck, note type, one editor per field, tags. The
+ * deck, note type and tags stay after Add, and what is typed is kept as a draft on this device, so
+ * an accidental back or Android closing the app does not lose it.
+ */
+export function AddScreen() {
+  const core = useCore();
+  const [loaded, setLoaded] = useState<Loaded>({ status: "loading" });
+  const [initial] = useState(readDraft);
+  const [deckId, setDeckId] = useState<string | null>(initial.deckId);
+  const [noteTypeId, setNoteTypeId] = useState<string | null>(initial.noteTypeId);
+  const [values, setValues] = useState<Record<string, string>>(initial.fields);
+  const [tags, setTags] = useState<string[]>(initial.tags);
+  const [typedTag, setTypedTag] = useState("");
+  const [pending, setPending] = useState(false);
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [duplicate, setDuplicate] = useState(false);
+  // The editor the toolbar acts on, and a counter that re-renders the toolbar after each change.
+  const [active, setActive] = useState<EditorView | null>(null);
+  const [, setTick] = useState(0);
+  const views = useRef(new Map<string, EditorView>());
+  const adding = useRef(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const keyboardInset = useShellKeyboardInset();
+
+  const load = useCallback(() => {
+    setLoaded({ status: "loading" });
+    Promise.all([
+      core.call("getDeckList", null),
+      core.call("getNoteTypes", null),
+      core.call("getTags", null),
+    ])
+      .then(([decks, noteTypes, tags]) => {
+        setLoaded({
+          status: "ready",
+          decks: decks.decks,
+          noteTypes: noteTypes.noteTypes,
+          knownTags: tags.tags,
+        });
+      })
+      .catch((error: unknown) =>
+        setLoaded({
+          status: "failed",
+          error: asCoreError(error, "Something went wrong while opening the Add screen."),
+        }),
+      );
+  }, [core]);
+  useEffect(load, [load]);
+
+  // A remembered deck or note type that is gone falls back to the Default deck and Basic.
+  useEffect(() => {
+    if (loaded.status !== "ready") return;
+    const { decks, noteTypes } = loaded;
+    if (!decks.some((d) => d.id === deckId)) {
+      const fallback = decks.find((d) => d.name === "Default" && d.depth === 0) ?? decks[0];
+      setDeckId(fallback?.id ?? null);
+    }
+    if (!noteTypes.some((t) => t.id === noteTypeId)) {
+      const fallback = noteTypes.find((t) => t.name === "Basic") ?? noteTypes[0];
+      setNoteTypeId(fallback?.id ?? null);
+    }
+  }, [loaded, deckId, noteTypeId]);
+
+  const ready = loaded.status === "ready" ? loaded : null;
+  const noteType = ready?.noteTypes.find((t) => t.id === noteTypeId) ?? null;
+  const isCloze = noteType?.kind === "cloze";
+  const fieldHtml = (name: string) => values[name] ?? "";
+
+  // The cloze shortcuts read the fields when they are used, so they count what was typed last.
+  const latestValues = useRef({ noteType, values });
+  latestValues.current = { noteType, values };
+  const highest = useCallback(() => {
+    const { noteType, values } = latestValues.current;
+    return highestCloze((noteType?.fields ?? []).map((f) => values[f.name] ?? ""));
+  }, []);
+
+  // ---- The draft and remembered choices ----
+
+  const draftNow = useRef<Draft | null>(null);
+  draftNow.current =
+    ready && deckId && noteTypeId ? { deckId, noteTypeId, fields: values, tags } : null;
+
+  useEffect(() => {
+    if (!deckId || !noteTypeId || !ready) return;
+    write(LAST_KEY, { deckId, noteTypeId });
+  }, [deckId, noteTypeId, ready]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `values` and `tags` are what changes; the draft itself is read from the ref.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (draftNow.current) write(DRAFT_KEY, draftNow.current);
+    }, DRAFT_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [values, tags, deckId, noteTypeId]);
+
+  // Leaving the screen or the app being closed must not lose the last second of typing.
+  useEffect(() => {
+    const flush = () => {
+      if (draftNow.current) write(DRAFT_KEY, draftNow.current);
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", flush);
+    return () => {
+      flush();
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", flush);
+    };
+  }, []);
+
+  // ---- Keeping the caret in view above the keyboard and the toolbar ----
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only a change of the keyboard inset should scroll.
+  useEffect(() => {
+    if (active?.hasFocus()) active.dispatch(active.state.tr.scrollIntoView());
+  }, [keyboardInset]);
+
+  const onEditorFocus = useCallback((view: EditorView) => {
+    setActive(view);
+    // After the keyboard has had a moment to come up; the inset effect covers the rest.
+    window.requestAnimationFrame(() => {
+      if (view.hasFocus()) view.dispatch(view.state.tr.scrollIntoView());
+    });
+  }, []);
+
+  // ---- The duplicate warning ----
+
+  const firstField = noteType?.fields[0];
+  const firstHtml = firstField ? fieldHtml(firstField.name) : "";
+  useEffect(() => {
+    if (!noteTypeId || !firstHtml.trim()) {
+      setDuplicate(false);
+      return;
+    }
+    let current = true;
+    const timer = window.setTimeout(() => {
+      core
+        .call("findDuplicates", { noteTypeId, value: firstHtml })
+        .then((found) => current && setDuplicate(found.noteIds.length > 0))
+        .catch(() => current && setDuplicate(false));
+    }, DUPLICATE_DELAY_MS);
+    return () => {
+      current = false;
+      window.clearTimeout(timer);
+    };
+  }, [core, noteTypeId, firstHtml]);
+
+  // ---- Adding ----
+
+  // Ctrl+Enter anywhere in the form adds the note.
+  const loadedStatus = loaded.status;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the form only exists once loaded, so the listener is attached again when the status changes.
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        void addRef.current();
+      }
+    };
+    form.addEventListener("keydown", onKeyDown);
+    return () => form.removeEventListener("keydown", onKeyDown);
+  }, [loadedStatus]);
+
+  async function add() {
+    if (adding.current || !noteType || !deckId) return;
+    adding.current = true;
+    setPending(true);
+    setError(null);
+    setStatus("");
+    const finalTags = withTyped(tags, typedTag);
+    try {
+      const out = await core.call("addNote", {
+        deckId,
+        noteTypeId: noteType.id,
+        fields: noteType.fields.map((f) => ({ fieldId: f.id, value: fieldHtml(f.name) })),
+        tags: finalTags,
+      });
+      const first = noteType.fields[0]?.name.toLowerCase() ?? "first field";
+      setStatus(
+        `Added (${cardsText(out.cardCount)}).${
+          out.duplicates.length > 0 ? ` Another note with this ${first} already exists.` : ""
+        }`,
+      );
+      setValues({});
+      setTags(finalTags);
+      setTypedTag("");
+      setDuplicate(false);
+      core
+        .call("getTags", null)
+        .then((t) => setLoaded((l) => (l.status === "ready" ? { ...l, knownTags: t.tags } : l)))
+        .catch(() => {});
+      const firstView =
+        noteType.fields[0] && views.current.get(fieldKey(noteType, noteType.fields[0].id));
+      firstView?.focus();
+    } catch (failure) {
+      setError(asCoreError(failure, "The note could not be added. Try again.").message);
+    } finally {
+      adding.current = false;
+      setPending(false);
+    }
+  }
+  const addRef = useRef(add);
+  addRef.current = add;
+
+  function clear() {
+    setValues({});
+    setTags([]);
+    setTypedTag("");
+    setError(null);
+    setStatus("");
+  }
+
+  if (loaded.status === "loading") {
+    return (
+      <>
+        <PageHeading>Add</PageHeading>
+        <p role="status">Opening...</p>
+      </>
+    );
+  }
+  if (loaded.status === "failed") {
+    return (
+      <>
+        <PageHeading>Add</PageHeading>
+        <div className="problem" role="alert">
+          <WarningIcon />
+          <p>{loaded.error.message}</p>
+          <button type="button" className="button" onClick={load}>
+            Try again
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    // Ctrl+Enter anywhere in the form adds the note. Plain Enter in a text box must not submit it.
+    <form
+      className="add"
+      aria-label="Add a note"
+      onSubmit={(event) => event.preventDefault()}
+      ref={formRef}
+    >
+      <PageHeading>Add</PageHeading>
+      <div className="add-choices">
+        <div className="add-choice">
+          <label htmlFor="add-deck" className="add-label">
+            Deck
+          </label>
+          <select id="add-deck" value={deckId ?? ""} onChange={(e) => setDeckId(e.target.value)}>
+            {loaded.decks.map((deck) => (
+              <option key={deck.id} value={deck.id}>
+                {deck.path}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="add-choice">
+          <label htmlFor="add-type" className="add-label">
+            Type
+          </label>
+          <select
+            id="add-type"
+            value={noteTypeId ?? ""}
+            onChange={(e) => setNoteTypeId(e.target.value)}
+          >
+            {loaded.noteTypes.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {noteType?.fields.map((field, index) => {
+        const labelId = `add-field-${noteType.id}-${field.id}`;
+        return (
+          <div className="add-field" key={fieldKey(noteType, field.id)}>
+            <span id={labelId} className="add-label">
+              {field.name}
+            </span>
+            <FieldEditor
+              value={fieldHtml(field.name)}
+              onChange={(html) => setValues((v) => ({ ...v, [field.name]: html }))}
+              labelId={labelId}
+              cloze={isCloze}
+              highestCloze={highest}
+              onFocus={onEditorFocus}
+              onTransaction={(view) => {
+                if (view === active) setTick((n) => n + 1);
+              }}
+              onReady={(view) => {
+                const key = fieldKey(noteType, field.id);
+                if (view) views.current.set(key, view);
+                else views.current.delete(key);
+              }}
+            />
+            {index === 0 && duplicate && (
+              <p className="add-warning">
+                <WarningIcon />
+                <span>A note with this {field.name.toLowerCase()} already exists.</span>
+              </p>
+            )}
+          </div>
+        );
+      })}
+
+      <TagInput
+        tags={tags}
+        typed={typedTag}
+        known={ready?.knownTags ?? []}
+        onTags={setTags}
+        onTyped={setTypedTag}
+      />
+
+      <p role="status" className="add-status">
+        {status}
+      </p>
+      {error && (
+        <p role="alert" className="add-error">
+          <WarningIcon />
+          <span>{error}</span>
+        </p>
+      )}
+      <button type="button" className="button add-clear" onClick={clear}>
+        Clear
+      </button>
+
+      <BottomAction>
+        <div className="add-bar">
+          <Toolbar view={active} cloze={isCloze} highestCloze={highest} />
+          <button
+            type="button"
+            className="button button-primary add-submit"
+            disabled={pending || !noteType}
+            title="Add (Ctrl+Enter)"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => void add()}
+          >
+            Add
+          </button>
+        </div>
+      </BottomAction>
+    </form>
+  );
+}

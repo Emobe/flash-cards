@@ -3,7 +3,7 @@ import { Link, useRouter } from "../router";
 import { destinations } from "./destinations";
 import { BackIcon } from "./icons";
 import { ShortcutsDialog } from "./ShortcutsDialog";
-import { BottomActionSlot } from "./slot";
+import { BottomActionSlot, KeyboardInsetContext } from "./slot";
 import { useKeyboardInset } from "./useKeyboardInset";
 import { useShortcuts } from "./useShortcuts";
 import "./shell.css";
@@ -65,9 +65,11 @@ export function AppShell({ children, bare = false }: { children: ReactNode; bare
             <BackIcon />
           </button>
         )}
-        <BottomActionSlot.Provider value={slot}>
-          <div className="shell-page">{children}</div>
-        </BottomActionSlot.Provider>
+        <KeyboardInsetContext.Provider value={keyboardInset}>
+          <BottomActionSlot.Provider value={slot}>
+            <div className="shell-page">{children}</div>
+          </BottomActionSlot.Provider>
+        </KeyboardInsetContext.Provider>
       </main>
       <div className="shell-action" ref={setSlot} />
       <ShortcutsDialog open={helpOpen} onClose={closeHelp} />

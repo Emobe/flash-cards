@@ -1,4 +1,4 @@
-import { type Command, EditorState, TextSelection } from "prosemirror-state";
+import { AllSelection, type Command, EditorState, TextSelection } from "prosemirror-state";
 import { describe, expect, test } from "vitest";
 import {
   activeList,
@@ -78,6 +78,18 @@ describe("insertCloze", () => {
     expect(html(state)).toBe("a{{c2::}}b");
     expect(state.selection.empty).toBe(true);
     expect(state.doc.textBetween(1, state.selection.from)).toBe("a{{c2::");
+  });
+
+  test("select all wraps the text, not the paragraphs around it", () => {
+    const doc = loadField("Warszawa is big");
+    const all = EditorState.create({ doc }).apply(
+      EditorState.create({ doc }).tr.setSelection(new AllSelection(doc)),
+    );
+    const state = run(
+      insertCloze("new", () => 0),
+      all,
+    );
+    expect(html(state)).toBe("{{c1::Warszawa is big}}");
   });
 
   test("keeps formatting inside the selection", () => {

@@ -3,7 +3,13 @@ import { history, redo, undo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
 import type { MarkType, NodeType } from "prosemirror-model";
 import { liftListItem, splitListItem, wrapInList } from "prosemirror-schema-list";
-import { type Command, type EditorState, type Plugin, TextSelection } from "prosemirror-state";
+import {
+  type Command,
+  type EditorState,
+  type Plugin,
+  Selection,
+  TextSelection,
+} from "prosemirror-state";
 import { schema, types } from "./schema";
 
 const CLOZE_OPEN = /\{\{c(\d+)::/g;
@@ -31,7 +37,15 @@ export function insertCloze(kind: ClozeKind, highest: () => number): Command {
     const top = highest();
     const number = kind === "new" ? top + 1 : Math.max(top, 1);
     const open = `{{c${number}::`;
-    const { from, to, empty } = state.selection;
+    // Select all spans the whole document, not text: use the first and last place text can go.
+    let { from, to } = state.selection;
+    if (!state.doc.resolve(from).parent.inlineContent) {
+      from = Selection.near(state.doc.resolve(from), 1).from;
+    }
+    if (!state.doc.resolve(to).parent.inlineContent) {
+      to = Selection.near(state.doc.resolve(to), -1).to;
+    }
+    const empty = from >= to;
     if (dispatch) {
       const tr = state.tr;
       if (empty) {
