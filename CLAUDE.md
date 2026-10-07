@@ -7,7 +7,7 @@ Docs live in `docs/`: start with `docs/README.md`. `PRODUCT.md` is the source of
 ## Rules
 
 - Read `docs/PRODUCT.md` and all Accepted ADRs before planning a step.
-- Propose a plan before writing code. Write an ADR for any significant design decision. Don't build anything that depends on a Proposed ADR.
+- Propose a plan before writing code. Any significant design decision needs an ADR, written in an Opus `/adr` session, not in a `/step` session. Don't build anything that depends on a Proposed ADR.
 - Never read, copy or adapt code from Anki or AnkiDroid (AGPL). Feature ideas come from `docs/`, not Anki's source.
 - Keep PRs to one coherent change. Propose a split if a step is too large.
 - Don't add dependencies without stating why in the PR.
@@ -34,7 +34,7 @@ See `README.md` for prerequisites.
 
 Work through a step without asking, except stop and ask if:
 
-- the step needs a design decision with no accepted ADR;
+- the step needs a design decision with no accepted ADR. Do not write the ADR yourself in a `/step` session: ADRs are Opus design sessions (`/adr`). Stop at the start, before any branch, ADR or code, and tell Anthony the step needs `/adr <step>` first. This holds even when the step's Model line says "Sonnet build" and even when the brief says "an ADR or short design doc";
 - a requirement in `docs/` is unclear, contradictory or looks wrong;
 - something could cost money;
 - something needs a system-wide install, a change outside the repo, or editing shell config;

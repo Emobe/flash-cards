@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visual directions</title>
+<!--
+  Preview for ADR 0010, decision 1. Static mock-ups only: no app code, nothing here ships.
+  Open the file in a browser. The colours are the token values proposed in the ADR.
+-->
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; padding: 24px 16px 48px; font: 15px/1.45 system-ui, sans-serif;
+    background: #E9E7E3; color: #222; }
+  @media (prefers-color-scheme: dark) { body { background: #2B2B2B; color: #EEE; } }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  .intro { max-width: 60rem; margin: 0 0 24px; }
+  .direction { margin: 0 0 40px; }
+  .direction h2 { font-size: 1.1rem; margin: 0 0 4px; }
+  .direction p { margin: 0 0 12px; max-width: 60rem; }
+  .row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+
+  /* Tokens per direction and theme. */
+  .A.light { --bg:#FAF6EE; --surface:#FFFDF8; --text:#2A2622; --muted:#675F54; --accent:#A93F24; --on-accent:#FFFFFF; --line:#E6DED0; --control:#8C8274;
+    --heading: "Iowan Old Style","Palatino Linotype",Palatino,"Noto Serif","Source Serif 4",Georgia,serif; --radius:10px; --shadow:none; }
+  .A.dark  { --bg:#1C1A17; --surface:#25221E; --text:#EDE6D8; --muted:#A89F8F; --accent:#E8906F; --on-accent:#1C1A17; --line:#3A352E; --control:#7D7466;
+    --heading: "Iowan Old Style","Palatino Linotype",Palatino,"Noto Serif","Source Serif 4",Georgia,serif; --radius:10px; --shadow:none; }
+  .B.light { --bg:#F5F7FA; --surface:#FFFFFF; --text:#1B2430; --muted:#556070; --accent:#2057D6; --on-accent:#FFFFFF; --line:#E2E7EE; --control:#778496;
+    --heading: system-ui,sans-serif; --radius:14px; --shadow:0 1px 3px rgb(20 30 50 / 0.12); }
+  .B.dark  { --bg:#111827; --surface:#1A2333; --text:#E6EBF2; --muted:#9AA6B8; --accent:#7AA7FF; --on-accent:#111827; --line:#263045; --control:#6B778B;
+    --heading: system-ui,sans-serif; --radius:14px; --shadow:none; }
+  .C.light { --bg:#FFFFFF; --surface:#FFFFFF; --text:#000000; --muted:#404040; --accent:#0039B3; --on-accent:#FFFFFF; --line:#000000; --control:#000000;
+    --heading: system-ui,sans-serif; --radius:4px; --shadow:none; }
+  .C.dark  { --bg:#000000; --surface:#000000; --text:#FFFFFF; --muted:#C4C4C4; --accent:#FFD43B; --on-accent:#000000; --line:#FFFFFF; --control:#FFFFFF;
+    --heading: system-ui,sans-serif; --radius:4px; --shadow:none; }
+  .C { font-size: 17px; }
+
+  .phone { width: 300px; height: 600px; border-radius: 28px; overflow: hidden; position: relative;
+    background: var(--bg); color: var(--text); border: 6px solid #111; box-sizing: content-box;
+    display: flex; flex-direction: column; font-family: system-ui, sans-serif; }
+  .status { height: 24px; flex: none; font-size: 11px; display: flex; justify-content: space-between;
+    padding: 4px 16px 0; color: var(--text); opacity: 0.8; }
+  .content { flex: 1; overflow: hidden; padding: 8px 16px; }
+  .title { font-family: var(--heading); font-size: 1.6em; font-weight: 600; margin: 8px 0 12px; }
+  .deck { display: flex; align-items: center; gap: 8px; padding: 12px; margin: 0 0 8px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .deck .name { flex: 1; font-weight: 600; }
+  .deck .sub { display: block; font-weight: 400; color: var(--muted); font-size: 0.85em; }
+  .count { font-size: 0.8em; font-variant-numeric: tabular-nums; padding: 2px 6px; border-radius: 99px; border: 1px solid var(--control); color: var(--text); }
+  .count.due { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  .card { margin: 16px 0 8px; padding: 20px 16px; text-align: center; background: var(--surface);
+    border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .card .front { font-family: var(--heading); font-size: 1.7em; }
+  .card .back { color: var(--muted); margin-top: 6px; }
+  .button { display: block; width: 100%; min-height: 48px; margin: 12px 0 0; border: 0; border-radius: var(--radius);
+    background: var(--accent); color: var(--on-accent); font: inherit; font-weight: 600; }
+  .field { display: block; width: 100%; box-sizing: border-box; min-height: 44px; margin: 8px 0 0; padding: 0 12px;
+    border: 1px solid var(--control); border-radius: var(--radius); background: var(--surface); color: var(--muted);
+    font: inherit; text-align: left; }
+  nav { flex: none; display: flex; border-top: 1px solid var(--line); background: var(--surface); padding-bottom: 14px; }
+  nav span { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 4px;
+    font-size: 0.72em; color: var(--muted); min-height: 48px; box-sizing: border-box; }
+  nav span.on { color: var(--accent); font-weight: 700; }
+  nav svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .label { font-size: 0.85rem; margin: 6px 0 0; text-align: center; width: 312px; }
+</style>
+</head>
+<body>
+<h1>Visual directions for the app shell (ADR 0010)</h1>
+<p class="intro">Each direction in light and dark, on a phone-sized deck list with a sample card. Only the colours, type and
+corners change between directions. Layout and navigation are the same in all three. Card text in a real card
+comes from the note type's own CSS inside the sandboxed card frame. The built-in note types would use the
+direction's font family.</p>
+
+<template id="phone">
+  <div class="status"><span>09:41</span><span>●●● 82%</span></div>
+  <div class="content">
+    <div class="title">Decks</div>
+    <div class="deck"><span class="name">Polski<span class="sub">Vocabulary · 1,204 cards</span></span><span class="count">12</span><span class="count due">30</span></div>
+    <div class="deck"><span class="name">Przypadki<span class="sub">Grammar · 318 cards</span></span><span class="count">4</span><span class="count due">7</span></div>
+    <div class="deck"><span class="name">Geography<span class="sub">0 due today</span></span></div>
+    <div class="card"><div class="front">Dzień dobry</div><div class="back">Good morning · formal hello</div></div>
+    <button class="button" type="button">Study Polski</button>
+    <div class="field">Search cards</div>
+  </div>
+  <nav>
+    <span class="on"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="13" height="15" rx="2"/><path d="M8 3h10a2 2 0 0 1 2 2v12"/></svg>Decks</span>
+    <span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Add</span>
+    <span><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/></svg>Browse</span>
+    <span><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Settings</span>
+  </nav>
+</template>
+
+<section class="direction">
+  <h2>A. Paper (recommended)</h2>
+  <p>A study notebook: warm paper and ink, one terracotta accent, serif headings and card text, system sans for
+  controls, flat surfaces with a thin border instead of shadows.</p>
+  <div class="row" data-dir="A"></div>
+</section>
+<section class="direction">
+  <h2>B. Calm blue</h2>
+  <p>Cool neutrals, one blue accent, system fonts throughout, softer corners and a light shadow. Clean and familiar.
+  The safest choice, and the most likely to read as generic.</p>
+  <div class="row" data-dir="B"></div>
+</section>
+<section class="direction">
+  <h2>C. High contrast</h2>
+  <p>Black and white, blue accent in light and yellow in dark, larger base type, square corners. The fastest to scan
+  and the strongest on accessibility. Also the most austere.</p>
+  <div class="row" data-dir="C"></div>
+</section>
+
+<script>
+  const tpl = document.getElementById("phone");
+  for (const row of document.querySelectorAll("[data-dir]")) {
+    for (const theme of ["light", "dark"]) {
+      const wrap = document.createElement("div");
+      const phone = document.createElement("div");
+      phone.className = `phone ${row.dataset.dir} ${theme}`;
+      phone.append(tpl.content.cloneNode(true));
+      const label = document.createElement("p");
+      label.className = "label";
+      label.textContent = theme === "light" ? "Light" : "Dark";
+      wrap.append(phone, label);
+      row.append(wrap);
+    }
+  }
+</script>
+</body>
+</html>
