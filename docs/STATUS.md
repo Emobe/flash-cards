@@ -4,21 +4,21 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.14b Developer CLI: the missing commands, built, awaiting Anthony's review. Branch `step/1.14b-cli-commands`, from `master`. Results, "not verified" and the deviations list are in ADR 0006, "Build notes, step 1.14b". It is the last step of Phase 1. Next: Phase 2 (`docs/phases/02-study-loop.md`).
+2.1 App shell and design direction: design session done, ADR 0010 **Proposed**, awaiting Anthony's review. Branch `step/2.1-app-shell`, from `master`. Nothing is built. Review: `docs/adr/0010-app-shell.md` ("Decisions for review" at the end), the preview `docs/plans/2.1-directions.html` (open it in a browser) and the plan `docs/plans/2.1-app-shell.md`. Once Accepted: `/step 2.1` (Sonnet).
 
-Verified: `cargo xtask check` passes, clippy is clean, 18 new CLI tests (63 in all, 45 before), a coverage test that fails when a public `Collection` operation has no command or written reason (checked by adding one), a smoke run on a `fc fake` collection.
+Verified on the phone (a throwaway probe APK, screenshots only, previous APK reinstalled afterwards): `env(safe-area-inset-*)` gives the real insets in Tauri's WebView (Chrome 153); inline and file scripts both run under the Tauri CSP; a Kotlin class in the app module called from Rust changes the bar icons and is not callable from JavaScript. Computed: palette contrast. Read in source: Android back pops the WebView history.
 
-Not verified: the phone and the web (the CLI is desktop only), Windows, the new commands on a copy of the real desktop collection.
+Not verified: the keyboard, gesture navigation, landscape, the system font size (Anthony checks in the build), desktop theme behaviour, older WebViews.
 
-Previous step: 1.14a Developer CLI: large fake collection and timing, merged (PR #30).
+Previous step: 1.14b Developer CLI: the missing commands, merged (PR #31). Phase 1 is complete.
 
 ## Branch
 
-`step/1.14b-cli-commands`, from `master`. Not pushed.
+`step/2.1-app-shell`, from `master`. Not pushed.
 
 ## Done
 
-- 1.14b Developer CLI: the missing commands (ADR 0006 build notes, step 1.14b). `fc notetype | field | template | deck | preset` with verbs, `move-cards`, `edit-note`, `delete-note`, `restore-note`, `find-duplicates`, `set-tags`, `delete-tag`, `delete-media`, `restore-media`, `update-search`, `tagged`, `day-start-hour`, `backup-settings`, `device-id`, `rebuild-schedule`; `notes`, `decks` and `notetypes` list what can be restored. `crates/fc-cli/tests/coverage.rs` checks every public `Collection` operation against the commands. No core change, no new dependency. Deviations: the list at the end of the ADR notes (about 1,950 lines against the 1,500 limit in the plan).
+- 1.14b Developer CLI: the missing commands (ADR 0006 build notes, step 1.14b). `fc notetype | field | template | deck | preset` with verbs, `move-cards`, `edit-note`, `delete-note`, `restore-note`, `find-duplicates`, `set-tags`, `delete-tag`, `delete-media`, `restore-media`, `update-search`, `tagged`, `day-start-hour`, `backup-settings`, `device-id`, `rebuild-schedule`; `notes`, `decks` and `notetypes` list what can be restored. `crates/fc-cli/tests/coverage.rs` checks every public `Collection` operation against the commands. No core change, no new dependency. Deviations: the list at the end of the ADR notes (about 1,950 lines against the 1,500 limit in the plan). Merged (PR #31).
 
 - 1.14a Developer CLI: large fake collection and timing (ADR 0006 build notes, step 1.14a). `fc fake` makes a large invented collection (seeded, nested decks, three note types, tags, media, a review history made through the core); `fc bench` times the operations earlier notes asked to measure, on a copy. At 10,000 notes every timing is under 1 s. Not verified: the phone, the web, Windows, 50,000 notes. Generating grows with the square of the notes (`add_note` scans for duplicates every time); a core batch path would fix it and was not built. Merged (PR #30).
 
@@ -134,17 +134,19 @@ Previous step: 1.14a Developer CLI: large fake collection and timing, merged (PR
 - New dependencies in 1.1b: `uuid` `v5` feature (pulls `sha1_smol`), `getrandom` direct in `fc-core`, `chrono` in `fc-native` and `fc-cli` (clock feature only).
 
 - 1.1a not verified: Windows, Firefox and Safari, and a newer-collection error in a real browser (core and transport tests cover it).
-- Native startup logs a collection open failure and carries on, so every collection method then answers "No collection is open." The real error screen (newer collection, file in use) comes with the app shell in step 2.1.
+- Native startup logs a collection open failure and carries on, so every collection method then answers "No collection is open." The real error screen (newer collection, file in use) comes with the app shell in step 2.1 (ADR 0010 decision 6: `fc-api` keeps the open error).
 - One connection behind a mutex: reads wait for a long write. A read connection is added by the first step that needs it (ADR 0003 build notes, 1.1a).
 - Harness trap for browser checks: Brave restores the previous launch's tabs, which hold the OPFS handles. Delete `Default/Sessions` and the `Current/Last Session|Tabs` files between launches.
 - Installed for the 0.4 experiment (per-user, approved): the `wasm32-unknown-unknown` target for toolchain 1.98.1 and `wasm-bindgen-cli` 0.2.129 in `~/.cargo/bin`. `~/.cargo/bin` is not on the PATH of Claude's shell, so call it by full path or add it to PATH (not done).
 - Web (0.4): verified only in headless Brave (Chromium) on Linux, built and run through Bun. Firefox, Safari, mobile browsers and Windows are unverified. Measurements are in ADR 0003 build notes.
 - Android: call path, progress, cancel, events and attachments verified (0.3a, 0.3b). Reload behaviour of the notice channel on the phone is not.
-- The phone has the 1.2 debug APK (storage version 3).
+- The phone has the debug APK built on 2026-10-06 (reinstalled after the 2.1 design probe).
 - 0.6 not verified: Windows (Tauri may expose IPC to card frames there, the token covers it), Firefox, Safari, a main-frame reload on Android. Freeze recovery for looping cards is Phase 2 (a looping card freezes the app, checked on desktop).
 - Temporary code to delete (the notes spike is already gone; `BackupPanel` in `apps/web` goes with step 2.6): `CardSandboxSpike`, its cards file, `spikeCardMedia` and the sample media (1.10). Lasting: the gate, `handshake`, the `card` scheme, `frame.html`, `CardFrame`, `PlatformContext`.
 - Windows: desktop launch and `cargo xtask check` from step 0.1 are unverified and deferred to a manual check by Anthony.
-- Step 2.1 must handle edge-to-edge drawing and safe areas (status bar, navigation bar, cutout, keyboard) once in the app shell.
+- Step 2.1 must handle edge-to-edge drawing and safe areas (status bar, navigation bar, cutout, keyboard) once in the app shell (ADR 0010 decision 4).
+- Step 2.3 must pass the effective theme into the card frame: a frame follows the system colour scheme, not the app's override (ADR 0010 decision 3; an ADR 0005 amendment).
+- The 2.1 design probe also shared the repo's `target/`, so `fc-native` was cleaned for `aarch64-linux-android` afterwards. The next Android build recompiles it.
 - Design experiment for 0.6 shared the repo's `target/` dir, so `fc-native` was cleaned afterwards (`cargo clean -p fc-native`, host and Android). The next desktop and Android builds recompile more than usual.
 - Standing rule from ADR 0005 (Accepted): never grant Tauri plugin permissions to the main window, and every bridge command must check the session token. On Android card frames can call anything the main window can.
 - 0.7 experiments (scratch, outside the repo): register merge, event union, FSRS replay and IDs verified natively on Linux; IDs and `getrandom` on wasm under Bun only, not in a browser. Step 1.1 checks `getrandom` in the browser.
