@@ -61,20 +61,8 @@ pub fn run_if_due(core: &Core, dir: &Path, now: Reading) -> Result<Outcome, ApiE
             return Ok(Outcome::NotDue);
         }
     }
-    let path = dir.join(format!("{BACKUP_PREFIX}{}{BACKUP_EXT}", stamp(now)));
-    let written = std::fs::create_dir_all(dir)
-        .map_err(|error| fc_core::backup::BackupError::Io(error.to_string()))
-        .and_then(|()| {
-            with_open_raw(core, |c| {
-                write_new(&path, |out| c.export_backup(out, &ExportOptions::default()))
-            })
-        });
-    match written {
-        Ok(_) => {
-            let _ = with_open(core, |c| c.set_backup_error(None));
-            let removed = prune(dir, BACKUP_PREFIX, BACKUP_EXT, settings.keep as usize);
-            Ok(Outcome::Written { path, removed })
-        }
+    match write_backup(core, dir, now, settings.keep as usize) {
+        Ok((path, removed)) => Ok(Outcome::Written { path, removed }),
         Err(error) => {
             let error = ApiError::from(error);
             let message = error.message.clone();
@@ -82,6 +70,32 @@ pub fn run_if_due(core: &Core, dir: &Path, now: Reading) -> Result<Outcome, ApiE
             Err(error)
         }
     }
+}
+
+/// Writes `backup-<stamp>.fcbackup` into `dir`, clears the saved error and deletes the oldest
+/// beyond `keep`. Returns the file and how many it deleted. The caller records a failure.
+pub(crate) fn write_backup(
+    core: &Core,
+    dir: &Path,
+    now: Reading,
+    keep: usize,
+) -> Result<(PathBuf, usize), fc_core::backup::BackupError> {
+    let path = dir.join(format!("{BACKUP_PREFIX}{}{BACKUP_EXT}", stamp(now)));
+    std::fs::create_dir_all(dir)
+        .map_err(|error| fc_core::backup::BackupError::Io(error.to_string()))?;
+    with_open_raw(core, |c| {
+        write_new(&path, |out| c.export_backup(out, &ExportOptions::default()))
+    })?;
+    let _ = with_open(core, |c| c.set_backup_error(None));
+    let removed = prune(dir, BACKUP_PREFIX, BACKUP_EXT, keep);
+    Ok((path, removed))
+}
+
+/// The automatic backups in `dir`, newest first.
+pub(crate) fn list_backups(dir: &Path) -> Vec<PathBuf> {
+    let mut files = list(dir, BACKUP_PREFIX, BACKUP_EXT);
+    files.reverse();
+    files
 }
 
 fn with_open_raw<T>(

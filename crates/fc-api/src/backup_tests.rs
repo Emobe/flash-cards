@@ -426,4 +426,113 @@ mod files {
         }
         assert_eq!(note_count(&b), 0);
     }
+
+    #[test]
+    fn listing_backing_up_now_and_restoring_from_the_list() {
+        let dir = TempDir::new();
+        let clock = Arc::new(ManualClock::new(T0));
+        let core = Core::new();
+        let host = Host {
+            clock: clock.clone(),
+            installation_id: Id::from_bytes([1; 16]),
+        };
+        core.open_collection(":memory:", host).unwrap();
+        // No folder set: a readable error.
+        let error = send(&core, "listBackups", Value::Null, None).unwrap_err();
+        assert_eq!(error.kind, ErrorKind::Unavailable);
+        core.set_backup_dir(dir.0.join("backups"));
+        let listed = |core: &Core| {
+            send(core, "listBackups", Value::Null, None).unwrap().output["backups"]
+                .as_array()
+                .unwrap()
+                .clone()
+        };
+        assert!(listed(&core).is_empty());
+
+        let add = |kind: &str| {
+            core.with_collection(|c| {
+                let nt = c.note_type(builtin::basic()).unwrap().unwrap();
+                c.add_note(
+                    builtin::basic(),
+                    &[(nt.fields[0].id, kind), (nt.fields[1].id, "x")],
+                )
+                .unwrap();
+            })
+            .unwrap();
+        };
+        add("one");
+        let first = send(&core, "backupNow", Value::Null, None).unwrap().output;
+        assert_eq!(first["restorable"], true);
+        assert_eq!(first["createdMs"], T0 as f64);
+        // The same second again would be the same file name.
+        assert!(send(&core, "backupNow", Value::Null, None).is_err());
+        clock.advance(2_000);
+        add("two");
+        send(&core, "backupNow", Value::Null, None).unwrap();
+        let backups = listed(&core);
+        assert_eq!(backups.len(), 2);
+        assert_eq!(backups[1]["name"], first["name"]);
+        assert_eq!(note_count(&core), 2);
+
+        // A name that is not in the listing is refused, a path most of all.
+        for name in ["../x.fcbackup", "nothing.fcbackup"] {
+            let error =
+                send(&core, "restoreListedBackup", json!({ "name": name }), None).unwrap_err();
+            assert_eq!(error.kind, ErrorKind::NotFound);
+        }
+
+        clock.advance(2_000);
+        send(
+            &core,
+            "restoreListedBackup",
+            json!({ "name": first["name"] }),
+            None,
+        )
+        .unwrap();
+        assert_eq!(note_count(&core), 1);
+        // The restore first made a backup of the state it replaced.
+        assert_eq!(listed(&core).len(), 3);
+        let undo = listed(&core)[0]["name"].clone();
+        send(&core, "restoreListedBackup", json!({ "name": undo }), None).unwrap();
+        assert_eq!(note_count(&core), 2);
+    }
+
+    #[test]
+    fn keep_limits_the_list_and_a_damaged_file_is_not_restorable() {
+        let dir = TempDir::new();
+        let clock = Arc::new(ManualClock::new(T0));
+        let core = Core::new();
+        let host = Host {
+            clock: clock.clone(),
+            installation_id: Id::from_bytes([1; 16]),
+        };
+        core.open_collection(":memory:", host).unwrap();
+        let backups = dir.0.join("backups");
+        core.set_backup_dir(backups.clone());
+        send(
+            &core,
+            "setBackupSettings",
+            json!({ "intervalHours": 24, "keep": 2 }),
+            None,
+        )
+        .unwrap();
+        for _ in 0..3 {
+            send(&core, "backupNow", Value::Null, None).unwrap();
+            clock.advance(2_000);
+        }
+        let list = |core: &Core| send(core, "listBackups", Value::Null, None).unwrap().output;
+        assert_eq!(list(&core)["backups"].as_array().unwrap().len(), 2);
+        std::fs::write(backups.join("backup-2099-01-01-000000.fcbackup"), b"junk").unwrap();
+        let entries = list(&core)["backups"].clone();
+        assert_eq!(entries[0]["restorable"], false);
+        assert_eq!(entries[0]["createdMs"], Value::Null);
+        let error = send(
+            &core,
+            "restoreListedBackup",
+            json!({ "name": entries[0]["name"] }),
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(error.kind, ErrorKind::InvalidInput);
+    }
 }

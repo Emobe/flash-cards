@@ -206,6 +206,11 @@ impl Collection {
         self.host.clock.now().unix_ms
     }
 
+    /// The collection's clock now, with the local offset.
+    pub fn clock_reading(&self) -> crate::clock::Reading {
+        self.host.clock.now()
+    }
+
     /// A card's schedule. A card with no answers reads as new.
     pub fn card_schedule(&self, card: Id) -> Result<CardSchedule, StudyError> {
         Ok(match read_cached(&self.conn, card)? {

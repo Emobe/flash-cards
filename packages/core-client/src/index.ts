@@ -3,7 +3,9 @@ export { createFakeTransport, type FakeContext, type FakeTransport } from "./fak
 export type { AddMediaOutput } from "./generated/AddMediaOutput";
 export type { AddNoteOutput } from "./generated/AddNoteOutput";
 export type { ApiError } from "./generated/ApiError";
+export type { BackupEntry } from "./generated/BackupEntry";
 export type { BackupInfo } from "./generated/BackupInfo";
+export type { BackupSettingsOutput } from "./generated/BackupSettingsOutput";
 export type { CoreEvent } from "./generated/CoreEvent";
 export type { CoreInfo } from "./generated/CoreInfo";
 export type { CreatedDeck } from "./generated/CreatedDeck";

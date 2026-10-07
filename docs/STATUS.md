@@ -4,20 +4,15 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-2.5 Deck management is built as two PRs (no new ADR; ADR 0006 rules, ADR 0010 screens).
+2.6 Settings and local backups (no new ADR; ADR 0006 build notes, step 2.6). Branch `step/2.6-settings-backups`, started from `step/2.5b-presets` (2.5b PR still open).
 
-- **2.5a decks: merged (PR #42).**
-- **2.5b presets: built, PR open for Anthony.** Branch `step/2.5b-presets`. `fc-api` `getPresets`, `createPreset`, `renamePreset`, `setPresetOptions`, `deletePreset`, `restorePreset`, `setDeckPreset`, `presetId` on `DeckSummary`; the options screen at `#/options/<deckId>` (Options link in Manage mode) with the deck's preset, New preset, Rename, Delete and every setting with a plain-language explanation. `cargo xtask check` passes (317 Vitest tests). Checked on the web at 390 px and on the phone (opening, reading, Back). Not checked: saving or creating a preset on the phone, the real desktop app. Build notes: ADR 0010, step 2.5b.
+Done: `fc-api` native methods `listBackups`, `backupNow`, `restoreListedBackup` (a safety backup first, names only, never paths); `Core::set_backup_dir`; the Backups section in Settings (interval, keep, last error, Back up now, list with Restore, export, restore and import from a file); `BackupPanel` deleted; `cargo xtask check` passes.
 
-Next: Anthony reviews 2.5b, then mark 2.5 done. After that: 2.6 Settings and local backups (`/step 2.6`; check the brief for a design decision first).
-
-Anthony's phone findings on 2.4c (Take photo opens the gallery, no microphone option, pictures overflow the card) are postponed, see Open items. Anthony said (2026-10-07) his phone may be used for gestures in a session when needed, while it is free and unlocked; CLAUDE.md's rule otherwise stands.
-
-Previous step: 2.4 Add note, merged (PR #39, #40, #41). Still not run on the phone: the 0.6 sandbox card with `allow="autoplay"` (the spike is deleted).
+Remaining: check on the desktop app (does Export download from the native webview?), check on the phone, ADR 0006 build notes, final report. Folder choosing is out (agreed): Export is how a copy leaves the device.
 
 ## Branch
 
-`step/2.5b-presets`.
+`step/2.6-settings-backups`.
 
 ## Done
 
