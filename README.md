@@ -142,7 +142,7 @@ Android commands are listed under [Android](#android-manjaro).
 ## Troubleshooting
 
 - **Blank window on Linux (notably NVIDIA GPUs).** A known WebKitGTK issue with its DMA-BUF
-  renderer. `bun run dev` sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` on Linux automatically, unless
-  the variable is already set in your environment. If you launch the app any other way, for example
-  the built binary, set it manually. How release builds handle this is not decided yet. Android is
+  renderer. The app sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` itself on Linux (in
+  `apps/native/src-tauri/src/main.rs`), unless the variable is already set in your environment, so
+  dev and release builds both work (a value you set yourself is left alone). Android is
   unaffected: it uses the phone's own WebView.

@@ -9,18 +9,18 @@ Kept current by every session. A new session reads this first.
 Anthony checked Export, Restore from a file and the file picker in the web client (qutebrowser, Linux). Still not checked: the Settings screen in the real desktop app and on the phone (Back up now, the list, Restore, Export from the native webviews). See Open items.
 
 2.7 Dogfood builds: ADR 0012 Accepted (2026-10-07); plan in `docs/plans/2.7-dogfood-builds.md`. Two PRs.
-**2.7a (app identity) is built and its PR is open for review** (`step/2.7a-app-identity`): workspace
-version 0.1.0 (Android reads it in Gradle, because Tauri does not carry it over: ADR 0012 build notes,
-step 2.7a), the About group in Settings, app ID `io.github.emobe.flashcards`, `.dev` debug builds.
-Anthony still has to look at the About line in the "Flash cards dev" app on the phone. **2.7b (release
-builds) is next:** `/step 2.7` again, from `master` once 2.7a is merged.
+**2.7a (app identity) is merged (PR #46).** Anthony still has to look at the About line in the "Flash cards dev" app on the phone.
+**2.7b (release builds) is in progress** on `step/2.7b-release-builds`, commit by commit:
+- done: Linux blank-window fix in `main.rs` (`unsafe_code = "deny"` for `fc-native`), removed from `scripts/dev.ts`, README troubleshooting.
+- left: bundle metadata and `dist:linux` (PKGBUILD), Android release signing and `dist:android`, `dist:windows`, README "Dogfood builds", build notes in ADR 0012, checks on Linux and the phone, Anthony's Windows build.
+Anthony said (2026-10-07, in chat) that Claude Code may tap and do gestures on the phone; unlocking is not covered, and `CLAUDE.md` still says "never touch" (a deviation to list).
 
 The design session left a test app, `dev.placeholder.flashcards.relexp` ("Flash cards", empty), on
 the phone. Anthony removes it, and the old `dev.placeholder.flashcards` app; sessions do not uninstall.
 
 ## Branch
 
-`step/2.7a-app-identity` (from `master` after PR #45). 2.7b branches from it or from `master` after the merge.
+`step/2.7b-release-builds` (from `master` after PR #46).
 
 ## Done
 
