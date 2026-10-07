@@ -8,9 +8,9 @@ Kept current by every session. A new session reads this first.
 
 - **2.4a note API: merged (PR #39).** `Collection::add_note_with` (a note and its tags in one write), `fc-api` `getNoteTypes`, `getTags`, `findDuplicates`, `addNote`, `addMedia`, bindings. Build notes: ADR 0011.
 - **2.4b Add screen and editor: merged (PR #40).**
-- **2.4c media: in progress** on `step/2.4c-media` (from `master`). Done: CSP (`blob:` for images, `media-src 'self' blob:`), `editor/media.ts` (`prepareImage`, `prepareSound`, 20 MB check), `editor/mediaViews.ts` (image and sound node views on `blob:` URLs), Image / Take photo / Sound buttons in the toolbar, `AddScreen` wiring (`addMedia` when picked, `getMedia` for a restored draft), `MainActivity` clean-up of old `JPEG_*.jpg`, with tests (246 Vitest). Remaining: web check with the real image codec (rotated JPEG, EXIF), desktop check (the GTK dialog in the app), phone check (APK, pickers open, no picks), build notes, PR. Mark 2.4 done only after Anthony has checked the phone.
+- **2.4c media: built, PR open for Anthony.** Branch `step/2.4c-media`. Pictures (`prepareImage`, `blob:` node views) and sounds in the Add screen, `addMedia` when picked, CSP `blob:`, Android clean-up of old camera files. `cargo xtask check` passes (246 Vitest tests). Checked on the web (real codec, EXIF removed, rotated upright), on desktop (GTK dialog from the real app, picture and sound play) and on the phone (toolbar, Photo Picker opens). **Not checked: a real pick on the phone (Photo Picker, Files, Take photo, a sound), the draft after Android closes the app while the camera is open. Anthony checks, then 2.4 is done.** About 49% over the planned size (ADR 0011 build notes). Findings: big pictures overflow a phone card (no `img { max-width }`), and the toolbar needs a sideways swipe in portrait.
 
-Next: Anthony reviews 2.4b and tries typing on the phone, then `/step 2.4` builds 2.4c (media). Anthony said (2026-10-07) his phone may be used for gestures in a session when needed, while it is free and unlocked; CLAUDE.md's rule otherwise stands.
+Next: Anthony reviews 2.4c and checks pictures, Take photo and a sound on the phone; then mark 2.4 done. Anthony said (2026-10-07) his phone may be used for gestures in a session when needed, while it is free and unlocked; CLAUDE.md's rule otherwise stands.
 
 Previous step: 2.3 Review screen, merged (PR #36, PR #37). Still not run on the phone: the 0.6 sandbox card with `allow="autoplay"` (the spike is deleted).
 
@@ -20,6 +20,7 @@ Previous step: 2.3 Review screen, merged (PR #36, PR #37). Still not run on the 
 
 ## Done
 
+- 2.4c Media (ADR 0011 build notes, step 2.4c): `editor/media.ts`, `editor/mediaViews.ts`, Image, Take photo and Sound buttons, CSP `blob:`, Android clean-up of old camera files. Not merged yet.
 - 2.4b Add screen and editor (ADR 0011 build notes, step 2.4b): ProseMirror (`prosemirror-*`, exact versions), `packages/ui/src/editor/`, `AddScreen`.
 - 2.4a Note API (ADR 0011 build notes, step 2.4a): `add_note_with`, `getNoteTypes`, `getTags`, `findDuplicates`, `addNote`, `addMedia`. The note and media methods earlier lines gave to 3.1 were built here; 3.1 keeps search and the browser's methods. Merged (PR #39).
 - 2.1 App shell and design direction (ADR 0010 build notes, step 2.1): tokens and Paper styles with a contrast test, theme (System, Light, Dark) with `theme-boot.js`, hash router, `AppShell` (bottom bar, rail, insets, keyboard inset, `BottomAction`, shortcuts), placeholder screens, Settings, collection problem screen, Developer screen in debug builds only, `Core` remembers the failed open. Deviations: the list at the end of the ADR notes. Merged (PR #33).
