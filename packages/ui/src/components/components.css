@@ -404,3 +404,8 @@
   color: var(--muted);
   font-size: var(--text-sm);
 }
+
+.options-field input[type="range"],
+.options-field input[type="checkbox"] {
+  accent-color: var(--accent);
+}
