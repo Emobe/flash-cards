@@ -320,3 +320,83 @@ Anthony's answers on 2026-10-07. Where they differ from the decisions above, the
 6. **The `unsafe` exception:** accepted.
 7. **Version numbering and the commit in Settings:** accepted.
 8. **The split** is for the build PRs (2.7a, 2.7b), as in the plan.
+
+## Build notes (step 2.7a)
+
+Built on `step/2.7a-app-identity`, from `master` (the ADR is merged as PR #45). First of two PRs.
+No new dependency. Nothing here makes a release build; that is 2.7b.
+
+### What was built
+
+- **One version, `0.1.0`.** `[workspace.package] version` in the root `Cargo.toml`; every crate has
+  `version.workspace = true`; `tauri.conf.json` has no `version`. Two tests that pinned `0.0.0`
+  (`fc-core`'s `version_matches_manifest`, the `fc-cli` info test) read `CARGO_PKG_VERSION`.
+- **The Android version** is read by `app/build.gradle.kts` from the root `Cargo.toml`
+  (`[workspace.package]`), with `versionCode = major * 1000000 + minor * 1000 + patch`. See the first
+  deviation: decision 6 assumed Tauri would do this. The phone's debug app now reports versionName
+  `0.1.0`, versionCode `1000`. The build stops with a message if the version line is missing.
+- **Build ID.** `scripts/lib/build-id.ts` (`dev` under the Vite server, otherwise the short commit with
+  `-dirty` if the tree has changes, `unknown` outside git). Both Vite configs `define` `__BUILD_ID__`
+  from it; both `main.tsx` pass it to `<App build>`, which hands it to `SettingsScreen`. The helper uses
+  plain Node APIs because Vite loads its config under whichever runtime runs it. Each app's `tsconfig`
+  includes the file, sets `rootDir` to the repository and allows the `.ts` import (Vite warned about an
+  import with no extension).
+- **Settings, About.** A group at the end ("Version 0.1.0 (a1b2c3d)"; the version alone if no build is
+  given). It is empty while `getCoreInfo` is pending and if it fails. `SettingsScreen.test.tsx`: the
+  version and build, the version alone, pending, and failing (4 tests).
+- **App ID `io.github.emobe.flashcards`** in `tauri.conf.json`, `namespace` and `applicationId`,
+  `ANDROID_PACKAGE` in `appearance.rs`, and the Kotlin package line and folder of both `app/` and
+  `buildSrc/` (`git mv`). `git grep -i placeholder` now finds only `manifestPlaceholders`, the search
+  box and tag input placeholders and docs.
+- **Dev builds.** `bundle > android > debugApplicationIdSuffix: ".dev"` (the CLI wrote
+  `applicationIdSuffix = ".dev"` into the debug build type of `build.gradle.kts`, which is committed);
+  `src/debug/res/values/strings.xml` names the debug app "Flash cards dev"; `bun run dev` merges
+  `apps/native/src-tauri/tauri.dev.conf.json` (identifier `.dev`, window title "Flash cards dev");
+  `scripts/lib/adb.ts` `APP_ID` is the `.dev` ID.
+
+### Findings
+
+- **Finding 9 is now verified:** `tauri android build --debug` honours `debugApplicationIdSuffix`, and
+  `android:install` launched the `.dev` app.
+- **The CLI does not write `tauri.properties` on `tauri android build`** when the config has no
+  `version` (checked by deleting the file and rebuilding: none came back, and the APK was `1.0` / `1`).
+  The old file in the working tree was a leftover from 2026-10-04.
+- **`am start -n <id>/.MainActivity` breaks with a suffix:** the leading dot is relative to the
+  package before the slash, which is now `...flashcards.dev`. `android-install.ts` uses the full class
+  name (`ACTIVITY` in `scripts/lib/adb.ts`).
+
+### Verified
+
+- `cargo xtask check` passes (328 Vitest tests, 4 of them new).
+- Desktop: `bun run dev` opens "Flash cards dev", creates `~/.local/share/io.github.emobe.flashcards.dev`
+  (new, empty); the old `dev.placeholder.flashcards` folder was not touched; Settings shows "Version
+  0.1.0 (dev)".
+- Phone (Samsung SM-S928B): `android:build` and `android:install` put `io.github.emobe.flashcards.dev`
+  next to `dev.placeholder.flashcards` and its `.relexp` test app, and start it; `dumpsys package`
+  shows versionName `0.1.0`, versionCode `1000`.
+
+### Not verified
+
+- Settings on the phone (I may not tap the phone; Anthony looks at the About line).
+- `bun run android:dev` (live reload under the `.dev` ID); only `android:build` and `android:install` ran.
+- The web client in a browser (`web:dev`): typecheck, tests and the build config pass, nothing was loaded.
+- That a desktop release build takes its version from Cargo (no `version` in `tauri.conf.json`); that
+  is checked with the `.deb` in 2.7b.
+- The Settings screenshot at phone width. The desktop window was 805 px wide.
+
+### Deviations from the plan
+
+- **The Android version is read in Gradle,** not taken from Tauri. Plan step 1 said to stop if Tauri did
+  not fall back to Cargo's version; it does not for Android. Anthony left the choice to Claude Code, which
+  chose Gradle reading the workspace `Cargo.toml` over putting `version` back in `tauri.conf.json` (two
+  numbers to bump, and not shown to make the CLI write `tauri.properties`). `tauri.properties` is no
+  longer used. This changes the text of decision 6: "Tauri takes `fc-native`'s version" holds for
+  desktop bundles only (to be confirmed in 2.7b).
+- **`tauri.dev.conf.json`** is a file next to `tauri.conf.json`; the plan said `scripts/dev.ts` passes
+  `--config` with the values, without saying where they live.
+- **The `buildSrc` Kotlin package folder moved too,** not just the `app/` sources the plan named.
+- **The activity is launched by its full class name** (finding above), a change to `android-install.ts`
+  the plan did not list.
+- **`tsconfig` changes in both apps** (`rootDir`, the build-id include, `allowImportingTsExtensions`) and
+  a `build-id.d.ts` in each, to let a Vite config import the helper from `scripts/lib/`.
+- **A CSS rule** (`.group .about-version`) so the About group has no empty line under the text.
