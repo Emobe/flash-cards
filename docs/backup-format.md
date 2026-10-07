@@ -230,6 +230,22 @@ A zip with two entries. `manifest.json`:
 
 The core's tests read exactly this file (`backup::tests`).
 
+## Where the app keeps backups
+
+On desktop and Android the app writes into a `backups` folder next to `collection.db` (step 1.13b).
+It touches only files named like these:
+
+- `backup-YYYY-MM-DD-HHMMSS.fcbackup`: an automatic backup of the whole collection with history, in
+  local time. One is written on start when the newest is older than the interval (24 hours unless
+  changed), and the newest 5 are kept (also a setting). The settings are per device and are not in a
+  backup.
+- `before-update-v<from>-to-v<to>-YYYY-MM-DD-HHMMSS.db`: a plain copy of the SQLite collection file,
+  made when starting the app would migrate it to a newer storage version. The newest 2 are kept. It
+  is not a `.fcbackup`: to use one, put it back as `collection.db` and start the app, which migrates
+  it again.
+
+The web has no folder: it downloads a file when you export.
+
 ## Looking inside by hand
 
 ```sh

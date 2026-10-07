@@ -17,7 +17,7 @@ use std::time::Instant;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use fc_api::{ApiError, Core, Notice, OpContext, forward_events};
+use fc_api::{ApiError, Clock, Core, Notice, OpContext, autobackup, forward_events};
 use tauri::ipc::{Channel, Response};
 use tauri::webview::PageLoadEvent;
 use tauri::{Manager, State, Webview};
@@ -126,7 +126,12 @@ fn cancel(
 /// Opens (or creates) the collection in the app data directory. A failure is logged and the app
 /// still starts: methods that need a collection answer "No collection is open." The real startup
 /// screen for this (a newer collection, a file in use) comes with the app shell in step 2.1.
+///
+/// Around the open (step 1.13b): a collection that the open would migrate is copied into
+/// `backups/` first, and once it is open an automatic backup runs in the background if the last
+/// one is older than the interval in the settings.
 fn open_collection(app: &tauri::App) {
+    let core = Arc::clone(&app.state::<Arc<Core>>());
     let result = app
         .path()
         .app_data_dir()
@@ -136,12 +141,45 @@ fn open_collection(app: &tauri::App) {
             let file = dir.join("collection.db");
             let location = file.to_str().ok_or("the data directory is not UTF-8")?;
             let config_dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
-            app.state::<Arc<Core>>()
-                .open_collection(location, host::host(&config_dir)?)
-                .map_err(|e| e.to_string())
+            let host = host::host(&config_dir)?;
+            let backups = dir.join(BACKUPS_FOLDER);
+            let copy = autobackup::copy_before_migration(&file, &backups, host.clock.now());
+            core.open_collection(location, host)
+                .map_err(|e| e.to_string())?;
+            Ok((backups, copy))
         });
-    if let Err(error) = result {
-        eprintln!("Could not open the collection: {error}");
+    match result {
+        Ok((backups, copy)) => {
+            // The migration ran anyway: it is one transaction that leaves the old collection if
+            // it fails. The message goes where the settings screen will show it.
+            let copy_failed = copy.err().map(|error| {
+                eprintln!("Could not copy the collection before updating it: {error}");
+                format!(
+                    "The copy made before updating the collection failed. {}",
+                    error.message
+                )
+            });
+            std::thread::spawn(move || backup_on_start(&core, &backups, copy_failed));
+        }
+        Err(error) => eprintln!("Could not open the collection: {error}"),
+    }
+}
+
+/// The folder next to `collection.db` for automatic backups and copies made before an update.
+const BACKUPS_FOLDER: &str = "backups";
+
+fn backup_on_start(core: &Core, backups: &std::path::Path, copy_failed: Option<String>) {
+    let now = host::SystemClock.now();
+    // A backup that works clears the settings' `last_error`, so a failed copy is saved after it. A
+    // failed backup has saved its own message, which says more about the state of the backups.
+    match autobackup::run_if_due(core, backups, now) {
+        Ok(outcome) => {
+            eprintln!("Automatic backup: {outcome:?}");
+            if let Some(message) = copy_failed {
+                let _ = core.with_collection(|c| c.set_backup_error(Some(&message)));
+            }
+        }
+        Err(error) => eprintln!("Automatic backup failed: {error}"),
     }
 }
 

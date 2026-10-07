@@ -2,6 +2,9 @@
 //! the TypeScript bindings generated from the same list. No Tauri or platform dependency.
 //! See `docs/adr/0002-ui-core-bridge.md`.
 
+mod backup;
+#[cfg(test)]
+mod backup_tests;
 mod bindings;
 mod collection;
 mod context;
@@ -13,6 +16,8 @@ mod notice;
 mod spike_card;
 mod spike_scheduling;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod autobackup;
 pub use bindings::generate_bindings;
 pub use context::OpContext;
 pub use error::{ApiError, ErrorKind};
@@ -65,10 +70,12 @@ fn run<M: Method>(core: &Core, input: Value, ctx: &OpContext) -> Result<Reply, A
 }
 
 /// Registers every method: generates `dispatch` and the TypeScript `Methods` map from one list.
-/// Methods in the `debug` list exist only when `debug_assertions` is on.
+/// Methods in the `native` list exist only where there is a file system (not on wasm). Methods in
+/// the `debug` list exist only when `debug_assertions` is on.
 macro_rules! methods {
     (
         always: [$($m:ty),* $(,)?],
+        native: [$($n:ty),* $(,)?],
         debug: [$($d:ty),* $(,)?] $(,)?
     ) => {
         /// Runs the named method. Every host calls this.
@@ -79,6 +86,10 @@ macro_rules! methods {
             ctx: &OpContext,
         ) -> Result<Reply, ApiError> {
             $( if method == <$m as Method>::NAME { return run::<$m>(core, input, ctx); } )*
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                $( if method == <$n as Method>::NAME { return run::<$n>(core, input, ctx); } )*
+            }
             #[cfg(debug_assertions)]
             {
                 $( if method == <$d as Method>::NAME { return run::<$d>(core, input, ctx); } )*
@@ -94,12 +105,20 @@ macro_rules! methods {
             out.add::<ApiError>();
             out.add::<Notice>();
             $( out.add::<<$m as Method>::Input>(); out.add::<<$m as Method>::Output>(); )*
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                $( out.add::<<$n as Method>::Input>(); out.add::<<$n as Method>::Output>(); )*
+            }
             #[cfg(debug_assertions)]
             {
                 $( out.add::<<$d as Method>::Input>(); out.add::<<$d as Method>::Output>(); )*
             }
             #[allow(unused_mut)]
             let mut entries = vec![$( bindings::methods_entry::<$m>(cfg) ),*];
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                $( entries.push(bindings::methods_entry::<$n>(cfg)); )*
+            }
             #[cfg(debug_assertions)]
             {
                 $( entries.push(bindings::methods_entry::<$d>(cfg)); )*
@@ -117,6 +136,18 @@ methods! {
         spike_card::SpikeCardMedia,
         spike_scheduling::SpikeSchedule,
         spike_scheduling::SpikeOptimise,
+        backup::ExportBackup,
+        backup::ReadBackupInfo,
+        backup::RestoreBackup,
+        backup::ImportBackup,
+        backup::GetBackupSettings,
+        backup::SetBackupSettings,
+    ],
+    native: [
+        backup::files::ExportBackupToFile,
+        backup::files::ReadBackupFileInfo,
+        backup::files::RestoreBackupFromFile,
+        backup::files::ImportBackupFromFile,
     ],
     debug: [
         debug::DebugSlow,

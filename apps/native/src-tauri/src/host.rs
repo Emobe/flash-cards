@@ -8,7 +8,7 @@ use chrono::{Local, Offset};
 use fc_api::{Clock, Host, Id, Reading};
 
 #[derive(Debug)]
-struct SystemClock;
+pub struct SystemClock;
 
 impl Clock for SystemClock {
     fn now(&self) -> Reading {

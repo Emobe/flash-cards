@@ -21,6 +21,12 @@ pub enum BackupError {
     IsADeck,
     /// The deck to export is not in the collection.
     NoSuchDeck,
+    /// The file to write exists already. A backup never replaces a file.
+    Exists(String),
+    /// The file to read is not there.
+    NoFile(String),
+    /// A backup setting out of range.
+    BadSettings,
     /// Reading or writing the file failed. The text is for the log.
     Io(String),
     Collection(CollectionError),
@@ -47,6 +53,15 @@ impl fmt::Display for BackupError {
                  everything else, so import it instead.",
             ),
             Self::NoSuchDeck => f.write_str("That deck is not in the collection."),
+            Self::Exists(path) => write!(
+                f,
+                "{path} exists already. Choose a file name that is not used."
+            ),
+            Self::NoFile(path) => write!(f, "There is no file at {path}. Choose a different file."),
+            Self::BadSettings => f.write_str(
+                "Keep between 1 and 100 backups, and back up at most once a year. Choose numbers \
+                 in that range.",
+            ),
             Self::Io(_) => f.write_str(
                 "The backup file could not be read or written. Check that there is space and that \
                  the file is still there, then try again.",

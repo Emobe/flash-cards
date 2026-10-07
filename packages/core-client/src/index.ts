@@ -1,12 +1,15 @@
 export { CoreClient, CoreError } from "./client";
 export { createFakeTransport, type FakeContext, type FakeTransport } from "./fake";
 export type { ApiError } from "./generated/ApiError";
+export type { BackupInfo } from "./generated/BackupInfo";
 export type { CoreEvent } from "./generated/CoreEvent";
 export type { CoreInfo } from "./generated/CoreInfo";
 export type { DivideInput } from "./generated/DivideInput";
 export type { DivideOutput } from "./generated/DivideOutput";
 export type { ErrorKind } from "./generated/ErrorKind";
+export type { ExportOutput } from "./generated/ExportOutput";
 export type { Methods } from "./generated/Methods";
 export type { Notice } from "./generated/Notice";
 export type { Progress } from "./generated/Progress";
+export type { RestoreOutput } from "./generated/RestoreOutput";
 export { isApiError, type Transport } from "./transport";
