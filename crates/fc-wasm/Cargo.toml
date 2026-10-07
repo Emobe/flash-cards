@@ -1,6 +1,6 @@
 [package]
 name = "fc-wasm"
-version = "0.0.0"
+version.workspace = true
 description = "Web host for the core: wasm exports for the browser worker. Counterpart of fc-native."
 edition.workspace = true
 rust-version.workspace = true

@@ -12,7 +12,7 @@ use tauri::{Manager, Runtime, Webview, Wry};
 
 /// The Kotlin class that `register_android_plugin` looks up in the app package.
 #[cfg(target_os = "android")]
-const ANDROID_PACKAGE: &str = "dev.placeholder.flashcards";
+const ANDROID_PACKAGE: &str = "io.github.emobe.flashcards";
 #[cfg(target_os = "android")]
 const ANDROID_CLASS: &str = "AppearancePlugin";
 

@@ -1,6 +1,6 @@
 [package]
 name = "fc-native"
-version = "0.0.0"
+version.workspace = true
 description = "Tauri host for the desktop and mobile apps (Linux, Windows, Android)."
 edition.workspace = true
 rust-version.workspace = true

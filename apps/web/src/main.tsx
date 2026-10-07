@@ -30,6 +30,7 @@ if (window.top === window) {
           platform={{ cardFrameUrl: "/card-frame.html", setSystemTheme: updateThemeColorMeta }}
         >
           <App
+            build={__BUILD_ID__}
             extraDeveloperTools={
               <>
                 <SpikePanel />

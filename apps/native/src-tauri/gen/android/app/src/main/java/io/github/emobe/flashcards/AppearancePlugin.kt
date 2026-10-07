@@ -1,4 +1,4 @@
-package dev.placeholder.flashcards
+package io.github.emobe.flashcards
 
 import android.app.Activity
 import androidx.core.view.WindowCompat

@@ -8,24 +8,23 @@ Kept current by every session. A new session reads this first.
 
 Anthony checked Export, Restore from a file and the file picker in the web client (qutebrowser, Linux). Still not checked: the Settings screen in the real desktop app and on the phone (Back up now, the list, Restore, Export from the native webviews). See Open items.
 
-2.7 Dogfood builds: design session done. **ADR 0012 Accepted** (2026-10-07), with the answers in its
-"Decisions on review": app ID `io.github.emobe.flashcards`, no data to move, Windows built by Anthony
-on Windows with no GitHub Actions, the pacman package only, release APKs signed with the existing
-debug key (no new key), the `unsafe` exception and the versioning. Plan in
-`docs/plans/2.7-dogfood-builds.md`. Nothing is built.
+2.7 Dogfood builds: ADR 0012 Accepted (2026-10-07); plan in `docs/plans/2.7-dogfood-builds.md`. Two PRs.
+**2.7a (app identity) is built and its PR is open for review** (`step/2.7a-app-identity`): workspace
+version 0.1.0 (Android reads it in Gradle, because Tauri does not carry it over: ADR 0012 build notes,
+step 2.7a), the About group in Settings, app ID `io.github.emobe.flashcards`, `.dev` debug builds.
+Anthony still has to look at the About line in the "Flash cards dev" app on the phone. **2.7b (release
+builds) is next:** `/step 2.7` again, from `master` once 2.7a is merged.
 
 The design session left a test app, `dev.placeholder.flashcards.relexp` ("Flash cards", empty), on
-the phone. Anthony removes it; sessions do not uninstall.
-
-Next: `/step 2.7` (two PRs, 2.7a and 2.7b).
+the phone. Anthony removes it, and the old `dev.placeholder.flashcards` app; sessions do not uninstall.
 
 ## Branch
 
-`step/2.7-dogfood-builds` (ADR 0012, the plan and STATUS; it also carries the 2.6 STATUS commit). PR
-open for Anthony's review; `/step 2.7` starts from `master` once it is merged.
+`step/2.7a-app-identity` (from `master` after PR #45). 2.7b branches from it or from `master` after the merge.
 
 ## Done
 
+- 2.7a App identity (ADR 0012 build notes, step 2.7a): workspace version `0.1.0` (Gradle reads it for Android), About in Settings (version and build ID), app ID `io.github.emobe.flashcards`, `.dev` desktop and Android debug builds. PR open.
 - 2.6 Settings and local backups (ADR 0006 build notes, step 2.6): `listBackups`, `backupNow`, `restoreListedBackup`, Backups section in Settings, `BackupPanel` deleted. Merged (PR #44).
 - 2.5b Option presets (ADR 0010 build notes, step 2.5b): preset methods in `fc-api`, `OptionsScreen`. Merged (PR #43).
 - 2.5a Deck management: decks (ADR 0010 build notes, step 2.5a): `createDeck`, `renameDeck`, `moveDeck`, `deleteDeck`, `restoreDeck`, Manage mode, `Dialog`.
@@ -173,7 +172,6 @@ open for Anthony's review; `/step 2.7` starts from `master` once it is merged.
 - Design experiment for 0.6 shared the repo's `target/` dir, so `fc-native` was cleaned afterwards (`cargo clean -p fc-native`, host and Android). The next desktop and Android builds recompile more than usual.
 - Standing rule from ADR 0005 (Accepted): never grant Tauri plugin permissions to the main window, and every bridge command must check the session token. On Android card frames can call anything the main window can.
 - 0.7 experiments (scratch, outside the repo): register merge, event union, FSRS replay and IDs verified natively on Linux; IDs and `getrandom` on wasm under Bun only, not in a browser. Step 1.1 checks `getrandom` in the browser.
-- App/bundle ID is still the placeholder `dev.placeholder.flashcards`. Pick it before step 2.7.
 
 - **Freeze recovery for a looping card** (ADR 0005, "Consequences") is not built and no step has it. A card with `while(true){}` still freezes the app. Add a step before shared decks or Anki import (Phase 5). The "due tomorrow" forecast on the study end screen is also not built (3.7).
 - **2.3 autoplay:** each side autoplays its audio when shown, so a back that repeats the front plays the front's sound again. There is no setting to turn autoplay off.

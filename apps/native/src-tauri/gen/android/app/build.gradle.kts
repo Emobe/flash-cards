@@ -1,4 +1,3 @@
-import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -7,26 +6,32 @@ plugins {
     id("rust")
 }
 
-val tauriProperties = Properties().apply {
-    val propFile = file("tauri.properties")
-    if (propFile.exists()) {
-        propFile.inputStream().use { load(it) }
-    }
+// The app version is the workspace version in the root Cargo.toml (ADR 0012). The Tauri CLI does not
+// carry it over to Android by itself, so read it here. versionCode is major * 1000000 + minor * 1000
+// + patch, the formula Tauri uses, so it always rises with the version.
+val workspaceVersion: String = run {
+    val manifest = file("../../../../../../Cargo.toml").readText()
+    val section = manifest.substringAfter("[workspace.package]", "")
+    Regex("""(?m)^version\s*=\s*"(\d+\.\d+\.\d+)"""").find(section)?.groupValues?.get(1)
+        ?: throw GradleException("No version = \"x.y.z\" under [workspace.package] in the root Cargo.toml")
 }
+val workspaceVersionCode: Int = workspaceVersion.split(".").map { it.toInt() }
+    .let { (major, minor, patch) -> major * 1000000 + minor * 1000 + patch }
 
 android {
     compileSdk = 37
-    namespace = "dev.placeholder.flashcards"
+    namespace = "io.github.emobe.flashcards"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "dev.placeholder.flashcards"
+        applicationId = "io.github.emobe.flashcards"
         minSdk = 24
         targetSdk = 37
-        versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
-        versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
+        versionCode = workspaceVersionCode
+        versionName = workspaceVersion
     }
     buildTypes {
         getByName("debug") {
+            applicationIdSuffix = ".dev"
             manifestPlaceholders["usesCleartextTraffic"] = "true"
             isDebuggable = true
             isJniDebuggable = true

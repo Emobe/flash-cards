@@ -1,6 +1,6 @@
 [package]
 name = "fc-core"
-version = "0.0.0"
+version.workspace = true
 description = "Core library: domain logic shared by every app and the sync server."
 edition.workspace = true
 rust-version.workspace = true
