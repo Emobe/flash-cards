@@ -8,7 +8,9 @@ Kept current by every session. A new session reads this first.
 
 Done: `fc-api` native methods `listBackups`, `backupNow`, `restoreListedBackup` (a safety backup first, names only, never paths); `Core::set_backup_dir`; the Backups section in Settings (interval, keep, last error, Back up now, list with Restore, export, restore and import from a file); `BackupPanel` deleted; `cargo xtask check` passes.
 
-Built, checked by tests only. Not checked: the screen in the real desktop app and on the phone, and whether Export saves a file from the native webviews (the main risk). Build notes: ADR 0006, step 2.6. Folder choosing is out (agreed): Export is how a copy leaves the device.
+**2.6 built, awaiting review.** Anthony checked Export, Restore from a file and the file picker in the web client (qutebrowser, Linux) and it looked good; the picker's `accept` filter was removed after he found it hid `.fcbackup`. Not checked: the screen in the real desktop app and on the phone (Back up now, the list, Restore, Export from the native webviews). Build notes: ADR 0006, step 2.6. Folder choosing is out (agreed): Export is how a copy leaves the device.
+
+Next: 2.7 Dogfood builds (`/step 2.7`), after Anthony reviews 2.5b and 2.6.
 
 ## Branch
 
@@ -16,6 +18,7 @@ Built, checked by tests only. Not checked: the screen in the real desktop app an
 
 ## Done
 
+- 2.6 Settings and local backups (ADR 0006 build notes, step 2.6): `listBackups`, `backupNow`, `restoreListedBackup`, Backups section in Settings, `BackupPanel` deleted. Branch `step/2.6-settings-backups`, not pushed.
 - 2.5b Option presets (ADR 0010 build notes, step 2.5b): preset methods in `fc-api`, `OptionsScreen`. PR open.
 - 2.5a Deck management: decks (ADR 0010 build notes, step 2.5a): `createDeck`, `renameDeck`, `moveDeck`, `deleteDeck`, `restoreDeck`, Manage mode, `Dialog`.
 - 2.4c Media (ADR 0011 build notes, step 2.4c): `editor/media.ts`, `editor/mediaViews.ts`, Image, Take photo and Sound buttons, CSP `blob:`, Android clean-up of old camera files. Merged (PR #41).
