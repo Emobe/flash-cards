@@ -633,3 +633,18 @@ against the plan's 800 (see the deviations). No new dependency, no manifest chan
 - **Two earlier slips in this session's tooling** (no effect on the PR): `adb`'s launch step needs
   `--user 0` on this phone, and a stale Vite server and an APK-wait shell from this morning's session were
   left alone.
+
+### Found on the phone by Anthony (2026-10-07), postponed by Anthony
+
+- **Take photo opens the gallery or the file manager, not the camera.** Finding 6 above said the camera
+  works with no manifest change. That was read from wry's source and not run on the phone, and it is
+  probably wrong: `showImageCapturePicker` calls `resolveActivity(ACTION_IMAGE_CAPTURE)`, and from Android
+  11 an app that declares no `<queries>` entry for `android.media.action.IMAGE_CAPTURE` cannot see a camera
+  app, so it gets null and falls back to the file picker. The manifest has no `<queries>` (the phone is
+  Android 16, SDK 36). Not confirmed: the log of Anthony's attempt was no longer there. The likely fix is
+  a `<queries>` entry in the manifest (a manifest change, which decision 2 said would not be needed) and
+  a run on the phone. The PR's "Take photo is offered" was true and "the camera works" was never checked.
+- **No microphone option.** Decision 2 left audio recording out of scope (it needs `RECORD_AUDIO` and a
+  look at what card frames could then reach), and Anthony approved that, but he expected a way to record.
+  Sound is from files only.
+- **Pictures overflow the card** (no `img { max-width: 100% }`; see Findings). The card scrolls sideways.
