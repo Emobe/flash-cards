@@ -4,19 +4,21 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.14b Developer CLI: the missing commands, in progress. Branch `step/1.14b-cli-commands`, from `master`. Plan as agreed in chat on 2026-10-07: grouped commands by noun (`notetype`, `field`, `template`, `deck`, `preset`), then notes, tags, media and saved searches, then settings, then a test that every public `Collection` operation has a command (or a written reason it has none), then the ADR 0006 build notes.
+1.14b Developer CLI: the missing commands, built, awaiting Anthony's review. Branch `step/1.14b-cli-commands`, from `master`. Results, "not verified" and the deviations list are in ADR 0006, "Build notes, step 1.14b". It is the last step of Phase 1. Next: Phase 2 (`docs/phases/02-study-loop.md`).
 
-Done so far: note types, fields, templates, decks, presets and `move-cards` (`crates/fc-cli/src/notetype.rs`, `deck.rs`, tests in `tests/notetype.rs` and `tests/decks.rs`). The `notes`, `decks` and `notetypes` listings now also show what is deleted or removed, with IDs, so it can be restored. `cargo xtask check` passes.
+Verified: `cargo xtask check` passes, clippy is clean, 22 new CLI tests (107 in all), a coverage test that fails when a public `Collection` operation has no command or written reason (checked by adding one), a smoke run on a `fc fake` collection.
 
-Remaining: `edit-note`, `delete-note`, `restore-note`, `find-duplicates`, `delete-tag`, `set-tags`, `delete-media`, `restore-media`, `update-search`; `day-start-hour`, `backup-settings`, `device-id`, `rebuild-schedule`; the coverage test and one `COMMANDS` list in `main.rs`; ADR 0006 build notes (step 1.14b) with a deviations list; phase file status.
+Not verified: the phone and the web (the CLI is desktop only), Windows, the new commands on a copy of the real desktop collection.
 
-Previous step: 1.14a Developer CLI: large fake collection and timing, merged (PR #30). Results, "not verified" and the deviations list are in ADR 0006, "Build notes, step 1.14a".
+Previous step: 1.14a Developer CLI: large fake collection and timing, merged (PR #30).
 
 ## Branch
 
 `step/1.14b-cli-commands`, from `master`. Not pushed.
 
 ## Done
+
+- 1.14b Developer CLI: the missing commands (ADR 0006 build notes, step 1.14b). `fc notetype | field | template | deck | preset` with verbs, `move-cards`, `edit-note`, `delete-note`, `restore-note`, `find-duplicates`, `set-tags`, `delete-tag`, `delete-media`, `restore-media`, `update-search`, `tagged`, `day-start-hour`, `backup-settings`, `device-id`, `rebuild-schedule`; `notes`, `decks` and `notetypes` list what can be restored. `crates/fc-cli/tests/coverage.rs` checks every public `Collection` operation against the commands. No core change, no new dependency. Deviations: the list at the end of the ADR notes (about 1,950 lines against the 1,500 limit in the plan).
 
 - 1.14a Developer CLI: large fake collection and timing (ADR 0006 build notes, step 1.14a). `fc fake` makes a large invented collection (seeded, nested decks, three note types, tags, media, a review history made through the core); `fc bench` times the operations earlier notes asked to measure, on a copy. At 10,000 notes every timing is under 1 s. Not verified: the phone, the web, Windows, 50,000 notes. Generating grows with the square of the notes (`add_note` scans for duplicates every time); a core batch path would fix it and was not built. Merged (PR #30).
 
@@ -63,6 +65,8 @@ Previous step: 1.14a Developer CLI: large fake collection and timing, merged (PR
 
 ## Open items
 
+- **1.14b choices for Anthony to confirm:** `start_study_session` and `end_study_session` have no CLI command (a session lives in one process and only emits events, ADR 0009); eight sync-plumbing operations have none either (reasons in the table in `tests/coverage.rs`); `fc notes` now also prints the trash, which changes its output; `template set` and `notetype css` read a file with `@path`.
+- **1.14b not verified:** the phone, the web, Windows, the new commands on a copy of the real desktop collection.
 - **Step 2.6 builds on 1.13b:** `listBackups`, `backupNow`, choosing a folder, restore from the list, showing `last_error`, and deleting the temporary `BackupPanel` in `apps/web`. The backups folder on Android is private to the app, so an uninstall removes it.
 - **Merge speed on the phone and in wasm** is not measured (ADR 0008 build notes, "Measured"). Do it when Phase 4 first calls `merge`. If a new device is too slow, chunk the batch (it is idempotent).
 

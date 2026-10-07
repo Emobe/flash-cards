@@ -1605,3 +1605,67 @@ change to `fc-core`, no new dependency.
 - The "every public operation has a command" check is in 1.14b, as planned there, not here.
 - `docs/STATUS.md` no longer repeats the 1.13b "rules for Anthony to confirm" paragraph (it is
   in the 1.13b build notes above, which merged with PR #29).
+
+### Build notes, step 1.14b (the missing CLI commands)
+
+The second half of step 1.14. Built to the plan approved in chat on 2026-10-07 (no ADR). No change
+to `fc-core`, no new dependency. All of it is in `crates/fc-cli`.
+
+- **New commands**, grouped by noun with a verb where there are many (`fc help` has the full
+  syntax): `notetype add | rename | css | sort-field | delete | restore`, `field add | rename |
+  move | remove | restore`, `template add | rename | set | move | remove | restore`, `deck rename |
+  move | delete | restore | limits`, `preset add | rename | set | delete | restore | assign`,
+  `move-cards`, `edit-note`, `delete-note`, `restore-note`, `find-duplicates`, `set-tags`,
+  `delete-tag`, `delete-media`, `restore-media`, `update-search`, `day-start-hour`,
+  `backup-settings`, `device-id [--regenerate]`, `rebuild-schedule`. The earlier flat commands keep
+  their names.
+- **Naming things.** A note type, field, template, deck, preset or tag is given by name (ignoring
+  case) or, for the first five, by ID. A deck is given by its `Parent::Child` path. Positions for
+  `move` start at 1. Text for a template or a stylesheet is given as it is, or as `@path` to read
+  it from a file. `template set` takes `--front` and `--back` and keeps the side that is left out.
+  `preset set` takes one option for each preset setting; steps are `"1 10"`, `1,10` or `none`, and
+  `--fsrs-parameters default` clears them.
+- **Restoring needs IDs, so the listings show what can be restored.** `notes` has a "Deleted (can
+  be restored)" section (the trash, with the IDs of the cards), `decks` lists deleted decks and
+  presets, `notetypes` lists removed fields and templates of each note type. This changes the
+  output of `fc notes` (one existing test, `backup.rs`, now looks only at the live part).
+- **Two commands the plan did not list**, added so every operation has one: `fc tagged <file> <tag>
+  [--no-children]` (`notes_with_tag`), and `fc info` now says when opening the file migrated it
+  (`pending_migration`).
+- **The check.** `crates/fc-cli/tests/coverage.rs` reads every `pub fn` in the `impl Collection`
+  blocks of `fc-core/src` and fails if one is not in its table, mapped to a command or to a written
+  reason. It also fails for a table entry that no longer exists, for a mapped command that is not
+  in `fc help`, and for a command in `fc help` the dispatcher does not know. Checked by adding a
+  public method to the core: the test failed with its name, and passed again without it. It reads
+  source text, so it relies on rustfmt (`impl Collection {` at column 0).
+- **Operations with no command, with the reason in the table:** `close`, `open`, `open_or_create`
+  (every command opens and closes; the apps use `open_or_create`), `listen` (a Rust hook for events),
+  `write` (the one write path, used by every command), `set_backup_error` (written by the app's
+  backup), `start_study_session` and `end_study_session`, and eight operations that are sync
+  plumbing for the merge (`hlc`, `observe_hlc`, `register_clock`, `knows_register`,
+  `require_feature`, `store_unknown_register`, `unknown_registers`).
+- **One list of commands.** `COMMANDS` in `main.rs` replaces the hand-kept list that decided
+  between "wrong number of arguments" and "unknown command". The old list lacked the media
+  commands, `fake` and `bench`, so a wrong call to one of them said "Unknown command". `add-note`
+  now parses `Field=value` with the same function as `edit-note`.
+- **Verified.** 22 new CLI tests (`notetype` 5, `decks` 4, `edit` 6, `coverage` 3, and the shared
+  `common` helper), 107 CLI tests in all, all passing; each group has a round trip through the real
+  binary (change, read back, restore) and its error cases (wrong names, the Default deck and
+  preset, a template with a syntax error, the last template, a cloze note type's only template,
+  a used media file, bad numbers). `cargo xtask check` passes and clippy is clean. A smoke run of
+  the new commands on a `fc fake --notes 300` collection.
+- **Not verified.** The phone and the web (the CLI is desktop only), Windows, the new commands on a
+  copy of the real desktop collection, and large collections (`rename-tag`, `delete-tag` and
+  `template add` timings are in the 1.6 and 1.14a notes; nothing new is slow by design).
+
+**Deviations from the plan** (the plan was the chat reply of 2026-10-07):
+
+- The change is about 1,950 lines, of which 890 are tests. The plan said to stop at about 1,500
+  and propose a split. It was built in two commits that could be two PRs: note types, decks and
+  presets (with the shared test helper), then notes, tags, media, searches, settings and the check.
+- The plan had five commits: the build made two for code (the first three groups of commands were
+  one commit with the second, which holds notes, tags, media, searches, settings and the check).
+- `fc tagged` and the `info` migration line are not in the plan (see above).
+- `template set` takes `--front` and `--back` options. The plan said "takes the front, back or both
+  from a file" and did not say how.
+- The `notes` listing now shows the trash (not in the plan, needed to find IDs to restore).
