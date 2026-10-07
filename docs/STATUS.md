@@ -4,19 +4,19 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-1.13b Backup, export and restore (API, native automatic backup, web export): built, awaiting Anthony's review. Branch `step/1.13b-backup-api`. Built to the plan approved in chat (no ADR). Results, the rules to confirm, what was not verified and the deviations list are in ADR 0006, "Build notes, step 1.13b". 1.13 is complete with this step. Next: 1.14 (Developer CLI).
+1.14a Developer CLI: large fake collection and timing (the first half of 1.14, split in two as agreed in chat). Branch `step/1.14a-fake-collection`, from `master`. In progress.
 
-Verified: `cargo xtask check` passes (wasm build included). New tests: 3 settings and 2 `pending_migration` in `fc-core`, 9 API method tests and 9 `autobackup` tests in `fc-api`, 3 in `apps/web`. Desktop (debug app, throwaway data folders): first start wrote a backup, the second start wrote none, and a collection set back one version was copied to `backups/before-update-...db` before the open. Web (headless Brave, debug wasm): export downloads a file, import and restore of a CLI backup, restoring an older export trashes what it lacks, junk gives a readable error, and the downloaded export restores in the CLI with both notes.
+Done so far (commit "Step 1.14a: fc fake makes a large invented collection, fc bench times it"): `fc fake <file>` (`crates/fc-cli/src/fake.rs`: seeded, nested decks, Basic, Basic and reversed and Cloze notes, tags, media, a review history made by answering through the core day by day, some suspended and buried cards), `fc bench <file>` (`bench.rs`: times the operations the ADR notes asked 1.14 to measure, on a copy), 8 CLI tests in `crates/fc-cli/tests/fake.rs`. Clippy is clean.
 
-Not verified: the phone (no screen shows backups, no APK built), Windows, Firefox, Safari, the release wasm in a browser, a migration that succeeds in the desktop app, a large file on the web, how long the start-up backup holds the collection on a large collection (estimate 3.5 s at 50,000 notes, not measured).
+Found: `fc fake` is slow at scale, because every `add_note` scans the first fields of its note type for duplicates (about 60 ms at 50,000 notes, ADR 0006 notes, 1.3), so generating is quadratic: 5,000 notes took about a minute. A bulk path in the core would fix it; not done, it needs Anthony's approval.
 
-Rules for Anthony to confirm (details in the ADR notes): backup settings are per device and not synced or backed up; the automatic backup runs on every start when the newest is older than the interval, including for an empty collection; the copy before a migration is a raw file copy of `collection.db` (newest 2 kept, not counted in the 5); if that copy fails the migration still runs and the failure is shown as the settings' last error; the file methods never replace an existing file.
+Remaining: the 50,000-note run and its timings, `cargo xtask check`, the ADR 0006 build notes for 1.14a (results, deviations list), the phase file and this file, then the PR report. 1.14b (the missing commands) is the next step after this.
 
-Merged: 1.13a Backup core (PR #28), 1.12 Extension points (PR #27, ADR 0009) and 1.11a Merge (PR #25, ADR 0008). Their "not verified" lists are kept below under Done.
+Previous step: 1.13b Backup, export and restore (API, native automatic backup, web export), merged (PR #29). Its "not verified" list and the rules for Anthony to confirm are in ADR 0006, "Build notes, step 1.13b".
 
 ## Branch
 
-`step/1.13b-backup-api`, from `master`. Not pushed.
+`step/1.14a-fake-collection`, from `master`. Not pushed.
 
 ## Done
 
