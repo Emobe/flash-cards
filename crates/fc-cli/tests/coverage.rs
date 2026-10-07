@@ -46,6 +46,7 @@ const OPERATIONS: &[(&str, Covered)] = &[
     ("move_deck", By("deck")), ("move_field", By("field")), ("move_template", By("template")),
     ("next_card", By("next")), ("note", By("notes")), ("notes", By("notes")),
     ("now_ms", Not("the clock reading; the commands take --now instead")),
+    ("clock_reading", Not("the clock reading with its offset; used by the app to name backups")),
     ("notes_with_tag", By("tagged")), ("note_tags", By("notes")), ("note_type", By("notetypes")),
     ("note_types", By("notetypes")), ("observe_hlc", Not(SYNC_PLUMBING)), ("open", Not("every command opens its collection")),
     ("open_or_create", Not("`new` creates and every other command opens; this is for the apps")),

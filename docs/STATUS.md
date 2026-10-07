@@ -4,23 +4,21 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-2.5 Deck management is built as two PRs (no new ADR; ADR 0006 rules, ADR 0010 screens).
+2.6 Settings and local backups (no new ADR; ADR 0006 build notes, step 2.6). Branch `step/2.6-settings-backups`, started from `step/2.5b-presets` (2.5b PR still open).
 
-- **2.5a decks: merged (PR #42).**
-- **2.5b presets: built, PR open for Anthony.** Branch `step/2.5b-presets`. `fc-api` `getPresets`, `createPreset`, `renamePreset`, `setPresetOptions`, `deletePreset`, `restorePreset`, `setDeckPreset`, `presetId` on `DeckSummary`; the options screen at `#/options/<deckId>` (Options link in Manage mode) with the deck's preset, New preset, Rename, Delete and every setting with a plain-language explanation. `cargo xtask check` passes (317 Vitest tests). Checked on the web at 390 px and on the phone (opening, reading, Back). Not checked: saving or creating a preset on the phone, the real desktop app. Build notes: ADR 0010, step 2.5b.
+Done: `fc-api` native methods `listBackups`, `backupNow`, `restoreListedBackup` (a safety backup first, names only, never paths); `Core::set_backup_dir`; the Backups section in Settings (interval, keep, last error, Back up now, list with Restore, export, restore and import from a file); `BackupPanel` deleted; `cargo xtask check` passes.
 
-Next: Anthony reviews 2.5b, then mark 2.5 done. After that: 2.6 Settings and local backups (`/step 2.6`; check the brief for a design decision first).
+**2.6 built, awaiting review.** Anthony checked Export, Restore from a file and the file picker in the web client (qutebrowser, Linux) and it looked good; the picker's `accept` filter was removed after he found it hid `.fcbackup`. Not checked: the screen in the real desktop app and on the phone (Back up now, the list, Restore, Export from the native webviews). Build notes: ADR 0006, step 2.6. Folder choosing is out (agreed): Export is how a copy leaves the device.
 
-Anthony's phone findings on 2.4c (Take photo opens the gallery, no microphone option, pictures overflow the card) are postponed, see Open items. Anthony said (2026-10-07) his phone may be used for gestures in a session when needed, while it is free and unlocked; CLAUDE.md's rule otherwise stands.
-
-Previous step: 2.4 Add note, merged (PR #39, #40, #41). Still not run on the phone: the 0.6 sandbox card with `allow="autoplay"` (the spike is deleted).
+Next: 2.7 Dogfood builds (`/step 2.7`), after Anthony reviews 2.5b and 2.6.
 
 ## Branch
 
-`step/2.5b-presets`.
+`step/2.6-settings-backups`.
 
 ## Done
 
+- 2.6 Settings and local backups (ADR 0006 build notes, step 2.6): `listBackups`, `backupNow`, `restoreListedBackup`, Backups section in Settings, `BackupPanel` deleted. Branch `step/2.6-settings-backups`, not pushed.
 - 2.5b Option presets (ADR 0010 build notes, step 2.5b): preset methods in `fc-api`, `OptionsScreen`. PR open.
 - 2.5a Deck management: decks (ADR 0010 build notes, step 2.5a): `createDeck`, `renameDeck`, `moveDeck`, `deleteDeck`, `restoreDeck`, Manage mode, `Dialog`.
 - 2.4c Media (ADR 0011 build notes, step 2.4c): `editor/media.ts`, `editor/mediaViews.ts`, Image, Take photo and Sound buttons, CSP `blob:`, Android clean-up of old camera files. Merged (PR #41).

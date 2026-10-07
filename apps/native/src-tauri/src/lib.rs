@@ -171,6 +171,7 @@ fn open_collection(app: &tauri::App) {
             let host = host::host(&config_dir)?;
             let backups = dir.join(BACKUPS_FOLDER);
             let copy = autobackup::copy_before_migration(&file, &backups, host.clock.now());
+            core.set_backup_dir(backups.clone());
             core.open_collection(location, host)
                 .map_err(|e| e.to_string())?;
             Ok((backups, copy))

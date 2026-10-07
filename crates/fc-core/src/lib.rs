@@ -44,11 +44,23 @@ pub struct Core {
     open_error: Mutex<Option<CollectionError>>,
     /// Shared with every collection the core opens.
     listeners: Listeners,
+    /// Where a native host keeps backups, for the methods that list and write them.
+    backup_dir: Mutex<Option<std::path::PathBuf>>,
 }
 
 impl Core {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Tells the core the folder for automatic backups. Only native hosts set it.
+    pub fn set_backup_dir(&self, dir: std::path::PathBuf) {
+        *self.backup_dir.lock().expect("backup dir lock") = Some(dir);
+    }
+
+    /// The folder set by [`Core::set_backup_dir`], if any.
+    pub fn backup_dir(&self) -> Option<std::path::PathBuf> {
+        self.backup_dir.lock().expect("backup dir lock").clone()
     }
 
     /// Adds a listener for the events of every collection this core opens, before or after this

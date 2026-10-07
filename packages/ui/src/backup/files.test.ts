@@ -1,6 +1,6 @@
 import type { BackupInfo } from "core-client";
 import { afterEach, expect, test, vi } from "vitest";
-import { backupFileName, downloadBytes, readFileBytes } from "./backupFiles";
+import { backupFileName, downloadBytes, readFileBytes } from "./files";
 
 const info = (scope: BackupInfo["scope"]): BackupInfo => ({
   formatVersion: 1,

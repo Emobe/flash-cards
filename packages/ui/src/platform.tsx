@@ -10,6 +10,8 @@ export type Platform = {
    * user's setting is System: a desktop window must then follow the desktop theme again instead of
    * being pinned to `theme`, or `prefers-color-scheme` would stop following the system.
    */
+  /** Whether the device keeps a backups folder (the native apps), so Settings lists backups. */
+  localBackups?: boolean;
   setSystemTheme(theme: "light" | "dark", followSystem: boolean): void;
 };
 

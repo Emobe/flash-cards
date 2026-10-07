@@ -500,4 +500,135 @@ pub(crate) mod files {
             with_open(core, |c| c.import_backup(file)).map(Into::into)
         }
     }
+
+    #[derive(Debug, Serialize, TS)]
+    #[serde(rename_all = "camelCase")]
+    #[ts(rename_all = "camelCase")]
+    pub struct BackupEntry {
+        /// The file name, which `restoreListedBackup` takes.
+        pub name: String,
+        /// Unix milliseconds, from the backup's manifest. `null` when the file cannot be read.
+        pub created_ms: Option<f64>,
+        pub size_bytes: f64,
+        /// Whether the file reads as a whole-collection backup. A damaged one is listed but cannot
+        /// be restored.
+        pub restorable: bool,
+    }
+
+    #[derive(Debug, Serialize, TS)]
+    #[serde(rename_all = "camelCase")]
+    #[ts(rename_all = "camelCase")]
+    pub struct ListBackupsOutput {
+        pub backups: Vec<BackupEntry>,
+    }
+
+    fn folder(core: &Core) -> Result<std::path::PathBuf, ApiError> {
+        core.backup_dir().ok_or_else(|| {
+            ApiError::new(
+                ErrorKind::Unavailable,
+                "This version of the app has no backups folder.",
+            )
+        })
+    }
+
+    fn entry(path: &Path) -> BackupEntry {
+        let size = std::fs::metadata(path).map_or(0.0, |m| m.len() as f64);
+        let manifest = File::open(path)
+            .ok()
+            .and_then(|f| fc_core::backup::read_manifest(f).ok());
+        BackupEntry {
+            name: path
+                .file_name()
+                .map_or_else(String::new, |n| n.to_string_lossy().into_owned()),
+            created_ms: manifest.as_ref().map(|m| m.created_ms as f64),
+            size_bytes: size,
+            restorable: manifest.is_some_and(|m| matches!(m.scope, ManifestScope::Collection)),
+        }
+    }
+
+    /// The automatic and manual backups in the app's backups folder, newest first.
+    pub struct ListBackups;
+
+    impl Method for ListBackups {
+        const NAME: &'static str = "listBackups";
+        type Input = ();
+        type Output = ListBackupsOutput;
+
+        fn call(core: &Core, (): (), _: &OpContext) -> Result<ListBackupsOutput, ApiError> {
+            let dir = folder(core)?;
+            Ok(ListBackupsOutput {
+                backups: crate::autobackup::list_backups(&dir)
+                    .iter()
+                    .map(|p| entry(p))
+                    .collect(),
+            })
+        }
+    }
+
+    /// Makes a backup now, whatever the interval says, and deletes the oldest beyond `keep`. A
+    /// failure is saved as the settings' `last_error`.
+    pub struct BackupNow;
+
+    impl Method for BackupNow {
+        const NAME: &'static str = "backupNow";
+        type Input = ();
+        type Output = BackupEntry;
+
+        fn call(core: &Core, (): (), ctx: &OpContext) -> Result<BackupEntry, ApiError> {
+            ctx.checkpoint()?;
+            let dir = folder(core)?;
+            let (now, keep) =
+                with_open(core, |c| Ok((c.clock_reading(), c.backup_settings()?.keep)))?;
+            match crate::autobackup::write_backup(core, &dir, now, keep as usize) {
+                Ok((path, _)) => Ok(entry(&path)),
+                Err(error) => {
+                    let error = ApiError::from(error);
+                    let message = error.message.clone();
+                    let _ = with_open(core, |c| c.set_backup_error(Some(&message)));
+                    Err(error)
+                }
+            }
+        }
+    }
+
+    #[derive(Debug, Deserialize, TS)]
+    #[serde(rename_all = "camelCase")]
+    #[ts(rename_all = "camelCase")]
+    pub struct NameInput {
+        pub name: String,
+    }
+
+    /// Restores a backup from the backups folder, named as `listBackups` gives it. A backup of the
+    /// collection as it is now is made first, so a restore can be undone with another restore.
+    pub struct RestoreListedBackup;
+
+    impl Method for RestoreListedBackup {
+        const NAME: &'static str = "restoreListedBackup";
+        type Input = NameInput;
+        type Output = RestoreOutput;
+
+        fn call(core: &Core, input: NameInput, ctx: &OpContext) -> Result<RestoreOutput, ApiError> {
+            ctx.checkpoint()?;
+            let dir = folder(core)?;
+            // Only a name that the listing gives, never a path.
+            let path = crate::autobackup::list_backups(&dir)
+                .into_iter()
+                .find(|p| {
+                    p.file_name()
+                        .is_some_and(|n| n.to_string_lossy() == input.name)
+                })
+                .ok_or_else(|| BackupError::NoFile(input.name.clone()))?;
+            let file = open_file(&path.to_string_lossy())?;
+            // Check the file before touching anything.
+            fc_core::backup::read_manifest(open_file(&path.to_string_lossy())?)?;
+            let (now, keep) =
+                with_open(core, |c| Ok((c.clock_reading(), c.backup_settings()?.keep)))?;
+            // A backup made within the same second as the last one already holds this state.
+            match crate::autobackup::write_backup(core, &dir, now, keep.max(2) as usize) {
+                Ok(_) | Err(BackupError::Exists(_)) => {}
+                Err(error) => return Err(error.into()),
+            }
+            with_open(core, |c| c.restore_backup(file)).map(Into::into)
+        }
+    }
 }

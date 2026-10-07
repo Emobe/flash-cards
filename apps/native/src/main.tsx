@@ -19,6 +19,7 @@ if (window.top === window) {
   // http://card.localhost/... on Android and Windows.
   const platform = {
     cardFrameUrl: convertFileSrc("frame.html", "card"),
+    localBackups: true,
     setSystemTheme: transport.setSystemTheme,
   };
 

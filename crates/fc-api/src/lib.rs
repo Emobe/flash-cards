@@ -177,6 +177,9 @@ methods! {
         backup::files::ReadBackupFileInfo,
         backup::files::RestoreBackupFromFile,
         backup::files::ImportBackupFromFile,
+        backup::files::ListBackups,
+        backup::files::BackupNow,
+        backup::files::RestoreListedBackup,
     ],
     debug: [
         debug::DebugSlow,

@@ -1,6 +1,7 @@
 import { Link, PageHeading } from "../router";
 import { DeveloperIcon } from "../shell/icons";
 import { type ThemePreference, useTheme } from "../theme";
+import { BackupsSection } from "./BackupsSection";
 
 const choices: { value: ThemePreference; label: string }[] = [
   { value: "system", label: "System" },
@@ -29,6 +30,7 @@ export function SettingsScreen({ developerTools }: { developerTools: boolean }) 
         ))}
         <p className="hint">System follows your device. This choice is kept on this device only.</p>
       </fieldset>
+      <BackupsSection />
       {developerTools && (
         <Link path="/settings/developer" className="row-link">
           <DeveloperIcon />
