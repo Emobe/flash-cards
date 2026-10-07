@@ -4,17 +4,17 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-2.1 App shell and design direction: design session done, ADR 0010 **Proposed**, awaiting Anthony's review. Branch `step/2.1-app-shell`, from `master`. Nothing is built. Review: `docs/adr/0010-app-shell.md` ("Decisions for review" at the end), the preview `docs/plans/2.1-directions.html` (open it in a browser) and the plan `docs/plans/2.1-app-shell.md`. Once Accepted: `/step 2.1` (Sonnet).
+2.1 App shell and design direction: design session done, ADR 0010 **Accepted** on 2026-10-07 (direction A Paper with the system serif stack, every recommendation as written). Nothing is built yet. Next: `/step 2.1` (Sonnet) from `master`, following `docs/plans/2.1-app-shell.md`. The preview `docs/plans/2.1-directions.html` records the choice.
 
 Verified on the phone (a throwaway probe APK, screenshots only, previous APK reinstalled afterwards): `env(safe-area-inset-*)` gives the real insets in Tauri's WebView (Chrome 153); inline and file scripts both run under the Tauri CSP; a Kotlin class in the app module called from Rust changes the bar icons and is not callable from JavaScript. Computed: palette contrast. Read in source: Android back pops the WebView history.
 
-Not verified: the keyboard, gesture navigation, landscape, the system font size (Anthony checks in the build), desktop theme behaviour, older WebViews.
+Not verified: the keyboard (a screenshot with the field focused showed no keyboard), gesture navigation, landscape, the system font size (Anthony checks in the build), desktop theme behaviour, older WebViews.
 
 Previous step: 1.14b Developer CLI: the missing commands, merged (PR #31). Phase 1 is complete.
 
 ## Branch
 
-`step/2.1-app-shell`, from `master`. Not pushed.
+`step/2.1-app-shell` (design docs only), merged into `master`. The build gets a new branch.
 
 ## Done
 

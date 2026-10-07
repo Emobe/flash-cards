@@ -1,7 +1,8 @@
 # 0010: App shell and visual direction
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-07
+Accepted: 2026-10-07 (Anthony approved the recommendations, see Decisions on review)
 
 ## Context
 
@@ -418,7 +419,18 @@ app).
 - The system serif looks poor on a platform Anthony uses: bundle Literata and pass it to the card
   frame (an ADR 0005 change).
 
-## Decisions for review
+## Decisions on review
+
+Anthony approved the ADR on 2026-10-07 with every recommendation as written:
+
+- Direction **A Paper**, with the **system serif stack** (no bundled font).
+- Destinations Decks, Add, Browse, Settings, with Add as a destination.
+- The theme preference is per device and does not sync.
+- The fifth token-checked command and the Kotlin plugin for the Android bar icons.
+- A Developer screen in debug builds holds the spikes until 2.3 and 2.6.
+- No new dependencies in 2.1.
+
+### Questions as asked
 
 1. Visual direction: **A Paper (recommended)**, B Calm blue or C High contrast. Open
    `docs/plans/2.1-directions.html`. Ask for other directions if all three feel generic.
