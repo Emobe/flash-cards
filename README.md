@@ -16,7 +16,8 @@ apps/web           Web client: Vite entry, the core worker and the web transport
 packages/ui        Shared React UI
 packages/core-client  Typed TypeScript client for the core API (no React, no Tauri)
 xtask              Repository tasks (`cargo xtask ...`)
-scripts/           Bun scripts (e.g. the dev launcher)
+scripts/           Bun scripts (the dev launcher, the `dist:` release builds)
+packaging/         Packaging files (the Arch `PKGBUILD`)
 docs/              Product, process, roadmap, phases and ADRs
 ```
 
@@ -120,6 +121,80 @@ runs. Not yet tested on this project; USB is the supported path.
   reconnecting the cable). Stop and rerun `bun run android:dev`.
 - **Build says `NDK_HOME`/`JAVA_HOME` not set:** run `cargo xtask doctor-android`.
 
+## Dogfood builds
+
+Builds for installing on your own devices (ADR 0012). Nothing here costs money, uses a store or needs
+a code-signing certificate. Outputs go to `release/` (not committed), named
+`flash-cards-<version>-<platform>.<ext>`, where the version is `[workspace.package] version` in the
+root `Cargo.toml`. The same number is shown in Settings, under About, next to the commit the build
+was made from (`-dirty` if the tree had uncommitted changes).
+
+A dogfood build has the app ID `io.github.emobe.flashcards`. Dev builds (`bun run dev`,
+`bun run android:*`) add `.dev` ("Flash cards dev"), so they have their own data and sit next to the
+installed app without touching it.
+
+| Command | Where | Output |
+| --- | --- | --- |
+| `bun run dist:linux` | Arch-based Linux (needs `makepkg`, which comes with pacman) | `flash-cards-<version>-linux-x86_64.pkg.tar.*` |
+| `bun run dist:android` | Linux, with the [Android setup](#android-manjaro) | `flash-cards-<version>-android-arm64.apk` |
+| `bun run dist:android:install` | Linux, phone connected over USB | installs and starts the APK |
+| `bun run dist:windows` | Windows only, with the [Windows prerequisites](#windows) | `flash-cards-<version>-windows-x64-setup.exe` |
+
+### Raising the version
+
+Raise the version for every build that goes onto a device: the patch number each time (`0.1.0` to
+`0.1.1`), the minor number at the end of a phase. Android refuses an update with a lower version
+code, and an equal one installs. It is one line in the root `Cargo.toml` (`[workspace.package]`)
+plus the `Cargo.lock` entries (run `cargo check`); commit it on its own as "Version 0.1.1".
+
+### Linux (Arch, Manjaro)
+
+```sh
+bun run dist:linux
+sudo pacman -U release/flash-cards-<version>-linux-x86_64.pkg.tar.*   # install or update
+sudo pacman -R flash-cards                                           # remove
+```
+
+It builds a `.deb` with Tauri and repackages that as a pacman package (`packaging/arch/PKGBUILD`).
+The package uses the system's WebKitGTK and GStreamer, and the app starts from the menu as "Flash
+cards" (or `flash-cards` in a terminal). Other distributions are not supported yet. The data is in
+`~/.local/share/io.github.emobe.flashcards`.
+
+### Android
+
+```sh
+bun run dist:android            # release build, then
+bun run dist:android:install    # install over USB (adb install -r) and start it
+```
+
+Or copy the APK to the phone and open it; Android asks you to allow installs from that app. The
+release build is optimised and not debuggable. It is signed with this machine's **debug key**,
+`~/.android/debug.keystore` (no separate release key yet). Android only installs an update signed
+with the same key as the installed app, so:
+
+- **Keep a copy of `~/.android/debug.keystore`** somewhere safe. If it is lost (or you build on
+  another machine, which has its own key), the next update has to uninstall the app first, and
+  uninstalling deletes its data. Use Settings, Export first.
+- The key is also what signs the dev builds. That is fine: their ID differs.
+
+Updating: raise the version, run both commands again. The data is private to the app (Settings,
+Export makes a copy you can keep).
+
+### Windows
+
+On Windows, with the [prerequisites above](#windows), in the repository:
+
+```sh
+bun install
+bun run dist:windows
+```
+
+Run the installer from `release/`. It is not signed, so SmartScreen says "Windows protected your
+PC": choose More info, then Run anyway. It installs for the current user (no admin rights) and
+installs WebView2 if it is missing (that needs internet). Update by running the newer installer. The
+data is under `%APPDATA%\io.github.emobe.flashcards`. There is no build for Windows from Linux
+and no GitHub Actions workflow.
+
 ## Commands
 
 Run from the repository root.
@@ -142,7 +217,7 @@ Android commands are listed under [Android](#android-manjaro).
 ## Troubleshooting
 
 - **Blank window on Linux (notably NVIDIA GPUs).** A known WebKitGTK issue with its DMA-BUF
-  renderer. `bun run dev` sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` on Linux automatically, unless
-  the variable is already set in your environment. If you launch the app any other way, for example
-  the built binary, set it manually. How release builds handle this is not decided yet. Android is
+  renderer. The app sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` itself on Linux (in
+  `apps/native/src-tauri/src/main.rs`), unless the variable is already set in your environment, so
+  dev and release builds both work (a value you set yourself is left alone). Android is
   unaffected: it uses the phone's own WebView.

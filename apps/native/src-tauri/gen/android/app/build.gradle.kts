@@ -44,6 +44,11 @@ android {
             }
         }
         getByName("release") {
+            // Signed with Android's built-in debug signing config, the machine's
+            // ~/.android/debug.keystore (ADR 0012, Decisions on review 5). Still a release build:
+            // optimised, R8 on, not debuggable. Updates install only over an app signed with the same
+            // key, so keep a copy of that file.
+            signingConfig = signingConfigs.getByName("debug")
             optimization {
                enable = true
             }
