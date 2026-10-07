@@ -26,6 +26,7 @@ function renderApp(path: string, getCollectionInfo: () => unknown = () => collec
     createFakeTransport({
       getCoreInfo: () => ({ coreVersion: "9.9.9" }),
       getCollectionInfo: getCollectionInfo as () => typeof collectionInfo,
+      getDeckList: () => ({ decks: [], totalCards: 0 }),
       spikeSchedule: ({ ratings }) => ({
         reviews: ratings.map((_, i) => ({ intervalDays: 2 + i, stability: 1, difficulty: 1 })),
       }),
@@ -54,7 +55,9 @@ describe("screens", () => {
   test("opens on Decks with a plain empty state and the main navigation", async () => {
     renderApp("/decks");
     expect(await screen.findByRole("heading", { level: 1, name: "Decks" })).toBeDefined();
-    expect(screen.getByText("Your decks will appear here.")).toBeDefined();
+    expect(
+      await screen.findByText("You have no cards yet. Add your first card to start studying."),
+    ).toBeDefined();
     expect(screen.getByRole("navigation", { name: "Main" })).toBeDefined();
   });
 
