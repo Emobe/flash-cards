@@ -4,22 +4,20 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-2.6 Settings and local backups (no new ADR; ADR 0006 build notes, step 2.6). Branch `step/2.6-settings-backups`, started from `step/2.5b-presets` (2.5b PR still open).
+2.6 Settings and local backups is **done and merged (PR #44)**; 2.5 Deck management is done (PR #42, #43). Build notes: ADR 0006, step 2.6. Folder choosing is out (agreed): Export is how a copy leaves the device.
 
-Done: `fc-api` native methods `listBackups`, `backupNow`, `restoreListedBackup` (a safety backup first, names only, never paths); `Core::set_backup_dir`; the Backups section in Settings (interval, keep, last error, Back up now, list with Restore, export, restore and import from a file); `BackupPanel` deleted; `cargo xtask check` passes.
+Anthony checked Export, Restore from a file and the file picker in the web client (qutebrowser, Linux). Still not checked: the Settings screen in the real desktop app and on the phone (Back up now, the list, Restore, Export from the native webviews). See Open items.
 
-**2.6 built, awaiting review.** Anthony checked Export, Restore from a file and the file picker in the web client (qutebrowser, Linux) and it looked good; the picker's `accept` filter was removed after he found it hid `.fcbackup`. Not checked: the screen in the real desktop app and on the phone (Back up now, the list, Restore, Export from the native webviews). Build notes: ADR 0006, step 2.6. Folder choosing is out (agreed): Export is how a copy leaves the device.
-
-Next: 2.7 Dogfood builds (`/step 2.7`), after Anthony reviews 2.5b and 2.6.
+Next: 2.7 Dogfood builds (`/step 2.7`; check the brief for a design decision first).
 
 ## Branch
 
-`step/2.6-settings-backups`.
+`master`.
 
 ## Done
 
-- 2.6 Settings and local backups (ADR 0006 build notes, step 2.6): `listBackups`, `backupNow`, `restoreListedBackup`, Backups section in Settings, `BackupPanel` deleted. Branch `step/2.6-settings-backups`, not pushed.
-- 2.5b Option presets (ADR 0010 build notes, step 2.5b): preset methods in `fc-api`, `OptionsScreen`. PR open.
+- 2.6 Settings and local backups (ADR 0006 build notes, step 2.6): `listBackups`, `backupNow`, `restoreListedBackup`, Backups section in Settings, `BackupPanel` deleted. Merged (PR #44).
+- 2.5b Option presets (ADR 0010 build notes, step 2.5b): preset methods in `fc-api`, `OptionsScreen`. Merged (PR #43).
 - 2.5a Deck management: decks (ADR 0010 build notes, step 2.5a): `createDeck`, `renameDeck`, `moveDeck`, `deleteDeck`, `restoreDeck`, Manage mode, `Dialog`.
 - 2.4c Media (ADR 0011 build notes, step 2.4c): `editor/media.ts`, `editor/mediaViews.ts`, Image, Take photo and Sound buttons, CSP `blob:`, Android clean-up of old camera files. Merged (PR #41).
 - 2.4b Add screen and editor (ADR 0011 build notes, step 2.4b): ProseMirror (`prosemirror-*`, exact versions), `packages/ui/src/editor/`, `AddScreen`.
@@ -74,6 +72,8 @@ Next: 2.7 Dogfood builds (`/step 2.7`), after Anthony reviews 2.5b and 2.6.
 - 0.3 UI-to-core bridge. 0.3a (call path, PR #3) and 0.3b (notices, progress, cancellation, events and attachments, PR #4) reviewed by Anthony and merged. Verified on desktop and the phone. Attachment round trip 1 MB: 40 ms desktop, 75 ms phone. 5 MB: 181 ms desktop, 250 ms phone.
 
 ## Open items
+
+- 2.6 checks left: the Settings screen in the real desktop app and on the phone (Back up now, the list, Restore, Export from the native webviews).
 
 - **2.4 follow-ups, postponed by Anthony (2026-10-07):** (1) Take photo opens the gallery or file manager instead of the camera, probably because the manifest lacks a `<queries>` entry for `ACTION_IMAGE_CAPTURE` (Android 11+ package visibility); ADR 0011 finding 6 was wrong to say no manifest change is needed. (2) Record a sound with the microphone (ADR 0011 left it out; needs `RECORD_AUDIO` and a look at card-frame reach). (3) Pictures overflow a phone card; add `img { max-width: 100% }` to the card frame or note type CSS. Details in the ADR 0011 build notes. 2.4 is not marked done until Anthony decides whether these block it.
 
