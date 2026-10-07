@@ -489,3 +489,11 @@ Built to the plan Anthony approved in chat (no plan file). The CSP, the message 
   me, and it was already showing the app), and the web with a scratch DevTools script that is not committed.
 - Not verified: Windows, Firefox, Safari, a real font from a blob URL, new attacks on desktop and phone,
   keyboard and focus behaviour in a card (Phase 2).
+
+## Build notes (step 2.3a)
+
+The frame changes of step 2.3a (theme, autoplay and replay, the `audio` and `autoplay-blocked`
+messages) are in the amendments above. Their build notes, checks and deviations are in ADR 0010,
+"Build notes (step 2.3a)". Result worth knowing here: on Chromium, autoplay and replay inside the
+sandboxed frame work after a real click on the page **without** an `allow` attribute, so the rule
+"no `allow` attribute" is unchanged.

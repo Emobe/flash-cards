@@ -719,3 +719,87 @@ screen on the 2.1 shell. No new dependencies.
   windows. I deleted it and captured only the app window after that.
 - **Anthony's request during the step:** all browser and desktop checks were done in dark mode.
 - **STATUS:** the stale "2.1b waiting for review" text was replaced (PR #34 was already merged).
+
+## Build notes (step 2.3a)
+
+Built on `step/2.3a-study-api`. First half of step 2.3 (the review screen), split in two PRs as
+Anthony agreed in chat. About 830 lines of code and tests (about 330 of them tests) and 155 lines of
+generated bindings, against the plan's 700. No migration, no new dependency. The review screen itself
+is 2.3b.
+
+### What was built
+
+- **Seven `fc-api` methods** (`crates/fc-api/src/study.rs`), thin wrappers over `fc_core::study`,
+  `render_card` and `media_bytes`:
+  - `startStudySession(deckId)` and `endStudySession(sessionId)`, which answers `{ summary }` (the
+    ADR 0009 `SessionSummary`, or null when that session was not open);
+  - `nextCard(deckId)`, a union tagged `kind`: `card` (card and deck IDs, `state`, four `previews`
+    for Again, Hard, Good and Easy as `{ unit: "minutes" | "days", amount }`, and the counts),
+    `waiting` (`waitSeconds`, rounded up) or `done`. Counts include the card shown;
+  - `renderCard(cardId)`: `front`, `back` and `media`, the core's `RenderedCard`;
+  - `getMedia(name)`: the bytes as the reply attachment, plus `contentType` worked out from the
+    extension (the core stores no type);
+  - `answerCard(cardId, rating, durationMs)`, which answers the event ID;
+  - `undoAnswer`, which answers `{ undone }` (the card ID, or null when there was nothing to undo).
+- **`Collection::now_ms()`** in `fc-core`, so `nextCard` can turn the queue's "due at" into seconds.
+  It has no CLI command (the reason is in `tests/coverage.rs`).
+- **The card frame** (ADR 0005 amendment, text in that ADR): `frame.html` takes `theme` and
+  `autoplay`, sets `color-scheme` and a `night` class on the card's `<html>`, plays the card's
+  `<audio>` elements in order on `autoplay` and on a later `{ type: "play" }` from the parent, and
+  tells the parent how many it found (`audio`) and when the browser refused to start sound
+  (`autoplay-blocked`). `CardFrame` takes `theme`, `autoplay`, `onAudio`, `onAutoplayBlocked` and a
+  `ref` with `play()`. A new theme makes a new frame.
+
+### Verified
+
+- `cargo xtask check` passes (62 tests in `fc-api`, 7 of them new; 138 Vitest tests, 4 of them new).
+- Rust, through `dispatch`: a session from start to end (the first card is new with four previews,
+  render, answer, undo gives the same card back with the same counts, a second undo says there is
+  nothing, the summary leaves the undone answer out, ending twice answers null); an empty deck is
+  done; a learning card due in an hour is `waiting` with 3,600 seconds; media comes back with the
+  right type and a missing file is not found; bad IDs, an unknown deck and no collection are readable
+  errors.
+- **Web** (`bun run web:dev`, headless Brave on Linux, driven over the DevTools protocol by a scratch
+  script in `target/`, not committed):
+  - the frame sets `color-scheme: dark` and the `night` class for `dark`, and `light` without it for
+    `light` and for a made-up theme;
+  - it reports one `<audio>` element;
+  - with **no click** on the page, autoplay and replay were refused (`autoplay-blocked`);
+  - after a **real click** on the page (input events through the protocol), autoplay started the audio
+    and a later `play` message started it again, with the iframe having **no `allow` attribute**, so
+    ADR 0005's "no `allow`" stands. `allow="autoplay"` gave the same result;
+  - the 54-attempt malicious card: **38 blocked, 0 SUCCEEDED, 16 other, 19 CSP violations**, no alarm,
+    the core still answered and the page was not reloaded. Same as 0.6 and 1.10b. Both navigating cards
+    were stopped with the message, and the Media card works.
+
+### Not verified
+
+- The sandbox re-run, the theme and the audio on **desktop (WebKitGTK) and the phone**. The plan put
+  them here. They move to 2.3b, where the sample cards and the real screen let me check them on both,
+  with the frame unchanged.
+- Autoplay on WebKitGTK and the Android WebView (the web result is Chromium only), Firefox, Safari,
+  Windows.
+- Rendering a card with a template mistake through the API (see the deviations).
+- `getMedia` with a real image or audio file from a collection in a UI (2.3b).
+
+### Deviations from the plan
+
+- **Desktop and phone runs of the sandbox card moved to 2.3b** (see Not verified). The web run is here.
+- **`Collection::now_ms()` was added to `fc-core`** and a line to the CLI coverage table. The plan
+  touched only `fc-api` and the UI.
+- **`endStudySession` and `undoAnswer` answer a struct** (`{ summary }`, `{ undone }`), not
+  `SessionSummary | null` and `card | null`. The bindings generator does not import the type inside an
+  `Option` output, and every other method answers a struct.
+- **`EventRating` also derives `Deserialize`**, so `answerCard` takes the rating the events already use.
+- **The frame sends two more messages than the plan listed** (`audio`, `autoplay-blocked`), so the
+  screen can show Replay only when there is sound and say so when autoplay is refused. Both are in the
+  ADR 0005 amendment.
+- **"A card that is already open is not re-sent" was not built.** The frame already ignores a second
+  card message (`received`), so there was nothing to add.
+- **No test of a broken template through the API.** A template with a mistake cannot be saved (1.4), so
+  the API cannot be given one. `renderCard`'s error mapping for it is not exercised; a missing card
+  (not found) is.
+- **The waiting test uses an Again answer** with a 60-minute step. A Good answer on a one-step list
+  graduates the card.
+- **Size:** about 830 lines of code and tests against the plan's 700, and 155 generated lines.
+- **`target/scratch-2.3a/`** holds the check script and a Brave profile. It is ignored by git.
