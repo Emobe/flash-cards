@@ -3,7 +3,7 @@
 
 use std::fmt;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CollectionError {
     /// Nothing exists at the location, and the caller did not ask to create it.
     NotFound,
