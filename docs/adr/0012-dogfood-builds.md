@@ -346,8 +346,8 @@ No new dependency. Nothing here makes a release build; that is 2.7b.
   version and build, the version alone, pending, and failing (4 tests).
 - **App ID `io.github.emobe.flashcards`** in `tauri.conf.json`, `namespace` and `applicationId`,
   `ANDROID_PACKAGE` in `appearance.rs`, and the Kotlin package line and folder of both `app/` and
-  `buildSrc/` (`git mv`). `git grep -i placeholder` now finds only `manifestPlaceholders`, the search
-  box and tag input placeholders and docs.
+  `buildSrc/` (`git mv`). `git grep -i placeholder` now finds only `manifestPlaceholders`, an SQL comment in
+  `search/compile.rs`, the Browse placeholder screen import and the tag input's placeholder text, and docs.
 - **Dev builds.** `bundle > android > debugApplicationIdSuffix: ".dev"` (the CLI wrote
   `applicationIdSuffix = ".dev"` into the debug build type of `build.gradle.kts`, which is committed);
   `src/debug/res/values/strings.xml` names the debug app "Flash cards dev"; `bun run dev` merges
