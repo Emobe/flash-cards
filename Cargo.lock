@@ -835,7 +835,7 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "fc-api"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "fc-core",
  "js-sys",
@@ -846,7 +846,7 @@ dependencies = [
 
 [[package]]
 name = "fc-cli"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "chrono",
  "fc-core",
@@ -854,7 +854,7 @@ dependencies = [
 
 [[package]]
 name = "fc-core"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "flate2",
  "fsrs",
@@ -868,7 +868,7 @@ dependencies = [
 
 [[package]]
 name = "fc-native"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -881,7 +881,7 @@ dependencies = [
 
 [[package]]
 name = "fc-wasm"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "fc-api",
  "js-sys",
@@ -4911,7 +4911,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.0.0"
+version = "0.1.0"
 
 [[package]]
 name = "yoke"

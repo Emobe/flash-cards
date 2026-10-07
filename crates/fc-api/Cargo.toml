@@ -1,6 +1,6 @@
 [package]
 name = "fc-api"
-version = "0.0.0"
+version.workspace = true
 description = "Public, serialisable API of the core. One dispatcher for every host (Tauri, web, CLI)."
 edition.workspace = true
 rust-version.workspace = true

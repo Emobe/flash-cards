@@ -53,7 +53,7 @@ fn creates_then_opens_and_closes_a_collection() {
     let text = stdout(&info);
     assert!(text.contains("Storage version: 11 (this build understands up to 11)"));
     assert!(text.contains("Device ID: "));
-    assert!(text.contains("Created by core: 0.0.0"));
+    assert!(text.contains(&format!("Created by core: {}", env!("CARGO_PKG_VERSION"))));
 }
 
 #[test]
