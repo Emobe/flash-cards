@@ -4,17 +4,17 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-2.3 Review screen, two PRs. **2.3a** Study API and frame (PR #36, `step/2.3a-study-api`) and **2.3b** the screen (`step/2.3b-review-screen`, stacked on 2.3a), both waiting for Anthony's review. Build notes and deviations: ADR 0010 "Build notes (step 2.3a)" and "(step 2.3b)".
+2.3 Review screen: approved by Anthony and merged (PR #36 study API and frame, PR #37 the screen). Build notes and deviations: ADR 0010 "Build notes (step 2.3a)" and "(step 2.3b)".
 
 What exists: `fc-api` study methods, the card frame with theme, autoplay and replay (`allow="autoplay"` on the iframe, ADR 0005 amended, approved), `StudyScreen` (answer buttons with intervals, keys, undo, replay, end screen), a debug-only "Add sample cards" on the Developer screen, the 0.6 sandbox spike deleted. Verified on the web and on desktop. **Not verified: studying on the phone** (no cards there, I may not tap): Anthony adds sample cards from Settings, Developer tools and checks the screen, the sound and Android back. The sandbox card was not re-run on the phone with the new iframe attribute (spike deleted in its own commit).
 
-Next after review: 2.4 Add note.
+Next: 2.4 Add note.
 
 Previous step: 2.2 Home and deck list, merged (PR #35).
 
 ## Branch
 
-`step/2.3b-review-screen` (2.3a is PR #36).
+`master` (2.3 merged, no step branch open).
 
 ## Done
 
