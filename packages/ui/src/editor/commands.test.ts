@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   activeList,
   insertCloze,
+  insertMedia,
   isMarkActive,
   toggleBold,
   toggleItalic,
@@ -141,5 +142,23 @@ describe("lists", () => {
   test("a numbered list is a different kind", () => {
     const state = run(toggleList(types.orderedList), stateFor("one", 2));
     expect(html(state)).toBe("<ol><li>one</li></ol>");
+  });
+});
+
+describe("insertMedia", () => {
+  test("puts a picture or a sound at the cursor", () => {
+    const image = run(insertMedia("image", "cat-0123456789abcdef.jpg"), stateFor("ab", 2));
+    expect(html(image)).toBe('a<img src="cat-0123456789abcdef.jpg">b');
+    const sound = run(insertMedia("sound", "meow-0123456789abcdef.mp3"), stateFor("ab", 3));
+    expect(html(sound)).toBe("ab[sound:meow-0123456789abcdef.mp3]");
+  });
+
+  test("replaces a selection, and two in a row follow each other", () => {
+    let state = run(insertMedia("image", "a-0123456789abcdef.png"), stateFor("xy", 1, 3));
+    expect(html(state)).toBe('<img src="a-0123456789abcdef.png">');
+    state = run(insertMedia("image", "b-0123456789abcdef.png"), state);
+    expect(html(state)).toBe(
+      '<img src="a-0123456789abcdef.png"><img src="b-0123456789abcdef.png">',
+    );
   });
 });

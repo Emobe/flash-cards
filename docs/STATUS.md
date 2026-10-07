@@ -7,19 +7,20 @@ Kept current by every session. A new session reads this first.
 2.4 Add note, built as three stacked PRs (ADR 0011, Accepted; plan in `docs/plans/2.4-add-note.md`).
 
 - **2.4a note API: merged (PR #39).** `Collection::add_note_with` (a note and its tags in one write), `fc-api` `getNoteTypes`, `getTags`, `findDuplicates`, `addNote`, `addMedia`, bindings. Build notes: ADR 0011.
-- **2.4b Add screen and editor (ProseMirror, no media): built, PR open for Anthony.** Branch `step/2.4b-add-screen`. `editor/` (schema, `loadField`, `saveField`, `roundTrips`, commands, `FieldEditor`, `Toolbar`), `AddScreen` with `TagInput`, the shell's `useShellKeyboardInset`. `cargo xtask check` passes (247 Vitest tests). Checked on the web (headless Brave), desktop (keyboard only) and the phone (landscape, Gboard: the field and toolbar stay above the keyboard). **Not checked: real typing on the phone's keyboards, portrait, which Anthony does.** About 58% over the planned size: see the deviations in the ADR 0011 build notes.
-- **2.4c media (pickers, image processing, CSP, Android clean-up): not started.**
+- **2.4b Add screen and editor: merged (PR #40).**
+- **2.4c media: built, PR open for Anthony.** Branch `step/2.4c-media`. Pictures (`prepareImage`, `blob:` node views) and sounds in the Add screen, `addMedia` when picked, CSP `blob:`, Android clean-up of old camera files. `cargo xtask check` passes (246 Vitest tests). Checked on the web (real codec, EXIF removed, rotated upright), on desktop (GTK dialog from the real app, picture and sound play) and on the phone (toolbar, Photo Picker opens). **Anthony tried it on the phone: pictures and sounds from the gallery and files work; Take photo opens the gallery instead of the camera and there is no microphone option; pictures overflow the card (all postponed, see Open items). Not checked: the draft after Android closes the app while the camera is open.** About 49% over the planned size (ADR 0011 build notes). Findings: big pictures overflow a phone card (no `img { max-width }`), and the toolbar needs a sideways swipe in portrait.
 
-Next: Anthony reviews 2.4b and tries typing on the phone, then `/step 2.4` builds 2.4c (media). Anthony said (2026-10-07) his phone may be used for gestures in a session when needed, while it is free and unlocked; CLAUDE.md's rule otherwise stands.
+Next: Anthony reviews 2.4c and checks pictures, Take photo and a sound on the phone; then mark 2.4 done. Anthony said (2026-10-07) his phone may be used for gestures in a session when needed, while it is free and unlocked; CLAUDE.md's rule otherwise stands.
 
 Previous step: 2.3 Review screen, merged (PR #36, PR #37). Still not run on the phone: the 0.6 sandbox card with `allow="autoplay"` (the spike is deleted).
 
 ## Branch
 
-`step/2.4b-add-screen`.
+`step/2.4c-media`.
 
 ## Done
 
+- 2.4c Media (ADR 0011 build notes, step 2.4c): `editor/media.ts`, `editor/mediaViews.ts`, Image, Take photo and Sound buttons, CSP `blob:`, Android clean-up of old camera files. Not merged yet.
 - 2.4b Add screen and editor (ADR 0011 build notes, step 2.4b): ProseMirror (`prosemirror-*`, exact versions), `packages/ui/src/editor/`, `AddScreen`.
 - 2.4a Note API (ADR 0011 build notes, step 2.4a): `add_note_with`, `getNoteTypes`, `getTags`, `findDuplicates`, `addNote`, `addMedia`. The note and media methods earlier lines gave to 3.1 were built here; 3.1 keeps search and the browser's methods. Merged (PR #39).
 - 2.1 App shell and design direction (ADR 0010 build notes, step 2.1): tokens and Paper styles with a contrast test, theme (System, Light, Dark) with `theme-boot.js`, hash router, `AppShell` (bottom bar, rail, insets, keyboard inset, `BottomAction`, shortcuts), placeholder screens, Settings, collection problem screen, Developer screen in debug builds only, `Core` remembers the failed open. Deviations: the list at the end of the ADR notes. Merged (PR #33).
@@ -72,6 +73,8 @@ Previous step: 2.3 Review screen, merged (PR #36, PR #37). Still not run on the 
 - 0.3 UI-to-core bridge. 0.3a (call path, PR #3) and 0.3b (notices, progress, cancellation, events and attachments, PR #4) reviewed by Anthony and merged. Verified on desktop and the phone. Attachment round trip 1 MB: 40 ms desktop, 75 ms phone. 5 MB: 181 ms desktop, 250 ms phone.
 
 ## Open items
+
+- **2.4 follow-ups, postponed by Anthony (2026-10-07):** (1) Take photo opens the gallery or file manager instead of the camera, probably because the manifest lacks a `<queries>` entry for `ACTION_IMAGE_CAPTURE` (Android 11+ package visibility); ADR 0011 finding 6 was wrong to say no manifest change is needed. (2) Record a sound with the microphone (ADR 0011 left it out; needs `RECORD_AUDIO` and a look at card-frame reach). (3) Pictures overflow a phone card; add `img { max-width: 100% }` to the card frame or note type CSS. Details in the ADR 0011 build notes. 2.4 is not marked done until Anthony decides whether these block it.
 
 - **1.14b choices for Anthony to confirm:** `start_study_session` and `end_study_session` have no CLI command (a session lives in one process and only emits events, ADR 0009); eight sync-plumbing operations have none either (reasons in the table in `tests/coverage.rs`); `fc notes` now also prints the trash, which changes its output; `template set` and `notetype css` read a file with `@path`.
 - **1.14b not verified:** the phone, the web, Windows, the new commands on a copy of the real desktop collection.

@@ -3,6 +3,7 @@ import { EditorView } from "prosemirror-view";
 import { useEffect, useRef } from "react";
 import { editorPlugins } from "./commands";
 import { loadField, saveField } from "./html";
+import { type LoadMedia, mediaNodeViews } from "./mediaViews";
 
 type Props = {
   /** The field's HTML. A value other than the last one this editor sent replaces the content. */
@@ -14,6 +15,8 @@ type Props = {
   cloze: boolean;
   /** The highest cloze number across every field of the note, read when a shortcut is used. */
   highestCloze: () => number;
+  /** Fetches a stored file to show it (a picture, or a sound to play). */
+  loadMedia: LoadMedia;
   /** The editor took focus: the toolbar acts on this one. */
   onFocus: (view: EditorView) => void;
   /** Any transaction, so the toolbar can show what is on under the cursor. */
@@ -34,14 +37,15 @@ export function FieldEditor({
   labelId,
   cloze,
   highestCloze,
+  loadMedia,
   onFocus,
   onTransaction,
   onReady,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
-  const latest = useRef({ onChange, onFocus, onTransaction, onReady, highestCloze });
-  latest.current = { onChange, onFocus, onTransaction, onReady, highestCloze };
+  const latest = useRef({ onChange, onFocus, onTransaction, onReady, highestCloze, loadMedia });
+  latest.current = { onChange, onFocus, onTransaction, onReady, highestCloze, loadMedia };
   const sent = useRef(value);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the editor is made once; later props are read through `latest`, and `value` through the effect below.
@@ -59,6 +63,7 @@ export function FieldEditor({
         "aria-labelledby": labelId,
         class: "field-editor-content",
       },
+      nodeViews: mediaNodeViews(() => latest.current.loadMedia),
       scrollMargin: 16,
       scrollThreshold: 16,
       dispatchTransaction(transaction) {

@@ -2,8 +2,9 @@ import { CoreError, type DeckSummary, type NoteTypeSummary } from "core-client";
 import type { EditorView } from "prosemirror-view";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCore } from "../core";
-import { highestCloze } from "../editor/commands";
+import { highestCloze, insertMedia } from "../editor/commands";
 import { FieldEditor } from "../editor/FieldEditor";
+import { MediaRefused, prepareImage, prepareSound } from "../editor/media";
 import { Toolbar } from "../editor/Toolbar";
 import { PageHeading } from "../router";
 import { WarningIcon } from "../shell/icons";
@@ -100,7 +101,10 @@ export function AddScreen() {
   // The editor the toolbar acts on, and a counter that re-renders the toolbar after each change.
   const [active, setActive] = useState<EditorView | null>(null);
   const [, setTick] = useState(0);
+  const [mediaBusy, setMediaBusy] = useState(false);
   const views = useRef(new Map<string, EditorView>());
+  // Files picked or fetched in this visit, so a picture just added is not read back from the core.
+  const mediaCache = useRef(new Map<string, Blob>());
   const adding = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const keyboardInset = useShellKeyboardInset();
@@ -225,6 +229,59 @@ export function AddScreen() {
     };
   }, [core, noteTypeId, firstHtml]);
 
+  // ---- Pictures and sounds ----
+
+  const loadMedia = useCallback(
+    async (name: string) => {
+      const cached = mediaCache.current.get(name);
+      if (cached) return cached;
+      const { output, bytes } = await core.call("getMedia", { name });
+      // A copy, because the reply may be a view on a larger buffer.
+      const blob = new Blob([new Uint8Array(bytes)], { type: output.contentType });
+      mediaCache.current.set(name, blob);
+      return blob;
+    },
+    [core],
+  );
+
+  // Media is stored as soon as it is picked (ADR 0011 decision 3), so the field gets the real name.
+  async function attach(kind: "image" | "sound", files: File[]) {
+    // The editor last used, unless a change of note type has removed it.
+    const view = active?.dom.isConnected ? active : [...views.current.values()][0];
+    if (!view || adding.current) return;
+    setMediaBusy(true);
+    setError(null);
+    setStatus(files.length === 1 ? "Adding the file..." : `Adding ${files.length} files...`);
+    const problems: string[] = [];
+    for (const file of files) {
+      try {
+        const prepared = kind === "image" ? await prepareImage(file) : await prepareSound(file);
+        // Before the call: the web client hands the bytes to its worker, which detaches them here.
+        const shown = new Blob([new Uint8Array(prepared.bytes)], { type: prepared.type });
+        const added = await core.call(
+          "addMedia",
+          { name: prepared.name },
+          { bytes: prepared.bytes },
+        );
+        mediaCache.current.set(added.name, shown);
+        if (view.dom.isConnected) insertMedia(kind, added.name)(view.state, view.dispatch);
+        if (prepared.warning) problems.push(prepared.warning);
+      } catch (failure) {
+        if (failure instanceof MediaRefused || failure instanceof CoreError) {
+          problems.push(failure.message);
+        } else {
+          // Details go to the log, never to the person.
+          console.error("Could not add a file:", failure);
+          problems.push("The file could not be added. Try again.");
+        }
+      }
+    }
+    setStatus("");
+    setError(problems.length > 0 ? problems.join(" ") : null);
+    setMediaBusy(false);
+    if (view.dom.isConnected) view.focus();
+  }
+
   // ---- Adding ----
 
   // Ctrl+Enter anywhere in the form adds the note.
@@ -244,7 +301,7 @@ export function AddScreen() {
   }, [loadedStatus]);
 
   async function add() {
-    if (adding.current || !noteType || !deckId) return;
+    if (adding.current || mediaBusy || !noteType || !deckId) return;
     adding.current = true;
     setPending(true);
     setError(null);
@@ -264,6 +321,7 @@ export function AddScreen() {
         }`,
       );
       setValues({});
+      mediaCache.current.clear();
       setTags(finalTags);
       setTypedTag("");
       setDuplicate(false);
@@ -375,6 +433,7 @@ export function AddScreen() {
               labelId={labelId}
               cloze={isCloze}
               highestCloze={highest}
+              loadMedia={loadMedia}
               onFocus={onEditorFocus}
               onTransaction={(view) => {
                 if (view === active) setTick((n) => n + 1);
@@ -418,11 +477,17 @@ export function AddScreen() {
 
       <BottomAction>
         <div className="add-bar">
-          <Toolbar view={active} cloze={isCloze} highestCloze={highest} />
+          <Toolbar
+            view={active}
+            cloze={isCloze}
+            highestCloze={highest}
+            onFiles={(kind, files) => void attach(kind, files)}
+            busy={mediaBusy}
+          />
           <button
             type="button"
             className="button button-primary add-submit"
-            disabled={pending || !noteType}
+            disabled={pending || mediaBusy || !noteType}
             title="Add (Ctrl+Enter)"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => void add()}
