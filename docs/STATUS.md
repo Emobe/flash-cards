@@ -4,17 +4,19 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-2.3 Review screen: approved by Anthony and merged (PR #36 study API and frame, PR #37 the screen). Build notes and deviations: ADR 0010 "Build notes (step 2.3a)" and "(step 2.3b)".
+2.4 Add note: **ADR 0011 Accepted** (2026-10-07, Anthony agreed to all six questions). ADR (`docs/adr/0011-add-note-editor-and-media.md`) and the build plan (`docs/plans/2.4-add-note.md`) are on branch `step/2.4-add-note`. Nothing is built yet.
 
-What exists: `fc-api` study methods, the card frame with theme, autoplay and replay (`allow="autoplay"` on the iframe, ADR 0005 amended, approved), `StudyScreen` (answer buttons with intervals, keys, undo, replay, end screen), a debug-only "Add sample cards" on the Developer screen, the 0.6 sandbox spike deleted. Verified on the web and on desktop. **Not verified: studying on the phone** (no cards there, I may not tap): Anthony adds sample cards from Settings, Developer tools and checks the screen, the sound and Android back. The sandbox card was not re-run on the phone with the new iframe attribute (spike deleted in its own commit).
+The ADR decides: ProseMirror as the field editor (a new dependency, about 65 KB gzipped), with its schema as the allowlist for field HTML; `<input type="file">` for images and audio on every platform (no native picker code; the Android WebView already opens the camera and the content picker); JPEG re-encoded at most 1600 px; media saved when picked; five `fc-api` methods and a core `add_note_with` so a note and its tags are one write; the Add screen layout, draft and remembered choices. The plan splits the build into three stacked PRs (2.4a note API, 2.4b screen and editor, 2.4c media).
 
-Next: 2.4 Add note.
+Throwaway experiments for the ADR ran in the job's temp folder, outside the repo: WebKitGTK MiniBrowser (file dialog, EXIF rotation, JPEG and WebP encoding, inert `DOMParser`, `execCommand`), ProseMirror's schema as a sanitiser in happy-dom, and bundle sizes of ProseMirror and Lexical. Not verified: anything on the phone (pickers, camera, keyboards), Windows, the Tauri app itself.
 
-Previous step: 2.2 Home and deck list, merged (PR #35).
+Next: `/step 2.4` builds 2.4a (note API) first, on `step/2.4a-note-api` from this branch.
+
+Previous step: 2.3 Review screen, merged (PR #36, PR #37). Anthony reports he tested the sample cards on his phone after the merge (2026-10-07), which covers the "studying on the phone" check the 2.3b notes left to him. Still not run on the phone: the 0.6 sandbox card with `allow="autoplay"` (the spike is deleted).
 
 ## Branch
 
-`master` (2.3 merged, no step branch open).
+`step/2.4-add-note` (ADR 0011 and the plan, docs only).
 
 ## Done
 
