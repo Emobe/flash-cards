@@ -638,3 +638,84 @@ Built on `step/2.1b-system-bars`. About 280 added lines of code and tests (about
   so the command has one signature everywhere.
 - **Size:** about 280 lines of code and tests. No split needed.
 - **STATUS:** the "Current step" text from 2.1 (waiting for review) was replaced by the 2.1b status.
+
+## Build notes (step 2.2)
+
+Built on `step/2.2-deck-list`. About 750 added lines, 340 of them tests, 80 of them generated
+bindings and docs, against the plan's 500. No ADR of its own: it is one read-only method and one
+screen on the 2.1 shell. No new dependencies.
+
+### What was built
+
+- **`getDeckList`** (`crates/fc-api/src/decks.rs`): the decks that are not deleted in tree order,
+  each with `id` (UUID string), `name` (the display name), `path`, `parentId`, `depth`, `newCount`,
+  `learningCount`, `reviewCount`, plus `totalCards`. It reads `Collection::decks()` and
+  `Collection::deck_counts()` in one call, so names and counts agree. A parent's counts include its
+  sub-decks (that is how `deck_counts` works). A read failure is logged and answers the generic
+  internal error. Bindings regenerated.
+- **`DecksScreen`** (`packages/ui/src/screens/DecksScreen.tsx`, replacing the placeholder):
+  - a row per deck, indented by depth, with three count columns headed New, Learn and Review. Zero
+    counts are muted. Screen readers hear "5 new, 1 learning, 3 to review" from hidden text;
+  - the whole row is a link to `#/study/<deckId>`. A separate chevron button (`aria-expanded`)
+    collapses the decks inside a deck. The collapsed set is kept per device in `localStorage`
+    (`fc.collapsedDecks`, try/catch);
+  - no cards in the collection shows `EmptyState`: "You have no cards yet. Add your first card to
+    start studying." with a button to Add (still the 2.1 placeholder until 2.4);
+  - cards but nothing due shows "You're done for now. Nothing is due today." above the list;
+  - the list is read again when the screen opens and on window `focus` and `visibilitychange`. A
+    failed refresh keeps the list on screen. A failed first load shows an alert with "Try again".
+- `ChevronIcon`, `.visually-hidden` and the deck list styles (tokens only).
+
+### Verified
+
+- `cargo xtask check` passes (134 Vitest tests, the Rust tests, clippy, fmt, the wasm build).
+- Rust: four tests through `dispatch` (a new collection has only Default and no cards, counts roll
+  up into the parent and the order is tree order, a deleted deck and its cards are left out, no
+  collection open).
+- Vitest, nine tests on the screen: tree and counts as a screen reader reads them, the row's
+  `href`, collapse and expand with the choice remembered and restored, the empty state and its
+  button, the "done for now" line, a failed load and Try again, refresh on focus, a failed refresh.
+- **Desktop** (Linux, `bun run dev` with `XDG_DATA_HOME` pointed at the scratchpad, on a collection
+  made by `fc fake --notes 300 --decks 6`, dark theme): a nested tree with counts that line up,
+  collapse and expand by mouse and by keyboard (Tab then Space), the state survives going to
+  another screen and back, a click on a row opens `#/study/<id>`, Back returns. The same screen in a
+  400 px wide floating window shows the bottom bar and the same tree. The real collection was not
+  touched.
+- **Phone** (SM-S928B, system dark, in landscape): the debug APK installed and launched. The
+  collection there has no cards, so it shows the empty state beside the navigation rail, with the
+  heading clear of the status bar.
+
+### Not verified
+
+- **A populated list on the phone.** Nothing can add cards until 2.4, and I did not put data on the
+  phone. The compact populated layout was seen only in a narrow desktop window, not on the device.
+- The empty state in portrait on the phone (it was in landscape), gesture navigation, the largest
+  system font size, and 200% text size on this screen.
+- Pressing Enter on a focused row (the row is a plain `<a>`, and Tab focus showed the ring). No test
+  presses Enter, because `happy-dom` does not turn Enter into a click.
+- "You're done for now" on a real collection (the fake one has cards due). It is covered by a
+  Vitest test.
+- Windows, Firefox, Safari, and the web client (it has no way to hold cards yet).
+- Time of `getDeckList` on the phone and in wasm. On Linux `deck_counts` was 130 ms at 50,000 cards
+  (1.7b). Not measured through the UI.
+
+### Deviations from the plan
+
+- **Column headings are New, Learn and Review**, not New, Learning and To review as in the plan.
+  The longer headings wrapped and ran together at the width of three count columns (seen on
+  desktop). Screen readers still hear "learning" and "to review".
+- **The plan said a Vitest would check that Enter activates the row.** I did not write it (see Not
+  verified).
+- **`App.test.tsx` changed:** its fake transport answers `getDeckList`, and the Decks test now expects
+  the empty state, not the 2.1 placeholder text.
+- **Extras not in the plan's file list:** `DeckList` and `DeckSummary` exported from `core-client`,
+  `ChevronIcon`, `.visually-hidden`, and a local `log` function in `decks.rs` that turns a core
+  error into the internal error (`fc-api` had no `From` for deck and study errors, and I did not
+  add one).
+- **Size:** about 750 lines against the plan's 500, mostly tests and generated types. No split.
+- **Desktop check:** I floated and resized the app window with `i3-msg` to see the compact layout
+  and closed it afterwards.
+- **A screenshot slip:** my first desktop screenshot was of the whole screen and included other
+  windows. I deleted it and captured only the app window after that.
+- **Anthony's request during the step:** all browser and desktop checks were done in dark mode.
+- **STATUS:** the stale "2.1b waiting for review" text was replaced (PR #34 was already merged).
