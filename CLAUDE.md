@@ -16,6 +16,7 @@ Docs live in `docs/`: start with `docs/README.md`. `PRODUCT.md` is the source of
 - Use Bun for all Node-related work (installs, scripts, tests, dev servers). No npm, yarn or pnpm, and no lockfiles from them. If something does not work with Bun, ask before falling back (see "Tooling constraints" in `docs/PRODUCT.md`).
 - Nothing besides Anthony's Claude subscription may cost money: no paid CI, hosting, services or certificates. Flag anything that could incur charges before using it (see `docs/PRODUCT.md`).
 - If the docs contradict themselves or look wrong, say so instead of guessing.
+- Every step ends with an explicit "Deviations from the plan" list: in the ADR build notes (linked from `docs/STATUS.md`) and in the final report. Say "none" if there are none. A deviation is anything that differs from the plan approved in chat, including size, commit structure, extra or missing items and how an unspecified detail was decided.
 
 ## Commands
 
