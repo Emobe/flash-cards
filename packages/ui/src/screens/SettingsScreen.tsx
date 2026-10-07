@@ -72,7 +72,9 @@ function AboutGroup({ build }: { build?: string }) {
   return (
     <fieldset className="group">
       <legend>About</legend>
-      <p>{build ? `Version ${version} (${build})` : `Version ${version}`}</p>
+      <p className="about-version">
+        {build ? `Version ${version} (${build})` : `Version ${version}`}
+      </p>
     </fieldset>
   );
 }
