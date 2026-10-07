@@ -4,15 +4,13 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-2.1 App shell and design direction: **built, waiting for Anthony's review** on `step/2.1-shell-build`. Split by Anthony's decision: this PR is the UI, the theme, the shell, the screens and the `fc-api` open error. The native system-bar part is **2.1b** (`set_system_theme`, the Kotlin plugin, desktop `Window::set_theme`, the `Platform` wiring in `apps/native`, ADR 0005 amendment line). Build notes, what is not verified and the deviations list: ADR 0010 "Build notes (step 2.1)". Anthony still checks on the phone: gesture navigation, landscape, keyboard and `BottomAction`, Android back, font size.
+2.1b System bars and title bar follow the theme: **in progress** on `step/2.1b-system-bars`. Done and committed: the fifth command `set_system_theme(token, dark, followSystem)` (`apps/native/src-tauri/src/appearance.rs`, `lib.rs`, capability and permission), the Kotlin `AppearancePlugin`, a mock-runtime test that the command rejects a bad token, `Platform.setSystemTheme(theme, followSystem)` and its wiring in `apps/native`. Remaining: build and check on the phone (override opposite to the system, then taps through the app), check the desktop title bar, ADR 0005 amendment line, ADR 0010 "Build notes (step 2.1b)" with the deviations list, PR. 2.3 must pass the effective theme into the card frame (ADR 0005 amendment).
 
-Next: after the PR merges, `/step 2.1b` (Sonnet) from `master`, following `docs/plans/2.1-app-shell.md` steps 7 and the ADR 0005 line. 2.3 must pass the effective theme into the card frame (ADR 0005 amendment).
-
-Previous step: 1.14b Developer CLI: the missing commands, merged (PR #31). Phase 1 is complete.
+Previous step: 2.1 App shell and design direction, merged (PR #33). Anthony still checks gesture navigation on the phone.
 
 ## Branch
 
-`step/2.1-shell-build` (the build). `step/2.1-app-shell` was the design docs only and is merged.
+`step/2.1b-system-bars`.
 
 ## Done
 
