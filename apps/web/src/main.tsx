@@ -1,8 +1,7 @@
 import { CoreClient } from "core-client";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { App, CoreProvider, PlatformProvider } from "ui";
-import "./styles.css";
+import { App, CoreProvider, PlatformProvider, updateThemeColorMeta } from "ui";
 import { BackupPanel } from "./BackupPanel";
 import { SpikePanel } from "./SpikePanel";
 import { createWebTransport } from "./webTransport";
@@ -28,12 +27,17 @@ if (window.top === window) {
   createRoot(root).render(
     <StrictMode>
       <CoreProvider client={client}>
-        <PlatformProvider platform={{ cardFrameUrl: "/card-frame.html" }}>
-          <App />
-          <div className="app">
-            <SpikePanel />
-            <BackupPanel />
-          </div>
+        <PlatformProvider
+          platform={{ cardFrameUrl: "/card-frame.html", setSystemTheme: updateThemeColorMeta }}
+        >
+          <App
+            extraDeveloperTools={
+              <>
+                <SpikePanel />
+                <BackupPanel />
+              </>
+            }
+          />
         </PlatformProvider>
       </CoreProvider>
     </StrictMode>,

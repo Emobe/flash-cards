@@ -124,8 +124,10 @@ fn cancel(
 }
 
 /// Opens (or creates) the collection in the app data directory. A failure is logged and the app
-/// still starts: methods that need a collection answer "No collection is open." The real startup
-/// screen for this (a newer collection, a file in use) comes with the app shell in step 2.1.
+/// still starts. `Core` remembers why the open failed, so methods that need a collection answer
+/// with that error (`updateRequired`, `unavailable`) and the app shell shows its problem screen
+/// (ADR 0010 decision 6). Only a failure before the core is asked (no data directory) still
+/// answers "No collection is open."
 ///
 /// Around the open (step 1.13b): a collection that the open would migrate is copied into
 /// `backups/` first, and once it is open an automatic backup runs in the background if the last

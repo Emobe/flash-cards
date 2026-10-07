@@ -442,3 +442,117 @@ Anthony approved the ADR on 2026-10-07 with every recommendation as written:
    override.
 6. A Developer screen in development and debug builds holds the spikes until 2.3 and 2.6.
 7. No new dependencies in 2.1.
+
+## Build notes (step 2.1)
+
+Built on `step/2.1-shell-build`. Split by Anthony's decision in chat: this PR is the UI and the
+`fc-api` open error. The native system-bar part is **step 2.1b**, a separate PR (see "Left for
+2.1b"). About 2,670 added lines, 875 of them tests, against the plan's 1,300.
+
+### What was built
+
+- **Tokens and base styles** (`packages/ui/src/styles/`): the Paper palette for light, system dark
+  and `data-theme="dark"`, spacing, type, radius, focus ring and motion tokens. Both apps' old
+  `styles.css` are gone, the spike styles live in `spikes.css`, and the apps get the styles by
+  importing `ui`. `tokens.test.ts` parses `tokens.css` and checks every pair (4.5:1 text, 3:1
+  controls) in both themes, and that the two dark blocks are identical.
+- **Theme** (`theme.tsx`): `System | Light | Dark` in `localStorage` key `fc.theme`, `data-theme` on
+  `<html>`, live `matchMedia` for System, `platform.setSystemTheme(effective)` on every change.
+  `apps/*/public/theme-boot.js` sets `data-theme` before first paint, loaded by `<script src>` in
+  both `index.html` heads. No inline `<style>` or `style=""` in either `index.html`. The web client
+  also updates `<meta name="theme-color">` to the `bg` token. Viewport meta has `viewport-fit=cover`.
+- **Router** (`router.tsx`, about 165 lines with `Link` and `PageHeading`): hash routes `decks`,
+  `add`, `browse`, `settings`, `settings/developer`, `study/:deckId`. Unknown hash is replaced with
+  `#/decks`. After a route change the page `h1` takes focus and `document.title` is
+  `"<Page> · Flash cards"`.
+- **AppShell** (`shell/`): bottom bar under 600 px, rail from 600 px, sidebar from 1024 px, from one
+  `destinations` list. `env(safe-area-inset-*)` and `visualViewport` appear only inside `shell/`
+  (a test greps for it). `useKeyboardInset` writes `--keyboard-inset` and `data-keyboard`. The bar
+  hides under 600 px while the keyboard is open. `BottomAction` is a portal into a slot below the
+  content. `g` then `d`/`a`/`b`/`s` and `?` (a `dialog`), ignored in text fields and with Ctrl, Alt
+  or Meta. Study is full screen with a back button. Eight inline SVG icons.
+- **Screens:** `EmptyState`, Decks, Add, Browse and Study placeholders, Settings with the Appearance
+  radio group and (debug builds) a Developer tools row, the collection problem screen, and the
+  Developer screen (versions, a keyboard test with a `BottomAction`, the spikes, and the web
+  client's two panels through `extraDeveloperTools`).
+- **Developer screen only in debug builds:** `isDeveloperBuild()` is `import.meta.env.DEV ||
+  TAURI_ENV_DEBUG === "true"`. `envPrefix` in `apps/native/vite.config.ts` was
+  `"TAURI_ENV_*"`, which matches nothing (Vite prefixes are not globs); a probe build gave
+  `undefined` with it and `true` with `"TAURI_ENV_"`. Fixed.
+- **The core remembers why a collection did not open.** `fc_core::Core` keeps the last open error
+  and `fc-api` (`getCollectionInfo`, the backup calls) answers with it, so a newer collection gives
+  `updateRequired` and a file in use gives `unavailable`, not "No collection is open." Four Rust
+  tests, including a collection with `user_version` 99 that is left byte for byte unchanged.
+
+### Verified
+
+- `cargo xtask check` passes (123 Vitest tests, the Rust tests, clippy, fmt, the wasm build).
+- **Phone** (SM-S928B, three-button, portrait, dark): `bun run android:build`, `android:install`,
+  screenshot of Decks. The heading clears the status bar and the bottom bar sits on top of the
+  navigation bar, with nothing hidden. The serif heading renders.
+- **Debug flag reaches the APK:** in the built bundle `isDeveloperBuild` is `return!0` for
+  `android:build`, and `return!1` for a Vite build with `TAURI_ENV_DEBUG` unset.
+- **Desktop** (`bun run dev`, Linux, 1208 x 633 window): sidebar layout, `g` `s` goes to Settings,
+  `?` opens the shortcuts list with focus on Close, choosing Dark switches the page.
+- **Web** (`bun run web:dev`, Brave on Linux at phone width and at a wider window): the bottom bar
+  at phone width, the rail when wider, the Developer screen with both web panels and the
+  `BottomAction` button pinned at the bottom, core and collection versions shown.
+
+### Not verified
+
+- Anything on the phone beyond the Decks screen (I may only install and take screenshots, so I
+  could not tap to the other destinations): the other destinations, the Developer screen in the
+  APK, gesture navigation, landscape and the cutout on each side, the on-screen keyboard and the
+  `BottomAction` above it, Android back through routes and out of the app, back after several
+  cards in the card spike, the largest system font size. **Anthony checks these.** The pushState
+  and `canGoBack()` question from ADR findings is part of the back check.
+- Desktop resizing to the compact layout (the window manager ignored `xdotool windowsize`; the
+  compact layout was seen in the web client instead), a Windows build, WebKitGTK's console for CSP
+  errors, whether the native window title follows `document.title`, and "no flash of the wrong
+  theme" (a screenshot cannot show a flash).
+- Whether the desktop title bar follows an override: that is 2.1b.
+- The keyboard behaviour itself. The tests mock `visualViewport` and check the CSS variable and
+  `data-keyboard`; `happy-dom` has no layout, so that the bar really hides and the content really
+  shrinks is checked only by CSS reading and the web screenshot above.
+- A release build with the Developer route typed by hand. It is covered by a test, not a build.
+
+### Left for 2.1b
+
+`Platform.setSystemTheme` exists and is called on every change of the effective theme. The web
+client implements it (`theme-color` meta). **The native apps pass a no-op**, so on the phone the
+status bar and navigation bar icons still follow the system, not an override: a Light override on a
+phone in dark mode shows light icons on a light page until 2.1b. 2.1b is the fifth command
+`set_system_theme(token, dark)`, the `appearance` plugin and `AppearancePlugin.kt`, the
+`Platform` wiring in `apps/native`, desktop `Window::set_theme`, the extended token test, and the
+ADR 0005 amendment line for the fifth command.
+
+### Deviations from the plan
+
+- **Split.** Native system bars, the fifth command, the Kotlin plugin, `Window::set_theme` and the
+  ADR 0005 amendment line moved to 2.1b (Anthony agreed in chat after I stopped at the 1,600 line
+  limit).
+- **Size.** About 2,670 added lines (875 tests) against the plan's 1,300.
+- **The open error is kept in `fc-core`, not `fc-api`.** `Core` lives in `fc-core`, which cannot
+  name `ApiError`, so `Core::open_error()` stores the `CollectionError` (now `Clone`) and `fc-api`
+  converts it. `fc-native`'s `open_collection` is unchanged, because `Core` keeps the error. A
+  failure before the core is asked (no data directory, a config error) still answers "No collection
+  is open." The plan said `fc-native` keeps an `ApiError`.
+- **`App` makes the `getCollectionInfo` call, not `AppShell`**, and `AppShell` has a `bare` prop
+  (no navigation, no back control) for the problem and "Opening your cards..." screens. Same
+  result, and the shell stays free of core calls.
+- **The keyboard shrinks the shell, not just the content.** The shell root gets bottom padding of
+  `--keyboard-inset`, so the content region and the `BottomAction` slot both end above the
+  keyboard, instead of only padding the content as ADR decision 4 says.
+- **`theme-boot.js`:** two identical files and a test that they match (the plan let me choose).
+- **A release build's Developer route shows Settings** (the plan did not say). The web client's
+  release build (`web:build`) therefore has no Developer screen either, so no spike panels.
+- **Extras:** links use the `accent` token (default blue links looked wrong), a "Opening your
+  cards..." status while `getCollectionInfo` is pending, a pinch-zoom guard in `useKeyboardInset`
+  (zoom also shrinks the visual viewport), `--target` is 2.5rem from 600 px (the ADR said at least
+  32 px).
+- **Tests:** the plan's "keyboard inset hides the bar" test checks `data-keyboard` and the CSS
+  variable, not the CSS (see Not verified). The contrast test does not cover `line`, which the ADR
+  says has no requirement.
+- **STATUS:** I replaced the design-session paragraphs in "Current step" with build status. The
+  phone findings stay in this ADR.
+- `docs/plans/2.1-directions.html` is kept as the record of the choice, as the plan said.

@@ -4,19 +4,19 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-2.1 App shell and design direction: design session done, ADR 0010 **Accepted** on 2026-10-07 (direction A Paper with the system serif stack, every recommendation as written). Nothing is built yet. Next: `/step 2.1` (Sonnet) from `master`, following `docs/plans/2.1-app-shell.md`. The preview `docs/plans/2.1-directions.html` records the choice.
+2.1 App shell and design direction: **built, waiting for Anthony's review** on `step/2.1-shell-build`. Split by Anthony's decision: this PR is the UI, the theme, the shell, the screens and the `fc-api` open error. The native system-bar part is **2.1b** (`set_system_theme`, the Kotlin plugin, desktop `Window::set_theme`, the `Platform` wiring in `apps/native`, ADR 0005 amendment line). Build notes, what is not verified and the deviations list: ADR 0010 "Build notes (step 2.1)". Anthony still checks on the phone: gesture navigation, landscape, keyboard and `BottomAction`, Android back, font size.
 
-Verified on the phone (a throwaway probe APK, screenshots only, previous APK reinstalled afterwards): `env(safe-area-inset-*)` gives the real insets in Tauri's WebView (Chrome 153); inline and file scripts both run under the Tauri CSP; a Kotlin class in the app module called from Rust changes the bar icons and is not callable from JavaScript. Computed: palette contrast. Read in source: Android back pops the WebView history.
-
-Not verified: the keyboard (a screenshot with the field focused showed no keyboard), gesture navigation, landscape, the system font size (Anthony checks in the build), desktop theme behaviour, older WebViews.
+Next: after the PR merges, `/step 2.1b` (Sonnet) from `master`, following `docs/plans/2.1-app-shell.md` steps 7 and the ADR 0005 line. 2.3 must pass the effective theme into the card frame (ADR 0005 amendment).
 
 Previous step: 1.14b Developer CLI: the missing commands, merged (PR #31). Phase 1 is complete.
 
 ## Branch
 
-`step/2.1-app-shell` (design docs only), merged into `master`. The build gets a new branch.
+`step/2.1-shell-build` (the build). `step/2.1-app-shell` was the design docs only and is merged.
 
 ## Done
+
+- 2.1 App shell and design direction (ADR 0010 build notes, step 2.1): tokens and Paper styles with a contrast test, theme (System, Light, Dark) with `theme-boot.js`, hash router, `AppShell` (bottom bar, rail, insets, keyboard inset, `BottomAction`, shortcuts), placeholder screens, Settings, collection problem screen, Developer screen in debug builds only, `Core` remembers the failed open. Not included: native bar and title bar theming (2.1b). Deviations: the list at the end of the ADR notes. PR open for review.
 
 - 1.14b Developer CLI: the missing commands (ADR 0006 build notes, step 1.14b). `fc notetype | field | template | deck | preset` with verbs, `move-cards`, `edit-note`, `delete-note`, `restore-note`, `find-duplicates`, `set-tags`, `delete-tag`, `delete-media`, `restore-media`, `update-search`, `tagged`, `day-start-hour`, `backup-settings`, `device-id`, `rebuild-schedule`; `notes`, `decks` and `notetypes` list what can be restored. `crates/fc-cli/tests/coverage.rs` checks every public `Collection` operation against the commands. No core change, no new dependency. Deviations: the list at the end of the ADR notes (about 1,950 lines against the 1,500 limit in the plan). Merged (PR #31).
 

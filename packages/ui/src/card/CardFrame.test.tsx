@@ -8,7 +8,7 @@ afterEach(cleanup);
 function setup(props: Partial<React.ComponentProps<typeof CardFrame>> = {}) {
   const loadMedia = vi.fn(async (name: string) => new Blob([name]));
   const ui = (p: Partial<React.ComponentProps<typeof CardFrame>> = {}) => (
-    <PlatformProvider platform={{ cardFrameUrl: "about:blank" }}>
+    <PlatformProvider platform={{ cardFrameUrl: "about:blank", setSystemTheme: () => {} }}>
       <CardFrame html="<p>hi</p>" mediaNames={["a.png"]} loadMedia={loadMedia} {...props} {...p} />
     </PlatformProvider>
   );

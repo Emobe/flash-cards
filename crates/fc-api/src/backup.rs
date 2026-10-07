@@ -193,7 +193,7 @@ pub(crate) fn with_open<T>(
     f: impl FnOnce(&Collection) -> Result<T, BackupError>,
 ) -> Result<T, ApiError> {
     core.with_collection(f)
-        .ok_or_else(|| ApiError::new(ErrorKind::NotFound, "No collection is open."))?
+        .ok_or_else(|| crate::collection::not_open(core))?
         .map_err(ApiError::from)
 }
 

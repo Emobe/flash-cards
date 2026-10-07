@@ -40,6 +40,8 @@ pub fn version() -> &'static str {
 #[derive(Debug, Default)]
 pub struct Core {
     collection: Mutex<Option<Collection>>,
+    /// Why the last `open_collection` failed, until a later one works or the collection is closed.
+    open_error: Mutex<Option<CollectionError>>,
     /// Shared with every collection the core opens.
     listeners: Listeners,
 }
@@ -58,20 +60,34 @@ impl Core {
     /// Opens the collection at a path or `file:` URI, creating it if nothing is there yet. Replaces
     /// (and closes) any collection that was open.
     pub fn open_collection(&self, location: &str, host: Host) -> Result<(), CollectionError> {
-        let mut collection = Collection::open_or_create(location, host)?;
+        let mut collection = match Collection::open_or_create(location, host) {
+            Ok(collection) => collection,
+            Err(error) => {
+                *self.open_error.lock().expect("open error lock") = Some(error.clone());
+                return Err(error);
+            }
+        };
         collection.set_listeners(self.listeners.clone());
         let mut open = self.collection.lock().expect("collection lock");
         if let Some(old) = open.as_ref() {
             old.end_open_session(study::EndReason::Closed);
         }
         *open = Some(collection);
+        *self.open_error.lock().expect("open error lock") = None;
         Ok(())
+    }
+
+    /// Why the last attempt to open a collection failed, so a host can tell the user instead of
+    /// answering "no collection is open". `None` once a collection opens or is closed on purpose.
+    pub fn open_error(&self) -> Option<CollectionError> {
+        self.open_error.lock().expect("open error lock").clone()
     }
 
     /// Closes the open collection, if any.
     pub fn close_collection(&self) -> Result<(), CollectionError> {
         // Closed under the lock, so the session's end event arrives in order with the others.
         let mut open = self.collection.lock().expect("collection lock");
+        *self.open_error.lock().expect("open error lock") = None;
         open.take().map_or(Ok(()), Collection::close)
     }
 

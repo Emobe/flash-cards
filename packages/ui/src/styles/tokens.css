@@ -1,0 +1,84 @@
+/*
+ * Design tokens (ADR 0010, direction A "Paper"). Components use these and never literal colours.
+ * The palette is written three times: light, dark for the system, and the two explicit overrides.
+ * The contrast test (tokens.test.ts) parses this file, so keep one `--name: #hex;` per line.
+ */
+
+:root {
+  color-scheme: light;
+
+  --bg: #faf6ee;
+  --surface: #fffdf8;
+  --text: #2a2622;
+  --muted: #675f54;
+  --accent: #a93f24;
+  --on-accent: #ffffff;
+  --control: #8c8274;
+  --danger: #a3261b;
+  --line: #e6ded0;
+
+  /* Spacing, in rem so the system font size scales the layout. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* Type scale. */
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+  --font-body: system-ui, sans-serif;
+  --font-heading:
+    "Iowan Old Style", "Palatino Linotype", Palatino, "Noto Serif", "Source Serif 4", Georgia, serif;
+
+  --radius: 10px;
+  --border: 1px solid var(--line);
+  --border-control: 1px solid var(--control);
+  --focus-ring: 2px solid var(--accent);
+
+  /* Minimum tap target: 48 px compact, 32 px from 600 px (set in the shell CSS). */
+  --target: 3rem;
+
+  --motion: 150ms ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --bg: #1c1a17;
+    --surface: #25221e;
+    --text: #ede6d8;
+    --muted: #a89f8f;
+    --accent: #e8906f;
+    --on-accent: #1c1a17;
+    --control: #7d7466;
+    --danger: #f08a7e;
+    --line: #3a352e;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #1c1a17;
+  --surface: #25221e;
+  --text: #ede6d8;
+  --muted: #a89f8f;
+  --accent: #e8906f;
+  --on-accent: #1c1a17;
+  --control: #7d7466;
+  --danger: #f08a7e;
+  --line: #3a352e;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Components take their transition time from --motion, so this turns all of them off. */
+  :root {
+    --motion: 0s;
+  }
+}
