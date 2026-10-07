@@ -7,8 +7,8 @@ Kept current by every session. A new session reads this first.
 2.4 Add note, built as three stacked PRs (ADR 0011, Accepted; plan in `docs/plans/2.4-add-note.md`).
 
 - **2.4a note API: merged (PR #39).** `Collection::add_note_with` (a note and its tags in one write), `fc-api` `getNoteTypes`, `getTags`, `findDuplicates`, `addNote`, `addMedia`, bindings. Build notes: ADR 0011.
-- **2.4b Add screen and editor (ProseMirror, no media): built, PR open for Anthony.** Branch `step/2.4b-add-screen`. `editor/` (schema, `loadField`, `saveField`, `roundTrips`, commands, `FieldEditor`, `Toolbar`), `AddScreen` with `TagInput`, the shell's `useShellKeyboardInset`. `cargo xtask check` passes (247 Vitest tests). Checked on the web (headless Brave), desktop (keyboard only) and the phone (landscape, Gboard: the field and toolbar stay above the keyboard). **Not checked: real typing on the phone's keyboards, portrait, which Anthony does.** About 58% over the planned size: see the deviations in the ADR 0011 build notes.
-- **2.4c media (pickers, image processing, CSP, Android clean-up): not started.**
+- **2.4b Add screen and editor: merged (PR #40).**
+- **2.4c media: in progress** on `step/2.4c-media` (from `master`). Done: CSP (`blob:` for images, `media-src 'self' blob:`), `editor/media.ts` (`prepareImage`, `prepareSound`, 20 MB check), `editor/mediaViews.ts` (image and sound node views on `blob:` URLs), Image / Take photo / Sound buttons in the toolbar, `AddScreen` wiring (`addMedia` when picked, `getMedia` for a restored draft), `MainActivity` clean-up of old `JPEG_*.jpg`, with tests (246 Vitest). Remaining: web check with the real image codec (rotated JPEG, EXIF), desktop check (the GTK dialog in the app), phone check (APK, pickers open, no picks), build notes, PR. Mark 2.4 done only after Anthony has checked the phone.
 
 Next: Anthony reviews 2.4b and tries typing on the phone, then `/step 2.4` builds 2.4c (media). Anthony said (2026-10-07) his phone may be used for gestures in a session when needed, while it is free and unlocked; CLAUDE.md's rule otherwise stands.
 
@@ -16,7 +16,7 @@ Previous step: 2.3 Review screen, merged (PR #36, PR #37). Still not run on the 
 
 ## Branch
 
-`step/2.4b-add-screen`.
+`step/2.4c-media`.
 
 ## Done
 

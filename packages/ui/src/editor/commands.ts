@@ -140,3 +140,12 @@ export function editorPlugins(options: EditorOptions): Plugin[] {
     keymap(baseKeymap),
   ];
 }
+
+/** Puts a picture or a sound, by its media name, at the selection. */
+export function insertMedia(kind: "image" | "sound", name: string): Command {
+  return (state, dispatch) => {
+    const node = (kind === "image" ? types.image : types.sound).create({ name });
+    if (dispatch) dispatch(state.tr.replaceSelectionWith(node).scrollIntoView());
+    return true;
+  };
+}
