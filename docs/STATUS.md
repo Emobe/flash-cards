@@ -13,7 +13,8 @@ Anthony checked Export, Restore from a file and the file picker in the web clien
 **2.7b (release builds) is in progress** on `step/2.7b-release-builds`, commit by commit:
 - done: Linux blank-window fix in `main.rs` (`unsafe_code = "deny"` for `fc-native`), removed from `scripts/dev.ts`, README troubleshooting.
 - done: bundle metadata (`mainBinaryName`, descriptions, category) and `bun run dist:linux` (`packaging/arch/PKGBUILD`, `scripts/dist-linux.ts`, `scripts/lib/dist.ts`); the package builds, the release binary renders with no variable and shows Version 0.1.0 in Settings. Anthony still installs it with pacman and checks the menu entry and card sound.
-- left: Android release signing and `dist:android`, `dist:windows`, README "Dogfood builds", build notes in ADR 0012, checks on Linux and the phone, Anthony's Windows build.
+- done: Android release signing (the debug key, `signingConfigs.getByName("debug")`), `bun run dist:android` and `dist:android:install`. Verified on the phone: installed as `io.github.emobe.flashcards`, not debuggable, APK certificate equals `~/.android/debug.keystore`, About shows 0.1.0, switching the theme works under R8 (Claude tapped it, with Anthony's permission).
+- left: `dist:windows`, README "Dogfood builds", build notes in ADR 0012, checks on Linux and the phone, Anthony's Windows build.
 Anthony said (2026-10-07, in chat) that Claude Code may tap and do gestures on the phone; unlocking is not covered, and `CLAUDE.md` still says "never touch" (a deviation to list).
 
 The design session left a test app, `dev.placeholder.flashcards.relexp` ("Flash cards", empty), on
