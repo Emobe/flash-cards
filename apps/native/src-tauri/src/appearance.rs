@@ -22,14 +22,6 @@ pub struct Appearance {
     handle: tauri::plugin::PluginHandle<Wry>,
 }
 
-#[cfg(target_os = "android")]
-#[derive(serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct BarStyle {
-    /// True when the page is light, so the bar icons must be dark.
-    light_bars: bool,
-}
-
 /// The `appearance` plugin. It has no `invoke_handler` and no permissions on purpose.
 pub fn plugin() -> TauriPlugin<Wry> {
     Builder::new("appearance")
@@ -69,7 +61,8 @@ impl Appearance {
         {
             let _ = (webview, follow_system);
             self.handle
-                .run_mobile_plugin::<()>("setBarStyle", BarStyle { light_bars: !dark })
+                // `lightBars` is true when the page is light, so the bar icons must be dark.
+                .run_mobile_plugin::<()>("setBarStyle", serde_json::json!({ "lightBars": !dark }))
                 .map_err(|e| e.to_string())
         }
         #[cfg(not(any(desktop, target_os = "android")))]
