@@ -88,8 +88,8 @@ export function AddScreen() {
   const core = useCore();
   const [loaded, setLoaded] = useState<Loaded>({ status: "loading" });
   const [initial] = useState(readDraft);
-  const [deckId, setDeckId] = useState<string | null>(initial.deckId);
-  const [noteTypeId, setNoteTypeId] = useState<string | null>(initial.noteTypeId);
+  const [chosenDeck, setChosenDeck] = useState<string | null>(initial.deckId);
+  const [chosenType, setChosenType] = useState<string | null>(initial.noteTypeId);
   const [values, setValues] = useState<Record<string, string>>(initial.fields);
   const [tags, setTags] = useState<string[]>(initial.tags);
   const [typedTag, setTypedTag] = useState("");
@@ -129,22 +129,21 @@ export function AddScreen() {
   }, [core]);
   useEffect(load, [load]);
 
-  // A remembered deck or note type that is gone falls back to the Default deck and Basic.
-  useEffect(() => {
-    if (loaded.status !== "ready") return;
-    const { decks, noteTypes } = loaded;
-    if (!decks.some((d) => d.id === deckId)) {
-      const fallback = decks.find((d) => d.name === "Default" && d.depth === 0) ?? decks[0];
-      setDeckId(fallback?.id ?? null);
-    }
-    if (!noteTypes.some((t) => t.id === noteTypeId)) {
-      const fallback = noteTypes.find((t) => t.name === "Basic") ?? noteTypes[0];
-      setNoteTypeId(fallback?.id ?? null);
-    }
-  }, [loaded, deckId, noteTypeId]);
-
   const ready = loaded.status === "ready" ? loaded : null;
-  const noteType = ready?.noteTypes.find((t) => t.id === noteTypeId) ?? null;
+  // A remembered deck or note type that is gone falls back to the Default deck and Basic.
+  const deckId =
+    ready &&
+    (
+      ready.decks.find((d) => d.id === chosenDeck) ??
+      ready.decks.find((d) => d.name === "Default" && d.depth === 0) ??
+      ready.decks[0]
+    )?.id;
+  const noteType =
+    ready &&
+    (ready.noteTypes.find((t) => t.id === chosenType) ??
+      ready.noteTypes.find((t) => t.name === "Basic") ??
+      ready.noteTypes[0]);
+  const noteTypeId = noteType?.id ?? null;
   const isCloze = noteType?.kind === "cloze";
   const fieldHtml = (name: string) => values[name] ?? "";
 
@@ -330,7 +329,11 @@ export function AddScreen() {
           <label htmlFor="add-deck" className="add-label">
             Deck
           </label>
-          <select id="add-deck" value={deckId ?? ""} onChange={(e) => setDeckId(e.target.value)}>
+          <select
+            id="add-deck"
+            value={deckId ?? ""}
+            onChange={(e) => setChosenDeck(e.target.value)}
+          >
             {loaded.decks.map((deck) => (
               <option key={deck.id} value={deck.id}>
                 {deck.path}
@@ -345,7 +348,7 @@ export function AddScreen() {
           <select
             id="add-type"
             value={noteTypeId ?? ""}
-            onChange={(e) => setNoteTypeId(e.target.value)}
+            onChange={(e) => setChosenType(e.target.value)}
           >
             {loaded.noteTypes.map((type) => (
               <option key={type.id} value={type.id}>
