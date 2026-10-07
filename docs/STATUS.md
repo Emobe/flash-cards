@@ -8,7 +8,7 @@ Kept current by every session. A new session reads this first.
 
 **2.3a Study API and frame** (branch `step/2.3a-study-api`), done and waiting for Anthony's review. `fc-api` `startStudySession`, `endStudySession`, `nextCard`, `renderCard`, `getMedia`, `answerCard`, `undoAnswer`; `Collection::now_ms`; the frame takes `theme` and `autoplay` and reports audio. Verified in headless Brave (theme, autoplay and replay with `allow="autoplay"` on the iframe, which Chromium needs and Anthony approved, the 54-attempt card: 38 / 0 / 16). Not verified: desktop and phone (moved to 2.3b). Build notes and deviations: ADR 0010 "Build notes (step 2.3a)".
 
-**2.3b Review screen** (not started): `StudyScreen`, interval formatting, shortcuts, end screen, debug "Add sample cards", delete the 0.6 spike.
+**2.3b Review screen** (branch `step/2.3b-review-screen`, stacked on 2.3a / PR #36), in progress. Done: `debugAddSampleCards` (debug builds), `formatInterval`/`formatSpan`, `useStudy`, `StudyScreen` (question, answer with four intervals, keys, undo, replay, end screen, Waiting), Developer "Add sample cards" button, tests. `cargo xtask check` passes. Remaining: look at it on the desktop, the phone and the web (dark and light, narrow and wide, audio, keys, the sandbox card on desktop and phone), delete the 0.6 sandbox spike, ADR 0010 build notes, PR.
 
 Previous step: 2.2 Home and deck list, merged (PR #35).
 

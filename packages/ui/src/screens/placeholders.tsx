@@ -20,13 +20,3 @@ export function BrowseScreen() {
     </>
   );
 }
-
-/** The full-screen study route (2.3 builds the real one). */
-export function StudyScreen({ deckId }: { deckId: string }) {
-  return (
-    <>
-      <PageHeading>Study</PageHeading>
-      <EmptyState>Studying deck {deckId} will be here soon.</EmptyState>
-    </>
-  );
-}

@@ -150,7 +150,7 @@ export function Link({
 }
 
 /** The page's `h1`. After a navigation it takes focus, so screen readers announce the new page. */
-export function PageHeading({ children }: { children: ReactNode }) {
+export function PageHeading({ children, className }: { children: ReactNode; className?: string }) {
   const { navigations } = useRouter();
   const ref = useRef<HTMLHeadingElement>(null);
   // Not on the first load, only after a route change.
@@ -158,7 +158,7 @@ export function PageHeading({ children }: { children: ReactNode }) {
     if (navigations > 0) ref.current?.focus();
   }, [navigations]);
   return (
-    <h1 ref={ref} tabIndex={-1}>
+    <h1 ref={ref} tabIndex={-1} className={className}>
       {children}
     </h1>
   );

@@ -19,11 +19,40 @@ export function DeveloperScreen({ extraTools }: { extraTools?: ReactNode }) {
       <Link path="/settings">Back to Settings</Link>
       <Versions />
       <KeyboardTest />
+      <SampleCards />
       <DivideForm />
       <SchedulingSpike />
       <CardSandboxSpike />
       {extraTools}
     </>
+  );
+}
+
+/** Nothing can add cards until step 2.4, so this makes some to study (debug builds only). */
+function SampleCards() {
+  const core = useCore();
+  const [message, setMessage] = useState<string | null>(null);
+  return (
+    <section className="dev-section" aria-label="Sample cards">
+      <h2>Sample cards</h2>
+      <p>
+        Adds the decks Sample and Sample::Sound: words, a reversed pair, a cloze, sound and a
+        picture.
+      </p>
+      <button
+        type="button"
+        onClick={() =>
+          core.call("debugAddSampleCards", null).then(
+            ({ notes }) => setMessage(`Added ${notes} notes. Open Decks to study them.`),
+            (error: unknown) =>
+              setMessage(error instanceof CoreError ? error.message : "Something went wrong."),
+          )
+        }
+      >
+        Add sample cards
+      </button>
+      {message && <p role="status">{message}</p>}
+    </section>
   );
 }
 
