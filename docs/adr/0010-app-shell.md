@@ -807,3 +807,93 @@ is 2.3b.
   graduates the card.
 - **Size:** about 830 lines of code and tests against the plan's 700, and 155 generated lines.
 - **`target/scratch-2.3a/`** holds the check script and a Brave profile. It is ignored by git.
+
+## Build notes (step 2.3b)
+
+Built on `step/2.3b-review-screen`, stacked on 2.3a (PR #36). About 1,360 lines added and 640 deleted
+(the old spike), 440 of the added lines tests, against the plan's 1,300. No migration, no new
+dependency. No ADR of its own: ADR 0010 and ADR 0009 hand the screen's open points to this step, and
+the one frame change (theme, autoplay, `allow="autoplay"`) is an ADR 0005 amendment made in 2.3a.
+
+### What was built
+
+- **`StudyScreen`** (`packages/ui/src/screens/StudyScreen.tsx`, replacing the 2.1 placeholder) and
+  **`useStudy`** (`study/useStudy.ts`). The session starts when the screen opens and ends when it closes
+  or the cards run out. Each card shows its question and Show answer, then Again, Hard, Good and Easy,
+  each with when the card comes back (`formatInterval`: `<1m`, `10m`, `5h`, `3d`, `2.5mo`, `1.2y`).
+  - The counts (New, Learn, Review) are at the top and the one for the card on screen is underlined.
+  - The card is shown only through `CardFrame`, with the app's effective theme and `autoplay`. A Replay
+    sound button appears when the frame reports audio, and a line says so if the browser refused to
+    start it.
+  - The answer buttons are in the shell's `BottomAction` slot, at least 3.5 rem tall, in a row of four.
+  - **Undo** (button, `z`, Ctrl+Z) takes back the last answer given on this screen and shows that card
+    again. After the last card it is offered on the end screen too, and starts a new session.
+  - **Keys:** Space or Enter shows the answer, then 1 to 4 rate, and Space or Enter again means Good.
+    `r` replays. Keys are ignored with Alt or Meta, in a text field, and Enter or Space on a focused
+    button leaves it to the button. Key hints show only where there is a mouse (`hover: hover` and
+    `pointer: fine`).
+  - **End screen:** "Done for now" with the answered count, the Again count and the time studied
+    (`formatSpan`); or "Nothing to show right now" with "The next card is due in 12 minutes" and Check
+    again when a learning card is due later today. Back to decks is the bottom action.
+  - A double tap answers once (one action at a time, in a ref), and a failure shows the core's message
+    with Try again and Back to decks.
+- **Leaving a half-answered card asks nothing.** Nothing is written until a card is rated, so the card
+  stays due (the question ADR 0010 left for this step).
+- **`debugAddSampleCards`** (`crates/fc-api/src/sample_cards.rs`, debug builds only): decks `Sample` and
+  `Sample::Sound` with 13 notes (15 cards): words, a reversed pair, a cloze, and cards with the sample
+  sound and image. A button on the Developer screen calls it. Calling it again adds the same notes again.
+- **The 0.6 card sandbox spike is deleted** (`CardSandboxSpike`, its cards, `spikeCardMedia`), as planned.
+  The sample sound and image moved to `crates/fc-api/src/sample_media/`.
+- `PageHeading` takes a `className`, so the screen's heading is there for screen readers and hidden.
+
+### Verified
+
+- `cargo xtask check` passes (165 Vitest tests: 27 new in 2.3b, 23 for the screen and 4 for the formatting; 63 tests in `fc-api`
+  with the new sample-cards test).
+- **Web** (headless Brave over the DevTools protocol, screenshots read): phone width and 1100 px wide,
+  light and dark. Question, answer, rating, the next card, the Sound deck with audio (the autoplay
+  refusal message is gone with `allow="autoplay"`), counts, undo button, and the answer buttons at the
+  page width.
+- **Desktop** (Linux, `bun run dev`, WebKitGTK, dark, `XDG_DATA_HOME` pointed at a scratch folder, window
+  floated at 1100 x 700 with `i3-msg`): sample cards added from the Developer screen, deck list with the
+  counts, Sound deck, Space showed the answer, `3` rated Good (New 3 to New 2, Learn 1), `z` undid it and
+  the same card came back with New 3. Key hints, Replay sound and Undo shown. The sandbox card ran on
+  desktop before the spike was deleted: **38 blocked, 0 SUCCEEDED, 16 other, 38 CSP violations**, as in
+  0.6 and 1.10b.
+- **Phone** (SM-S928B, debug APK built and installed, system dark): it starts, and the Decks screen shows
+  the empty state under the status bar with the bottom bar above the navigation bar. I did not tap
+  anything on the phone.
+
+### Not verified
+
+- **Everything about studying on the phone.** The phone's collection has no cards and I may only install
+  and take screenshots. **Anthony checks:** Settings, Developer tools, Add sample cards, then Decks, study
+  Sample and Sample::Sound, in portrait and landscape: the heading and buttons clear the system bars, the
+  buttons are easy to hit, the sound starts by itself on the Sound deck (Android's WebView may need
+  something other than `allow="autoplay"`), Replay works, Undo works, and Android back leaves study.
+- **The sandbox card on the phone with `allow="autoplay"` on the iframe.** It could not be run without
+  tapping, and the spike is now deleted (its own commit, `2.3b: delete the 0.6 card sandbox spike`, if
+  you want it back for a phone run). On web and desktop it is unchanged.
+- Audio actually heard (the checks saw the element play, not the speaker), autoplay on WebKitGTK and on
+  the Android WebView, the end screen and the waiting screen outside the tests, the largest system font,
+  landscape on the phone, gesture navigation, Windows, Firefox, Safari.
+- **Clicking inside the card moves keyboard focus into it,** and the shortcuts stop until focus leaves
+  (ADR 0005). The buttons always work. Not checked by hand.
+- Studying a real deck for a few days (the step's review focus): it needs cards, so after 2.4.
+
+### Deviations from the plan
+
+- **The sandbox card was not re-run on the phone**, and the spike was deleted (see Not verified). The plan
+  said all three platforms.
+- **Undo is also on the end screen** (a new session starts). The plan said Undo takes back the last answer.
+- **Undo is offered only for answers given on this screen,** not for older ones the core could also undo.
+- **Check again** on the waiting screen is a button, not a timer.
+- **The answer row is a `fieldset` with a hidden legend,** not a `div` with `role="group"` (the lint rule).
+- **Extras not in the plan's file list:** `PageHeading` `className`, type exports in `core-client`, the
+  `r` replay key, `Ctrl+Z`, the underline on the count that applies.
+- **`debugAddSampleCards` takes its media from the old spike's files,** which moved to `sample_media/`.
+- **The bottom buttons are capped at the page width** (46 rem), found by looking at the wide layout.
+- **Size:** about 1,360 lines added (440 tests) against the plan's 1,300, plus 640 deleted.
+- **Desktop check:** I floated and resized the app window with `i3-msg` and closed it afterwards. My
+  first `pkill -f` attempts killed my own shell and the dev server twice. Nothing was lost.
+- **STATUS:** the 2.3a/2.3b "in progress" text is replaced by the final status.

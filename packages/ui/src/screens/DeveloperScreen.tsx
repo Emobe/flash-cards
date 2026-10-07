@@ -1,6 +1,5 @@
 import { CoreError } from "core-client";
 import { type ReactNode, useEffect, useState } from "react";
-import { CardSandboxSpike } from "../CardSandboxSpike";
 import { useCore } from "../core";
 import { DivideForm } from "../DivideForm";
 import { Link, PageHeading } from "../router";
@@ -9,8 +8,8 @@ import { BottomAction } from "../shell/slot";
 import "../styles/spikes.css";
 
 /**
- * The spikes from Phase 0 and 1, kept as test rigs until their replacements land (2.3 for the
- * card frame, 2.6 for backups). Only debug builds link here (ADR 0010 decision 7).
+ * The spikes from Phase 0 and 1, kept as test rigs until their replacements land (the card
+ * sandbox spike went in 2.3, backups follow in 2.6). Only debug builds link here (ADR 0010 decision 7).
  */
 export function DeveloperScreen({ extraTools }: { extraTools?: ReactNode }) {
   return (
@@ -19,11 +18,39 @@ export function DeveloperScreen({ extraTools }: { extraTools?: ReactNode }) {
       <Link path="/settings">Back to Settings</Link>
       <Versions />
       <KeyboardTest />
+      <SampleCards />
       <DivideForm />
       <SchedulingSpike />
-      <CardSandboxSpike />
       {extraTools}
     </>
+  );
+}
+
+/** Nothing can add cards until step 2.4, so this makes some to study (debug builds only). */
+function SampleCards() {
+  const core = useCore();
+  const [message, setMessage] = useState<string | null>(null);
+  return (
+    <section className="dev-section" aria-label="Sample cards">
+      <h2>Sample cards</h2>
+      <p>
+        Adds the decks Sample and Sample::Sound: words, a reversed pair, a cloze, sound and a
+        picture.
+      </p>
+      <button
+        type="button"
+        onClick={() =>
+          core.call("debugAddSampleCards", null).then(
+            ({ notes }) => setMessage(`Added ${notes} notes. Open Decks to study them.`),
+            (error: unknown) =>
+              setMessage(error instanceof CoreError ? error.message : "Something went wrong."),
+          )
+        }
+      >
+        Add sample cards
+      </button>
+      {message && <p role="status">{message}</p>}
+    </section>
   );
 }
 

@@ -1,0 +1,168 @@
+/* The review screen (step 2.3). Tokens only. The bottom actions go in the shell's slot. */
+
+.study {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.study-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.study-counts {
+  display: flex;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+/* The kind of card on screen, so it is clear which count goes down when it is answered. */
+.study-counts li[data-active="true"] {
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.35em;
+}
+
+.study-undo {
+  min-height: var(--target);
+}
+
+.study-card {
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  overflow: hidden;
+}
+
+.study-sound {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.study-sound p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.study-show {
+  width: 100%;
+  /* The bottom slot spans the window, the page does not (the shell's page is 46rem). */
+  max-width: 46rem;
+  margin-inline: auto;
+  display: flex;
+  min-height: 3.5rem;
+  font-size: var(--text-lg);
+}
+
+.study-ratings {
+  max-width: 46rem;
+  margin-inline: auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.study-rating {
+  flex-direction: column;
+  gap: 0;
+  min-height: 3.5rem;
+  padding: var(--space-2) var(--space-1);
+  line-height: 1.25;
+}
+
+.study-rating-name {
+  font-weight: 600;
+}
+
+.study-rating-interval {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.study-rating-again .study-rating-name {
+  color: var(--danger);
+}
+
+.study-rating.button-primary .study-rating-interval {
+  color: var(--on-accent);
+}
+
+/* Key hints only where there is a keyboard to use them. */
+.study kbd,
+.study-show kbd,
+.study-rating kbd {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .study kbd,
+  .study-show kbd,
+  .study-rating kbd {
+    display: inline-block;
+    margin-left: var(--space-1);
+    padding: 0 var(--space-1);
+    border: var(--border-control);
+    border-radius: 4px;
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    line-height: 1.4;
+  }
+
+  .study-rating.button-primary kbd {
+    color: var(--on-accent);
+    border-color: var(--on-accent);
+  }
+}
+
+.study-done {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-2);
+  text-align: center;
+  align-items: center;
+}
+
+.study-done h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+}
+
+.study-done p,
+.study-summary {
+  margin: 0;
+}
+
+.study-summary {
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.study-done-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+}

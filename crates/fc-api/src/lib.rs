@@ -14,7 +14,8 @@ mod decks;
 mod error;
 mod examples;
 mod notice;
-mod spike_card;
+#[cfg(debug_assertions)]
+mod sample_cards;
 mod spike_scheduling;
 mod study;
 
@@ -143,7 +144,6 @@ methods! {
         study::GetMedia,
         study::AnswerCard,
         study::UndoAnswer,
-        spike_card::SpikeCardMedia,
         spike_scheduling::SpikeSchedule,
         spike_scheduling::SpikeOptimise,
         backup::ExportBackup,
@@ -164,6 +164,7 @@ methods! {
         debug::DebugEchoBytes,
         debug::DebugEmitEvent,
         debug::DebugPanic,
+        sample_cards::DebugAddSampleCards,
     ],
 }
 
@@ -197,33 +198,6 @@ mod tests {
             err.message,
             "Can't divide by zero. Enter a divisor other than 0."
         );
-    }
-
-    #[test]
-    fn spike_card_media_returns_the_sample_files_as_attachments() {
-        for (name, content_type, magic) in [
-            ("sample.png", "image/png", &b"\x89PNG"[..]),
-            ("sample.wav", "audio/wav", &b"RIFF"[..]),
-        ] {
-            let ctx = OpContext::uncancellable();
-            let reply = dispatch(
-                &Core::new(),
-                "spikeCardMedia",
-                json!({ "name": name }),
-                &ctx,
-            )
-            .unwrap();
-            assert_eq!(reply.output, json!({ "contentType": content_type }));
-            let bytes = reply.attachment.unwrap();
-            assert!(bytes.starts_with(magic), "{name}");
-            assert!(bytes.len() > 500, "{name}");
-        }
-    }
-
-    #[test]
-    fn spike_card_media_reports_an_unknown_name_as_not_found() {
-        let err = call("spikeCardMedia", json!({ "name": "../secret.png" })).unwrap_err();
-        assert_eq!(err.kind, ErrorKind::NotFound);
     }
 
     #[test]
