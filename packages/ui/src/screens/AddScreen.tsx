@@ -256,23 +256,24 @@ export function AddScreen() {
     for (const file of files) {
       try {
         const prepared = kind === "image" ? await prepareImage(file) : await prepareSound(file);
+        // Before the call: the web client hands the bytes to its worker, which detaches them here.
+        const shown = new Blob([new Uint8Array(prepared.bytes)], { type: prepared.type });
         const added = await core.call(
           "addMedia",
           { name: prepared.name },
           { bytes: prepared.bytes },
         );
-        mediaCache.current.set(
-          added.name,
-          new Blob([new Uint8Array(prepared.bytes)], { type: prepared.type }),
-        );
+        mediaCache.current.set(added.name, shown);
         if (view.dom.isConnected) insertMedia(kind, added.name)(view.state, view.dispatch);
         if (prepared.warning) problems.push(prepared.warning);
       } catch (failure) {
-        problems.push(
-          failure instanceof MediaRefused || failure instanceof CoreError
-            ? failure.message
-            : "The file could not be added. Try again.",
-        );
+        if (failure instanceof MediaRefused || failure instanceof CoreError) {
+          problems.push(failure.message);
+        } else {
+          // Details go to the log, never to the person.
+          console.error("Could not add a file:", failure);
+          problems.push("The file could not be added. Try again.");
+        }
       }
     }
     setStatus("");

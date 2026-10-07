@@ -153,13 +153,16 @@ function setup(
     findDuplicates: vi.fn((input: { noteTypeId: string; value: string }) => ({
       noteIds: overrides.findDuplicates?.(input) ?? [],
     })),
-    addMedia: vi.fn(
-      (input: { name: string }) =>
+    addMedia: vi.fn((input: { name: string }, ctx: { bytes?: Uint8Array }) => {
+      // The web client transfers the bytes to its worker, which leaves the sender's buffer empty.
+      if (ctx.bytes) structuredClone(ctx.bytes.buffer, { transfer: [ctx.bytes.buffer] });
+      return (
         overrides.addMedia?.(input) ?? {
           name: input.name.replace(/(\.[^.]+)?$/, "-0123456789abcdef$1"),
           new: true,
-        },
-    ),
+        }
+      );
+    }),
     getMedia: vi.fn((_input: { name: string }) => ({ contentType: "image/png" })),
     addNote: vi.fn(
       (input: AddInput) =>
