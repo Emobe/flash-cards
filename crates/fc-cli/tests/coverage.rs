@@ -20,7 +20,7 @@ const SYNC_PLUMBING: &str =
 #[rustfmt::skip]
 const OPERATIONS: &[(&str, Covered)] = &[
     ("add_field", By("field")), ("add_media", By("add-media")), ("add_note", By("add-note")),
-    ("add_note_to_deck", By("add-note")), ("add_tags", By("tag")), ("add_template", By("template")),
+    ("add_note_to_deck", By("add-note")), ("add_note_with", By("add-note")), ("add_tags", By("tag")), ("add_template", By("template")),
     ("answer", By("answer")), ("backup_settings", By("backup-settings")),
     ("bury_cards", By("bury")), ("card_events", By("schedule")), ("card_history", By("history")),
     ("card_schedule", By("schedule")), ("cards_of_note", By("notes")), ("changes", By("merge")),
