@@ -1,7 +1,8 @@
 # 0012: Dogfood builds: app ID, signing, installers and the version
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-07
+Accepted: 2026-10-07 (with the answers in Decisions on review)
 
 ## Context
 
@@ -310,7 +311,12 @@ Anthony's answers on 2026-10-07. Where they differ from the decisions above, the
    file in this step.
 4. **Linux: the pacman package only.** The `.deb` is still built, as the input to the `PKGBUILD`,
    but it is not documented or named as an installer. Other formats come later.
-5. **Android key backup location:** not answered yet. Anthony makes the key in the build session.
+5. **Android key: option C of decision 2.** The release build is signed with the machine's existing
+   debug key (`~/.android/debug.keystore`), not a new key. No `keytool`, no `keystore.properties`,
+   no passwords. A separate release key waits until it is needed (a store, or building on several
+   machines). Anthony keeps a copy of `~/.android/debug.keystore`: if it is lost, the next update
+   means uninstalling. The dev builds use the same key, which is fine because their ID differs
+   (`.dev`).
 6. **The `unsafe` exception:** accepted.
 7. **Version numbering and the commit in Settings:** accepted.
 8. **The split** is for the build PRs (2.7a, 2.7b), as in the plan.

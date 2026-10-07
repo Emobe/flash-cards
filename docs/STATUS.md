@@ -8,16 +8,16 @@ Kept current by every session. A new session reads this first.
 
 Anthony checked Export, Restore from a file and the file picker in the web client (qutebrowser, Linux). Still not checked: the Settings screen in the real desktop app and on the phone (Back up now, the list, Restore, Export from the native webviews). See Open items.
 
-2.7 Dogfood builds: design session done. ADR 0012 is Proposed; Anthony answered its questions
-(recorded in its "Decisions on review": app ID `io.github.emobe.flashcards`, no data to move, Windows
-built by Anthony on Windows with no GitHub Actions, the pacman package only, the `unsafe` exception
-and the versioning accepted). Waiting for him to mark it Accepted. Still open: where the Android
-release key's backup goes. Plan in `docs/plans/2.7-dogfood-builds.md`. Nothing is built.
+2.7 Dogfood builds: design session done. **ADR 0012 Accepted** (2026-10-07), with the answers in its
+"Decisions on review": app ID `io.github.emobe.flashcards`, no data to move, Windows built by Anthony
+on Windows with no GitHub Actions, the pacman package only, release APKs signed with the existing
+debug key (no new key), the `unsafe` exception and the versioning. Plan in
+`docs/plans/2.7-dogfood-builds.md`. Nothing is built.
 
 The design session left a test app, `dev.placeholder.flashcards.relexp` ("Flash cards", empty), on
 the phone. Anthony removes it; sessions do not uninstall.
 
-Next: Anthony reviews ADR 0012; then `/step 2.7` (two PRs, 2.7a and 2.7b).
+Next: `/step 2.7` (two PRs, 2.7a and 2.7b).
 
 ## Branch
 
