@@ -8,7 +8,7 @@ Kept current by every session. A new session reads this first.
 
 Done: `fc-api` native methods `listBackups`, `backupNow`, `restoreListedBackup` (a safety backup first, names only, never paths); `Core::set_backup_dir`; the Backups section in Settings (interval, keep, last error, Back up now, list with Restore, export, restore and import from a file); `BackupPanel` deleted; `cargo xtask check` passes.
 
-Remaining: check on the desktop app (does Export download from the native webview?), check on the phone, ADR 0006 build notes, final report. Folder choosing is out (agreed): Export is how a copy leaves the device.
+Built, checked by tests only. Not checked: the screen in the real desktop app and on the phone, and whether Export saves a file from the native webviews (the main risk). Build notes: ADR 0006, step 2.6. Folder choosing is out (agreed): Export is how a copy leaves the device.
 
 ## Branch
 

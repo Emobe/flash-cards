@@ -1669,3 +1669,36 @@ to `fc-core`, no new dependency. All of it is in `crates/fc-cli`.
 - `template set` takes `--front` and `--back` options. The plan said "takes the front, back or both
   from a file" and did not say how.
 - The `notes` listing now shows the trash (not in the plan, needed to find IDs to restore).
+
+### Build notes, step 2.6 (Settings and local backups)
+
+Built to the plan approved in chat (2026-10-07). No ADR: it uses ADR 0006's backup format and the
+1.13b methods, and ADR 0010's Settings screen.
+
+- **API** (native only, `fc-api/src/backup.rs`): `listBackups` (name, created time from the manifest,
+  size, whether it can be restored), `backupNow` (ignores the interval, obeys `keep`, records a
+  failure as `last_error`) and `restoreListedBackup {name}`. It takes a name from the listing, never
+  a path, and makes a backup of the current state first (a backup made in the same second counts),
+  so a restore can be undone by restoring that one. `Core::set_backup_dir` (set by `apps/native`)
+  and `Collection::clock_reading` give the methods the folder and the clock.
+- **Settings screen:** `BackupsSection`. On native: interval (Never, daily, 3 days, weekly), how many
+  to keep, the last error, Back up now, the list with Restore and a confirmation. On every platform:
+  export (with or without history), restore from a file and import a file, each with a plain
+  explanation. `Platform.localBackups` tells the UI which. The file helpers moved from `apps/web` to
+  `packages/ui/src/backup/`, and the temporary `BackupPanel` is deleted.
+- **Verified:** 2 new `fc-api` tests (list, back up now, restore, undo by restoring the safety backup,
+  names that are not in the list, `keep`, a damaged file listed but refused); 7 Vitest tests for the
+  section; `cargo xtask check` passes (324 Vitest tests). Desktop debug app with a throwaway
+  `XDG_DATA_HOME`: starts and writes the start-up backup into `backups/`.
+- **Not verified:** the Settings screen in the real desktop app and on the phone; whether Export
+  (a blob download) saves a file in the Tauri webviews on desktop and Android, which is the main risk;
+  Restore and Back up now in a real app; the web build in a browser.
+- **Left for later:** choosing a backups folder (Android needs content URIs, so it needs its own ADR);
+  if Export does not save from the native webviews, a native save command; deleting a single backup;
+  listing the `before-update` copies.
+
+**Deviations from the plan:**
+
+- Desktop and phone checks of the screen were not done (see Not verified). The plan promised them.
+- `restoreListedBackup` keeps at least 2 backups when it makes its safety backup (not in the plan).
+- `clock_reading` is listed in the CLI coverage table as having no command (not in the plan).
