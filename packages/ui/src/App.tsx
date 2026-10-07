@@ -1,5 +1,6 @@
 import { CoreError } from "core-client";
 import { type FormEvent, useEffect, useState } from "react";
+import "./styles/spikes.css";
 import { CardSandboxSpike } from "./CardSandboxSpike";
 import { useCore } from "./core";
 import { SchedulingSpike } from "./SchedulingSpike";

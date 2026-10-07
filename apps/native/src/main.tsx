@@ -3,7 +3,6 @@ import { CoreClient } from "core-client";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App, CoreProvider, PlatformProvider } from "ui";
-import "./styles.css";
 import { createTauriTransport } from "./tauriTransport";
 
 const root = document.getElementById("root");

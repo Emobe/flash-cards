@@ -4,17 +4,19 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-2.1 App shell and design direction: design session done, ADR 0010 **Accepted** on 2026-10-07 (direction A Paper with the system serif stack, every recommendation as written). Nothing is built yet. Next: `/step 2.1` (Sonnet) from `master`, following `docs/plans/2.1-app-shell.md`. The preview `docs/plans/2.1-directions.html` records the choice.
+2.1 App shell and design direction: **build in progress** on `step/2.1-shell-build` (from `master`), following ADR 0010 (Accepted) and `docs/plans/2.1-app-shell.md`. Anthony approved the plan in chat ("go"). Commits in order: 1 tokens and base styles, 2 theme, 3 router, 4 AppShell, 5 screens, 6 Developer screen, 7 `fc-api` keeps the open error, 8 native system bars (`set_system_theme`, Kotlin plugin), 9 docs and build notes. If the PR heads past 1,600 lines, stop after 7 and propose moving 8 into 2.1b.
 
-Verified on the phone (a throwaway probe APK, screenshots only, previous APK reinstalled afterwards): `env(safe-area-inset-*)` gives the real insets in Tauri's WebView (Chrome 153); inline and file scripts both run under the Tauri CSP; a Kotlin class in the app module called from Rust changes the bar icons and is not callable from JavaScript. Computed: palette contrast. Read in source: Android back pops the WebView history.
+Done so far: commit 1 (tokens, base styles, spikes CSS, contrast test).
 
-Not verified: the keyboard (a screenshot with the field focused showed no keyboard), gesture navigation, landscape, the system font size (Anthony checks in the build), desktop theme behaviour, older WebViews.
+Remaining: everything above not yet in the log. Then the checks in the plan (desktop, web, phone screenshots), the ADR 0010 build notes with a "Deviations from the plan" list, and the PR report.
+
+Notes for deviations (plan vs build): the first plan reply is the approved plan. Known so far: `envPrefix` in `apps/native/vite.config.ts` was `"TAURI_ENV_*"` (matches nothing), fixed to `"TAURI_ENV_"` as the plan says.
 
 Previous step: 1.14b Developer CLI: the missing commands, merged (PR #31). Phase 1 is complete.
 
 ## Branch
 
-`step/2.1-app-shell` (design docs only), merged into `master`. The build gets a new branch.
+`step/2.1-shell-build` (the build). `step/2.1-app-shell` was the design docs only and is merged.
 
 ## Done
 

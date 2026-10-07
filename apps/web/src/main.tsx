@@ -2,7 +2,6 @@ import { CoreClient } from "core-client";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App, CoreProvider, PlatformProvider } from "ui";
-import "./styles.css";
 import { BackupPanel } from "./BackupPanel";
 import { SpikePanel } from "./SpikePanel";
 import { createWebTransport } from "./webTransport";

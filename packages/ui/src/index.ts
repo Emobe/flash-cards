@@ -1,3 +1,5 @@
+import "./styles";
+
 export { App } from "./App";
 export { CardFrame } from "./card/CardFrame";
 export { CoreProvider, useCore } from "./core";
