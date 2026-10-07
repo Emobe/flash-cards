@@ -222,3 +222,118 @@
 .deck-link:hover .deck-name {
   text-decoration: underline;
 }
+
+/* Managing decks (step 2.5a). */
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.page-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+.button-danger {
+  background: var(--danger);
+  color: var(--bg);
+  border-color: var(--danger);
+  font-weight: 600;
+}
+
+.button-danger-text {
+  color: var(--danger);
+}
+
+.deck-undo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+.deck-undo span {
+  flex: 1 1 12rem;
+}
+
+.deck-manage {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+  padding: var(--space-1) var(--space-2) var(--space-2) 0;
+}
+
+.deck-manage-name {
+  flex: 1 1 8rem;
+}
+
+.deck-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.dialog {
+  width: min(24rem, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-5);
+  background: var(--surface);
+  color: var(--text);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+.dialog h2 {
+  margin: 0 0 var(--space-3);
+  overflow-wrap: anywhere;
+}
+
+.dialog-form,
+.dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.dialog-field {
+  gap: var(--space-1);
+}
+
+.dialog-field input,
+.dialog-field select {
+  min-height: var(--target);
+  padding: 0 var(--space-3);
+  background: var(--bg);
+  border: var(--border-control);
+  border-radius: var(--radius);
+}
+
+.dialog-error {
+  color: var(--danger);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
