@@ -4,6 +4,7 @@ import "./styles/spikes.css";
 import { CardSandboxSpike } from "./CardSandboxSpike";
 import { useCore } from "./core";
 import { SchedulingSpike } from "./SchedulingSpike";
+import { ThemeProvider } from "./theme";
 
 /**
  * Placeholder root screen. Shared by every platform, so it must not import
@@ -11,15 +12,17 @@ import { SchedulingSpike } from "./SchedulingSpike";
  */
 export function App() {
   return (
-    <main className="app">
-      <h1>Flash cards</h1>
-      <p>Placeholder screen. Nothing to study yet.</p>
-      <CoreVersion />
-      <CollectionStatus />
-      <DivideForm />
-      <SchedulingSpike />
-      <CardSandboxSpike />
-    </main>
+    <ThemeProvider>
+      <main className="app">
+        <h1>Flash cards</h1>
+        <p>Placeholder screen. Nothing to study yet.</p>
+        <CoreVersion />
+        <CollectionStatus />
+        <DivideForm />
+        <SchedulingSpike />
+        <CardSandboxSpike />
+      </main>
+    </ThemeProvider>
   );
 }
 

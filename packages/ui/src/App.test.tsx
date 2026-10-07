@@ -34,7 +34,7 @@ function renderApp() {
   );
   render(
     <CoreProvider client={client}>
-      <PlatformProvider platform={{ cardFrameUrl: "about:blank" }}>
+      <PlatformProvider platform={{ cardFrameUrl: "about:blank", setSystemTheme: () => {} }}>
         <App />
       </PlatformProvider>
     </CoreProvider>,
