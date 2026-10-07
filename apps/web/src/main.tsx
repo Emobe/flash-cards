@@ -30,11 +30,14 @@ if (window.top === window) {
         <PlatformProvider
           platform={{ cardFrameUrl: "/card-frame.html", setSystemTheme: updateThemeColorMeta }}
         >
-          <App />
-          <div className="app">
-            <SpikePanel />
-            <BackupPanel />
-          </div>
+          <App
+            extraDeveloperTools={
+              <>
+                <SpikePanel />
+                <BackupPanel />
+              </>
+            }
+          />
         </PlatformProvider>
       </CoreProvider>
     </StrictMode>,

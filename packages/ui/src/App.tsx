@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import "./components/components.css";
+import { isDeveloperBuild } from "./developer";
 import { RouterProvider, useRouter } from "./router";
 import { CollectionProblem } from "./screens/CollectionProblem";
 import { DeveloperScreen } from "./screens/DeveloperScreen";
@@ -13,17 +14,17 @@ import { useCollectionState } from "./useCollectionState";
  * The root of the UI. Shared by every platform, so it must not import Tauri or any other platform
  * API (see docs/adr/0001-workspace-layout.md).
  */
-export function App() {
+export function App({ extraDeveloperTools }: { extraDeveloperTools?: ReactNode }) {
   return (
     <ThemeProvider>
       <RouterProvider>
-        <Screens />
+        <Screens extraDeveloperTools={extraDeveloperTools} />
       </RouterProvider>
     </ThemeProvider>
   );
 }
 
-function Screens() {
+function Screens({ extraDeveloperTools }: { extraDeveloperTools?: ReactNode }) {
   const collection = useCollectionState();
   const { route } = useRouter();
 
@@ -41,10 +42,14 @@ function Screens() {
       </AppShell>
     );
   }
-  return <AppShell>{screenFor(route)}</AppShell>;
+  return <AppShell>{screenFor(route, extraDeveloperTools)}</AppShell>;
 }
 
-function screenFor(route: ReturnType<typeof useRouter>["route"]): ReactNode {
+function screenFor(
+  route: ReturnType<typeof useRouter>["route"],
+  extraDeveloperTools: ReactNode,
+): ReactNode {
+  const developer = isDeveloperBuild();
   switch (route.name) {
     case "decks":
       return <DecksScreen />;
@@ -53,9 +58,14 @@ function screenFor(route: ReturnType<typeof useRouter>["route"]): ReactNode {
     case "browse":
       return <BrowseScreen />;
     case "settings":
-      return <SettingsScreen developerTools />;
+      return <SettingsScreen developerTools={developer} />;
     case "developer":
-      return <DeveloperScreen />;
+      // A release build has no such screen: the link is gone, and a typed URL lands on Settings.
+      return developer ? (
+        <DeveloperScreen extraTools={extraDeveloperTools} />
+      ) : (
+        <SettingsScreen developerTools={false} />
+      );
     case "study":
       return <StudyScreen deckId={route.deckId} />;
   }

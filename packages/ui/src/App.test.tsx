@@ -183,3 +183,43 @@ describe("collection problem screen", () => {
     expect(screen.queryByRole("navigation")).toBeNull();
   });
 });
+
+describe("release builds", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  test("no Developer tools link, and the screen is not there", async () => {
+    vi.stubEnv("DEV", false);
+    renderApp("/settings");
+    await screen.findByRole("heading", { level: 1, name: "Settings" });
+    expect(screen.queryByRole("link", { name: "Developer tools" })).toBeNull();
+    cleanup();
+    renderApp("/settings/developer");
+    expect(await screen.findByRole("heading", { level: 1, name: "Settings" })).toBeDefined();
+    expect(screen.queryByText("Core version 9.9.9")).toBeNull();
+  });
+
+  test("a Tauri debug build gets them through TAURI_ENV_DEBUG", async () => {
+    vi.stubEnv("DEV", false);
+    vi.stubEnv("TAURI_ENV_DEBUG", "true");
+    renderApp("/settings");
+    expect(await screen.findByRole("link", { name: "Developer tools" })).toBeDefined();
+  });
+
+  test("the app passes extra developer tools to the Developer screen", async () => {
+    window.history.replaceState(null, "", "/#/settings/developer");
+    const client = new CoreClient(
+      createFakeTransport({
+        getCoreInfo: () => ({ coreVersion: "9.9.9" }),
+        getCollectionInfo: () => collectionInfo,
+      }),
+    );
+    render(
+      <CoreProvider client={client}>
+        <PlatformProvider platform={{ cardFrameUrl: "about:blank", setSystemTheme: () => {} }}>
+          <App extraDeveloperTools={<p>web panel</p>} />
+        </PlatformProvider>
+      </CoreProvider>,
+    );
+    expect(await screen.findByText("web panel")).toBeDefined();
+  });
+});
