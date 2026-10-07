@@ -4,9 +4,11 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-2.1b System bars and title bar follow the theme: **in progress** on `step/2.1b-system-bars`. Done and committed: the fifth command `set_system_theme(token, dark, followSystem)` (`apps/native/src-tauri/src/appearance.rs`, `lib.rs`, capability and permission), the Kotlin `AppearancePlugin`, a mock-runtime test that the command rejects a bad token, `Platform.setSystemTheme(theme, followSystem)` and its wiring in `apps/native`. Remaining: build and check on the phone (override opposite to the system, then taps through the app), check the desktop title bar, ADR 0005 amendment line, ADR 0010 "Build notes (step 2.1b)" with the deviations list, PR. 2.3 must pass the effective theme into the card frame (ADR 0005 amendment).
+2.1b System bars and title bar follow the theme: **built, waiting for Anthony's review** on `step/2.1b-system-bars`. The fifth command `set_system_theme(token, dark, followSystem)`, the Kotlin `AppearancePlugin`, desktop `Window::set_theme`, `Platform.setSystemTheme(theme, followSystem)` wired in `apps/native`. Checked on the phone (override opposite to the system changes the bar icons, back through routes). Not verified: the desktop title bar (i3 draws it), Windows, gesture navigation, landscape, keyboard. Build notes, deviations and not verified: ADR 0010 "Build notes (step 2.1b)". 2.3 must pass the effective theme into the card frame (ADR 0005 amendment).
 
-Previous step: 2.1 App shell and design direction, merged (PR #33). Anthony still checks gesture navigation on the phone.
+Next: 2.2 Home and deck list.
+
+Previous step: 2.1 App shell and design direction, merged (PR #33).
 
 ## Branch
 
@@ -14,7 +16,8 @@ Previous step: 2.1 App shell and design direction, merged (PR #33). Anthony stil
 
 ## Done
 
-- 2.1 App shell and design direction (ADR 0010 build notes, step 2.1): tokens and Paper styles with a contrast test, theme (System, Light, Dark) with `theme-boot.js`, hash router, `AppShell` (bottom bar, rail, insets, keyboard inset, `BottomAction`, shortcuts), placeholder screens, Settings, collection problem screen, Developer screen in debug builds only, `Core` remembers the failed open. Not included: native bar and title bar theming (2.1b). Deviations: the list at the end of the ADR notes. PR open for review.
+- 2.1 App shell and design direction (ADR 0010 build notes, step 2.1): tokens and Paper styles with a contrast test, theme (System, Light, Dark) with `theme-boot.js`, hash router, `AppShell` (bottom bar, rail, insets, keyboard inset, `BottomAction`, shortcuts), placeholder screens, Settings, collection problem screen, Developer screen in debug builds only, `Core` remembers the failed open. Deviations: the list at the end of the ADR notes. Merged (PR #33).
+- 2.1b System bars and title bar follow the theme (ADR 0010 build notes, step 2.1b): `set_system_theme`, the `appearance` plugin and `AppearancePlugin.kt`, `Window::set_theme` on desktop, ADR 0005 amendment line. PR open for review.
 
 - 1.14b Developer CLI: the missing commands (ADR 0006 build notes, step 1.14b). `fc notetype | field | template | deck | preset` with verbs, `move-cards`, `edit-note`, `delete-note`, `restore-note`, `find-duplicates`, `set-tags`, `delete-tag`, `delete-media`, `restore-media`, `update-search`, `tagged`, `day-start-hour`, `backup-settings`, `device-id`, `rebuild-schedule`; `notes`, `decks` and `notetypes` list what can be restored. `crates/fc-cli/tests/coverage.rs` checks every public `Collection` operation against the commands. No core change, no new dependency. Deviations: the list at the end of the ADR notes (about 1,950 lines against the 1,500 limit in the plan). Merged (PR #31).
 

@@ -250,6 +250,11 @@ previews, and in the editor. No card HTML is ever inserted into the app's own DO
   Platform features (file pickers, share target, notifications) go through our own token-checked
   commands, or are called from Rust. This is a standing rule for every future step. Breaking it means
   any card can use that plugin on Android.
+
+  *(Amendment, step 2.1b: a fifth token-checked command, `set_system_theme(token, dark,
+  followSystem)`, makes the Android bar icons and the desktop title bar follow the app's theme
+  (ADR 0010). On Android it calls a local Kotlin plugin, `appearance`, from Rust. The plugin has no
+  JS permission and the capability grants only `allow-set-system-theme`, so the rule above holds.)*
 - **Media.** The parent gets media bytes from the core through `call`, which returns them as an
   attachment (Rust to JS is fast on both platforms, ADR 0002), and posts them as `Blob`s. Media for
   display in cards does **not** go by URL. This answers ADR 0002's open question, see the amendment
