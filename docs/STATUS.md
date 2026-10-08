@@ -21,6 +21,7 @@ the phone. Anthony removes it, and the old `dev.placeholder.flashcards` app; ses
 
 ## Done
 
+- `cargo xtask prune` (repo tooling, not a roadmap step; branch `tool/prune-target`): lists or deletes scratch folders, stale builds and old incremental caches in `target/`. Std only, no new dependency, 14 tests. Run once with `--days 0 --yes`, which took `target/` from 42 GB to about 14 GB. PR open.
 - 2.7b Release builds (ADR 0012 build notes, step 2.7b): Linux blank-window fix in `main.rs`, `dist:linux` (pacman package from the `.deb`), Android release build signed with the debug key and `dist:android`, `dist:android:install`, `dist:windows`, README "Dogfood builds". PR open.
 - 2.7a App identity (ADR 0012 build notes, step 2.7a): workspace version `0.1.0` (Gradle reads it for Android), About in Settings (version and build ID), app ID `io.github.emobe.flashcards`, `.dev` desktop and Android debug builds. Merged (PR #46).
 - 2.6 Settings and local backups (ADR 0006 build notes, step 2.6): `listBackups`, `backupNow`, `restoreListedBackup`, Backups section in Settings, `BackupPanel` deleted. Merged (PR #44).

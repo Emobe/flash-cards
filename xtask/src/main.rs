@@ -4,6 +4,7 @@
 //! Linux and Windows.
 
 mod doctor_android;
+mod prune;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
@@ -20,7 +21,10 @@ Tasks:
   wasm [--release]
           Build fc-wasm for the browser and generate its JS glue into apps/web/src/wasm
   doctor-android
-          Check the Android toolchain setup (SDK, NDK, JDK, Rust target, device)";
+          Check the Android toolchain setup (SDK, NDK, JDK, Rust target, device)
+  prune [--days N] [--yes]
+          List (dry run) or with --yes delete build output nobody needs: scratch folders, stale builds,
+          and incremental caches older than N days (default 7)";
 
 /// Lockfiles from package managers other than Bun. See "Tooling constraints"
 /// in docs/PRODUCT.md.
@@ -43,6 +47,7 @@ fn main() -> ExitCode {
         Some("bindings") => bindings(),
         Some("wasm") => wasm(&env::args().skip(2).collect::<Vec<_>>()),
         Some("doctor-android") => doctor_android::run(),
+        Some("prune") => prune::run(&env::args().skip(2).collect::<Vec<_>>()),
         _ => {
             eprintln!("{USAGE}");
             return ExitCode::FAILURE;

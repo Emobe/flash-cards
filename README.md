@@ -204,6 +204,7 @@ Run from the repository root.
 | `bun install` | Install JS dependencies |
 | `cargo xtask check` | Run every check (Rust fmt, clippy, tests, cargo-deny; Biome, TypeScript, Vitest). Must pass before a PR. |
 | `cargo xtask fmt` | Format all Rust and JS/TS code |
+| `cargo xtask prune [--days N] [--yes]` | List (dry run) or delete scratch folders, stale builds and incremental caches older than N days (default 7) in `target/` |
 | `cargo xtask bindings` | Regenerate the TypeScript bindings after changing an API type in `crates/fc-api` |
 | `cargo run -p fc-cli -- new <file>` | Create an empty collection with the developer CLI (`info <file>` opens it and prints facts; `help` lists commands) |
 | `bun run dev` | Launch the desktop app with hot reload (via `scripts/dev.ts`) |
