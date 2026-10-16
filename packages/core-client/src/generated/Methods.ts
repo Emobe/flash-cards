@@ -9,6 +9,7 @@ import type { AnswerCardOutput } from "./AnswerCardOutput";
 import type { BackupEntry } from "./BackupEntry";
 import type { BackupInfo } from "./BackupInfo";
 import type { BackupSettingsOutput } from "./BackupSettingsOutput";
+import type { CheckQueryInput } from "./CheckQueryInput";
 import type { CollectionInfo } from "./CollectionInfo";
 import type { CoreInfo } from "./CoreInfo";
 import type { CreateDeckInput } from "./CreateDeckInput";
@@ -34,6 +35,8 @@ import type { ListBackupsOutput } from "./ListBackupsOutput";
 import type { MoveDeckInput } from "./MoveDeckInput";
 import type { NameInput } from "./NameInput";
 import type { NewPreset } from "./NewPreset";
+import type { NewSavedSearch } from "./NewSavedSearch";
+import type { NewSavedSearchInput } from "./NewSavedSearchInput";
 import type { NextCardInput } from "./NextCardInput";
 import type { NoteTypeList } from "./NoteTypeList";
 import type { OptimiseInput } from "./OptimiseInput";
@@ -41,14 +44,19 @@ import type { OptimiseOutput } from "./OptimiseOutput";
 import type { PathInput } from "./PathInput";
 import type { PresetIdInput } from "./PresetIdInput";
 import type { PresetList } from "./PresetList";
+import type { QueryCheck } from "./QueryCheck";
 import type { RenameDeckInput } from "./RenameDeckInput";
 import type { RenamePresetInput } from "./RenamePresetInput";
 import type { RenderCardInput } from "./RenderCardInput";
 import type { RenderedCardOutput } from "./RenderedCardOutput";
 import type { RestoreOutput } from "./RestoreOutput";
 import type { SampleCardsOutput } from "./SampleCardsOutput";
+import type { SavedSearchIdInput } from "./SavedSearchIdInput";
+import type { SavedSearchList } from "./SavedSearchList";
 import type { ScheduleInput } from "./ScheduleInput";
 import type { ScheduleOutput } from "./ScheduleOutput";
+import type { SearchInput } from "./SearchInput";
+import type { SearchResults } from "./SearchResults";
 import type { SetBackupSettingsInput } from "./SetBackupSettingsInput";
 import type { SetDeckPresetInput } from "./SetDeckPresetInput";
 import type { SetPresetOptionsInput } from "./SetPresetOptionsInput";
@@ -59,6 +67,7 @@ import type { StartSessionOutput } from "./StartSessionOutput";
 import type { StudyNext } from "./StudyNext";
 import type { TagList } from "./TagList";
 import type { UndoAnswerOutput } from "./UndoAnswerOutput";
+import type { UpdateSavedSearchInput } from "./UpdateSavedSearchInput";
 
 export type Methods = {
   getCoreInfo: { input: null; output: CoreInfo; bytesIn: false; bytesOut: false };
@@ -122,6 +131,22 @@ export type Methods = {
     bytesIn: false;
     bytesOut: false;
   };
+  search: { input: SearchInput; output: SearchResults; bytesIn: false; bytesOut: false };
+  checkQuery: { input: CheckQueryInput; output: QueryCheck; bytesIn: false; bytesOut: false };
+  getSavedSearches: { input: null; output: SavedSearchList; bytesIn: false; bytesOut: false };
+  saveSearch: {
+    input: NewSavedSearchInput;
+    output: NewSavedSearch;
+    bytesIn: false;
+    bytesOut: false;
+  };
+  updateSavedSearch: {
+    input: UpdateSavedSearchInput;
+    output: null;
+    bytesIn: false;
+    bytesOut: false;
+  };
+  deleteSavedSearch: { input: SavedSearchIdInput; output: null; bytesIn: false; bytesOut: false };
   exportBackupToFile: {
     input: ExportToFileInput;
     output: ExportOutput;

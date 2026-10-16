@@ -118,25 +118,30 @@ fn term_sql(term: &Term, ctx: &Context<'_>, params: &mut Params) -> Result<Strin
             )
         }
         Term::Field { name, text } => field_sql(name, text, ctx, params)?,
-        Term::Deck { pattern, subdecks } => deck_sql(pattern, *subdecks, ctx, params),
-        Term::Tag(pattern) => {
+        Term::Deck {
+            pattern,
+            subdecks,
+            whole,
+        } => deck_sql(pattern, *subdecks, *whole, ctx, params),
+        Term::Tag { pattern, whole } => {
+            let function = if *whole { "fc_tag_is" } else { "fc_has" };
             let pattern = params.arg(pattern.clone());
             format!(
                 "EXISTS (SELECT 1 FROM note_tag t WHERE t.note = c.note AND t.present = '1' \
-                 AND fc_has(t.tag, {pattern}))"
+                 AND {function}(t.tag, {pattern}))"
             )
         }
-        Term::NoteType(pattern) => {
+        Term::NoteType { pattern, whole } => {
             let pattern = Pattern::new(pattern);
             let ids: Vec<Id> = ctx
                 .types
                 .iter()
-                .filter(|t| pattern.is_inside(&fold(&t.name)))
+                .filter(|t| name_matches(&pattern, &t.name, *whole))
                 .map(|t| t.id)
                 .collect();
             params.ids("n.note_type", &ids)
         }
-        Term::Card(text) => card_sql(text, ctx, params),
+        Term::Card { text, whole } => card_sql(text, *whole, ctx, params),
         Term::Is(is) => is_sql(*is, ctx, params),
         Term::Due(span) => due_sql(*span, ctx, params),
         Term::Added(span) => {
@@ -156,6 +161,16 @@ fn term_sql(term: &Term, ctx: &Context<'_>, params: &mut Params) -> Result<Strin
             format!("COALESCE({}, 0)", bounds_sql(column, *bounds, params))
         }
     })
+}
+
+/// A name against a pattern: the whole name, or any part of it.
+fn name_matches(pattern: &Pattern, name: &str, whole: bool) -> bool {
+    let name = fold(name);
+    if whole {
+        pattern.is_all_of(&name)
+    } else {
+        pattern.is_inside(&name)
+    }
 }
 
 /// `column` between two moments, as the SQL for "at or after the start of `lo`, before the end of
@@ -239,13 +254,20 @@ fn field_sql(
     ))
 }
 
-fn deck_sql(pattern: &str, subdecks: bool, ctx: &Context<'_>, params: &mut Params) -> String {
+fn deck_sql(
+    pattern: &str,
+    subdecks: bool,
+    whole: bool,
+    ctx: &Context<'_>,
+    params: &mut Params,
+) -> String {
     let Some(tree) = ctx.tree else {
         return "0".to_owned();
     };
     // `deckonly:Polish` means a deck called Polish and not what is inside it, so with no `::` in
-    // the pattern it looks at the deck's own name. `deck:` and a pattern with `::` look at the path.
-    let by_path = subdecks || pattern.contains(SEPARATOR);
+    // the pattern it looks at the deck's own name. `deck:`, `deckonly:=` and a pattern with `::`
+    // look at the path.
+    let by_path = subdecks || whole || pattern.contains(SEPARATOR);
     let pattern = Pattern::new(pattern);
     let mut wanted: Vec<Id> = Vec::new();
     let mut seen = HashSet::new();
@@ -255,7 +277,7 @@ fn deck_sql(pattern: &str, subdecks: bool, ctx: &Context<'_>, params: &mut Param
         } else {
             &row.display_name
         };
-        if !pattern.is_inside(&fold(name)) {
+        if !name_matches(&pattern, name, whole) {
             continue;
         }
         let rows = if subdecks {
@@ -279,9 +301,14 @@ fn deck_sql(pattern: &str, subdecks: bool, ctx: &Context<'_>, params: &mut Param
 }
 
 /// `card:3` is the third template (or cloze number 3), and anything else is part of a template name.
-fn card_sql(text: &str, ctx: &Context<'_>, params: &mut Params) -> String {
+/// `card:=3` is a template called "3".
+fn card_sql(text: &str, whole: bool, ctx: &Context<'_>, params: &mut Params) -> String {
     let pattern = Pattern::new(text);
-    let number: Option<usize> = text.parse().ok().filter(|n| *n >= 1);
+    let number: Option<usize> = if whole {
+        None
+    } else {
+        text.parse().ok().filter(|n| *n >= 1)
+    };
     let mut clauses = Vec::new();
     for note_type in ctx.types {
         let named: Vec<Id> = match number {
@@ -289,7 +316,7 @@ fn card_sql(text: &str, ctx: &Context<'_>, params: &mut Params) -> String {
             None => note_type
                 .templates
                 .iter()
-                .filter(|t| pattern.is_inside(&fold(&t.name)))
+                .filter(|t| name_matches(&pattern, &t.name, whole))
                 .map(|t| t.id)
                 .collect(),
         };

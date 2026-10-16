@@ -18,6 +18,9 @@ mod notice;
 mod presets;
 #[cfg(debug_assertions)]
 mod sample_cards;
+mod search;
+#[cfg(test)]
+mod search_tests;
 mod spike_scheduling;
 mod study;
 
@@ -171,6 +174,12 @@ methods! {
         backup::ImportBackup,
         backup::GetBackupSettings,
         backup::SetBackupSettings,
+        search::Search,
+        search::CheckQuery,
+        search::GetSavedSearches,
+        search::SaveSearch,
+        search::UpdateSavedSearch,
+        search::DeleteSavedSearch,
     ],
     native: [
         backup::files::ExportBackupToFile,

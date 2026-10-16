@@ -14,6 +14,9 @@
 //! | `deck:Polish`, `deckonly:Polish` | are in a deck with this in its path (and so in the decks inside it), or in a deck with this in its own name and not in what is inside it |
 //! | `tag:verbs` | are on a note with a tag with this in its name (`-tag:*` is untagged) |
 //! | `note:Basic`, `card:2`, `card:Reverse` | are of a note type with this in its name, the second template, or a template with this in its name |
+//! | `deck:="Polish::Verbs"`, `deckonly:="Polish::Verbs"` | are in the deck with exactly this path (and the decks inside it), or in that deck only |
+//! | `tag:="verbs"` | are on a note with the tag `verbs` or a tag inside it (`verbs::irregular`, not `adverbs`) |
+//! | `note:="Basic"`, `card:="Card 2"` | are of the note type called exactly this, or of a template called exactly this |
 //! | `is:new`, `is:learning`, `is:review`, `is:due`, `is:suspended`, `is:buried` | are in that state (`is:due` leaves out suspended and buried cards) |
 //! | `due:0`, `due:-3..0`, `due:..0` | are due on those days, counted from today (0) |
 //! | `added:7`, `added:2026-09-01..2026-09-30` | were added in the last 7 days, or on those dates |
@@ -33,6 +36,9 @@
 //!   match.
 //! - **Names** (decks, tags, note types, templates) match any part of the name the same way, so
 //!   `deck:Animals` finds `Polish::Animals`. Field names before a colon (`front:`) match whole.
+//!   An `=` before the name, not in quotes, matches the whole name (case and accents still
+//!   ignored, `*` still a wildcard): what a screen's filter buttons write (ADR 0013). In quotes,
+//!   `\"` is a quote, `\*` a star and `\\` a backslash.
 //! - **Days** are study days (the day-start hour applies) in the device's time zone now. A learning
 //!   card is "due" on the day its due time falls in.
 //! - **Added** is the time in the note's ID (UUIDv7), so a card made later by a new template has
@@ -243,6 +249,9 @@ pub struct SearchRow {
     pub deck: Id,
     /// The note's sort field as plain text.
     pub title: String,
+    /// The first field after the sort field (by position) that has text, else the first before it
+    /// that has, as plain text. Empty when no other field has any.
+    pub detail: String,
     pub state: CardState,
     /// Review cards: the study day it is due. Learning cards: the day is in `due_ms`.
     pub due_day: Option<i64>,

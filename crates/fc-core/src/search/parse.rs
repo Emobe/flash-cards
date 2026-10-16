@@ -9,6 +9,10 @@
 //! term    = text | name ":" value   (either may be "quoted"; \" is a quote, \* a star)
 //! ```
 //!
+//! Inside quotes `\\` is a backslash, so a quoted name may end with one. `deck:`, `deckonly:`,
+//! `tag:`, `note:` and `card:` take `=` before the name (not in quotes) to match the whole name:
+//! `deck:="Polish::Verbs"` is that deck and not "Irregular Verbs".
+//!
 //! An empty query is the empty `and`, which matches every card. `or`, `and` and `not` are words
 //! only when written bare: `"or"` in quotes searches for the text.
 
@@ -49,16 +53,27 @@ pub(super) enum Term {
         name: String,
         text: String,
     },
-    /// A deck by its path, with what is inside it unless `subdecks` is off.
+    /// A deck by its path, with what is inside it unless `subdecks` is off. `whole` (written
+    /// `deck:=`) matches the whole path, not a part of it.
     Deck {
         pattern: String,
         subdecks: bool,
+        whole: bool,
     },
     /// A tag, with the tags inside it.
-    Tag(String),
-    NoteType(String),
-    /// A card template, by name or by number.
-    Card(String),
+    Tag {
+        pattern: String,
+        whole: bool,
+    },
+    NoteType {
+        pattern: String,
+        whole: bool,
+    },
+    /// A card template, by name or by number. With `whole` it is always a name.
+    Card {
+        text: String,
+        whole: bool,
+    },
     Is(Is),
     Due(Span),
     Added(Span),
@@ -188,6 +203,8 @@ struct Word {
     value: String,
     /// Whether any part of the value was in quotes.
     quoted: bool,
+    /// Whether the value starts with an `=` that is not in quotes (the `=` is still in `value`).
+    whole: bool,
 }
 
 fn lex(query: &str) -> Result<Vec<Token>, SearchError> {
@@ -220,12 +237,19 @@ fn lex_word(chars: &[char], start: usize) -> Result<(Word, usize), SearchError> 
     let mut buffer = String::new();
     let mut key = None;
     let mut quoted = false;
+    let mut whole = false;
     let mut in_quote = false;
+    // Where the value starts, once there is a key.
+    let mut value_start = None;
     let mut i = start;
     while i < chars.len() {
         let c = chars[i];
         let escaped_quote = c == '\\' && chars.get(i + 1) == Some(&'"');
-        if escaped_quote {
+        if in_quote && c == '\\' && chars.get(i + 1) == Some(&'\\') {
+            // Kept as two, so `Pattern` reads one backslash and a quote after it still closes.
+            buffer.push_str("\\\\");
+            i += 2;
+        } else if escaped_quote {
             buffer.push('"');
             i += 2;
         } else if in_quote {
@@ -245,7 +269,11 @@ fn lex_word(chars: &[char], start: usize) -> Result<(Word, usize), SearchError> 
             key = Some(std::mem::take(&mut buffer));
             quoted = false;
             i += 1;
+            value_start = Some(i);
         } else {
+            if c == '=' && value_start == Some(i) {
+                whole = true;
+            }
             buffer.push(c);
             i += 1;
         }
@@ -262,6 +290,7 @@ fn lex_word(chars: &[char], start: usize) -> Result<(Word, usize), SearchError> 
             key,
             value: buffer,
             quoted,
+            whole,
         },
         i,
     ))
@@ -396,8 +425,14 @@ fn build_term(word: &Word) -> Result<Term, SearchError> {
              the text in quotes.",
         ));
     }
-    let value = word.value.as_str();
     let name = key.to_lowercase();
+    let whole =
+        word.whole && matches!(name.as_str(), "deck" | "deckonly" | "tag" | "note" | "card");
+    let value = if whole {
+        &word.value[1..]
+    } else {
+        word.value.as_str()
+    };
     let needs_value = |what: &str| {
         if value.is_empty() {
             Err(syntax(
@@ -414,19 +449,29 @@ fn build_term(word: &Word) -> Result<Term, SearchError> {
             Term::Deck {
                 pattern: value.to_owned(),
                 subdecks: name == "deck",
+                whole,
             }
         }
         "tag" => {
             needs_value("a tag")?;
-            Term::Tag(value.to_owned())
+            Term::Tag {
+                pattern: value.to_owned(),
+                whole,
+            }
         }
         "note" => {
             needs_value("a note type")?;
-            Term::NoteType(value.to_owned())
+            Term::NoteType {
+                pattern: value.to_owned(),
+                whole,
+            }
         }
         "card" => {
             needs_value("a template name or a number")?;
-            Term::Card(value.to_owned())
+            Term::Card {
+                text: value.to_owned(),
+                whole,
+            }
         }
         "is" => Term::Is(parse_is(value, at)?),
         "due" => Term::Due(parse_span(value, false, "due", at)?),

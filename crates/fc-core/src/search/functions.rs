@@ -3,6 +3,8 @@
 //!
 //! - `fc_contains(text, pattern)`: the field text (HTML) has the pattern inside it.
 //! - `fc_has(text, pattern)`: the name (a tag) has the pattern inside it.
+//! - `fc_tag_is(tag, pattern)`: the whole tag is the pattern, or the tag is inside one that is
+//!   (`verbs::irregular` for `verbs`, not `adverbs`).
 //! - `fc_fold(text)`: field text reduced for sorting.
 //! - `fc_id_ms(id)`: the time in an ID made by `Id::new_v7`, in Unix milliseconds.
 //! - `fc_random(id, seed)`: a number that depends only on the two, for a repeatable shuffle.
@@ -32,6 +34,13 @@ pub(crate) fn register(conn: &Connection) -> rusqlite::Result<()> {
         };
         Ok(named.borrow_mut().get(pattern).is_inside(&fold(text)))
     })?;
+    let whole = RefCell::new(PatternCache::default());
+    conn.create_scalar_function("fc_tag_is", 2, flags, move |ctx| {
+        let (Some(tag), Some(pattern)) = (text_arg(ctx, 0)?, text_arg(ctx, 1)?) else {
+            return Ok(false);
+        };
+        Ok(tag_is(whole.borrow_mut().get(pattern), &fold(tag)))
+    })?;
     conn.create_scalar_function("fc_fold", 1, flags, |ctx| {
         Ok(text_arg(ctx, 0)?.map(fold_html))
     })?;
@@ -49,6 +58,14 @@ pub(crate) fn register(conn: &Connection) -> rusqlite::Result<()> {
         Ok(shuffle_key(&bytes, seed as u64))
     })?;
     Ok(())
+}
+
+/// Whether the folded tag, or a tag it is inside (a part before a `::`), is the whole pattern.
+fn tag_is(pattern: &Pattern, tag: &str) -> bool {
+    pattern.is_all_of(tag)
+        || tag
+            .match_indices(crate::tag::SEPARATOR)
+            .any(|(at, _)| pattern.is_all_of(&tag[..at]))
 }
 
 /// The pattern of the last call, so reading it is done once per query and not once per row.
@@ -111,6 +128,23 @@ mod tests {
                 .query_row("SELECT fc_contains(NULL, 'a')", [], |r| r.get::<_, bool>(0))
                 .unwrap()
         );
+    }
+
+    #[test]
+    fn a_whole_tag_is_the_tag_and_what_is_inside_it() {
+        let conn = connection();
+        let is = |tag: &str, pattern: &str| -> bool {
+            conn.query_row("SELECT fc_tag_is(?1, ?2)", [tag, pattern], |r| r.get(0))
+                .unwrap()
+        };
+        assert!(is("verbs", "verbs"));
+        assert!(is("Verbs::Irregular", "verbs"));
+        assert!(is("verbs::irregular", "verbs::irregular"));
+        assert!(!is("adverbs", "verbs"));
+        assert!(!is("verbs", "verbs::irregular"));
+        assert!(!is("verbsy", "verbs"));
+        assert!(is("lang::polish::verbs", "lang::*"));
+        assert!(is("język", "jezyk"), "accents do not matter");
     }
 
     #[test]

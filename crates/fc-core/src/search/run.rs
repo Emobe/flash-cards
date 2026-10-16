@@ -1,7 +1,9 @@
 //! Running a search: the statement, the sort, and the rows of a page.
 
+use std::collections::HashMap;
+
+use rusqlite::params_from_iter;
 use rusqlite::types::Value;
-use rusqlite::{OptionalExtension, params_from_iter};
 
 use super::compile::{Context, Params, compile, uses_decks};
 use super::parse::parse;
@@ -94,9 +96,9 @@ impl Collection {
              FROM card c JOIN note n ON n.id = c.note
              LEFT JOIN card_schedule s ON s.card = c.id WHERE c.id = ?1",
         )?;
-        let mut title = self
+        let mut values = self
             .conn
-            .prepare("SELECT value FROM note_field_value WHERE note = ?1 AND field = ?2")?;
+            .prepare("SELECT field, value FROM note_field_value WHERE note = ?1")?;
         let today = self.today().map_err(storage)?;
         let mut rows = Vec::with_capacity(cards.len());
         for card in cards {
@@ -107,6 +109,7 @@ impl Collection {
                     note_type: row.get(1)?,
                     deck: card_deck(&row.get::<_, Vec<u8>>(2)?),
                     title: String::new(),
+                    detail: String::new(),
                     state: CardState::from_code(row.get(5)?).unwrap_or(CardState::New),
                     due_day: row.get(6)?,
                     due_ms: row.get(7)?,
@@ -114,15 +117,33 @@ impl Collection {
                     buried: row.get::<_, i64>(4)? >= today,
                 })
             })?;
-            let sort_field = types
-                .iter()
-                .find(|t| t.id == row.note_type)
-                .and_then(|t| t.sort_field);
-            if let Some(field) = sort_field {
-                let value: Option<String> = title
-                    .query_row(rusqlite::params![row.note, field], |r| r.get(0))
-                    .optional()?;
-                row.title = crate::html::readable(&value.unwrap_or_default());
+            if let Some(note_type) = types.iter().find(|t| t.id == row.note_type) {
+                let found: HashMap<Id, Option<String>> = values
+                    .query_map([row.note], |r| Ok((r.get(0)?, r.get(1)?)))?
+                    .collect::<Result<_, _>>()?;
+                let text = |field: Id| {
+                    crate::html::readable(
+                        found.get(&field).and_then(|v| v.as_deref()).unwrap_or(""),
+                    )
+                };
+                let fields: Vec<Id> = note_type.fields.iter().map(|f| f.id).collect();
+                let at = note_type
+                    .sort_field
+                    .and_then(|sort| fields.iter().position(|f| *f == sort));
+                if let Some(sort) = note_type.sort_field {
+                    row.title = text(sort);
+                }
+                // The fields after the sort field, then the ones before it.
+                let (before, after) = match at {
+                    Some(at) => (&fields[..at], &fields[at + 1..]),
+                    None => (&fields[..0], &fields[..]),
+                };
+                row.detail = after
+                    .iter()
+                    .chain(before)
+                    .map(|f| text(*f))
+                    .find(|t| !t.is_empty())
+                    .unwrap_or_default();
             }
             rows.push(row);
         }
