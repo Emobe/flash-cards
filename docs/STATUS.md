@@ -4,11 +4,13 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
+**3.1 Browser: search and filter, design session done, waiting for Anthony's review.** ADR 0013 (Proposed) and the build plan `docs/plans/3.1-browser.md` are on `step/3.1-browser`. Nothing is built, and nothing may be until ADR 0013 is Accepted. The ADR ends with eight questions. Main points: chips plus a plain search box, joined into one query text; a new `=` whole-name form (`deck:="Polish::Verbs"`), because today `deckonly:Verbs` also finds "Irregular Verbs" and `tag:verbs` finds `adverbs` (checked with the CLI); the search box and chips at the bottom on the phone; three PRs (3.1a core and API, 3.1b screen, 3.1c saved searches).
+
 2.6 Settings and local backups is **done and merged (PR #44)**; 2.5 Deck management is done (PR #42, #43). Build notes: ADR 0006, step 2.6. Folder choosing is out (agreed): Export is how a copy leaves the device.
 
 Anthony checked Export, Restore from a file and the file picker in the web client (qutebrowser, Linux). Still not checked: the Settings screen in the real desktop app and on the phone (Back up now, the list, Restore, Export from the native webviews). See Open items.
 
-2.7 Dogfood builds is **built** (ADR 0012, Accepted 2026-10-07; plan in `docs/plans/2.7-dogfood-builds.md`). 2.7a (app identity) is merged (PR #46). **2.7b (release builds)** is built on `step/2.7b-release-builds`; its PR is open for review. Build notes: ADR 0012, step 2.7b.
+2.7 Dogfood builds is **built** (ADR 0012, Accepted 2026-10-07; plan in `docs/plans/2.7-dogfood-builds.md`). 2.7a (app identity) is merged (PR #46). **2.7b (release builds)** is merged (PR #47). Build notes: ADR 0012, step 2.7b.
 Anthony still has to: install the pacman package (`bun run dist:linux`, then `sudo pacman -U release/…`) and check the menu entry and a card with sound; build and try the installer on his Windows machine (`bun run dist:windows`); keep a copy of `~/.android/debug.keystore`. Phase 2 is then complete (exit criteria in `docs/phases/02-study-loop.md`).
 Anthony said (2026-10-07, in chat) that Claude Code may tap and do gestures on the phone; unlocking is not covered, and `CLAUDE.md` still says "never touch" (listed as a deviation).
 
@@ -17,11 +19,13 @@ the phone. Anthony removes it, and the old `dev.placeholder.flashcards` app; ses
 
 ## Branch
 
-`step/2.7b-release-builds` (from `master` after PR #46).
+`step/3.1-browser` (from `master` after PR #47). `tool/prune-target` (the `cargo xtask prune` PR) is separate and still open; its STATUS line is on that branch.
 
 ## Done
 
-- 2.7b Release builds (ADR 0012 build notes, step 2.7b): Linux blank-window fix in `main.rs`, `dist:linux` (pacman package from the `.deb`), Android release build signed with the debug key and `dist:android`, `dist:android:install`, `dist:windows`, README "Dogfood builds". PR open.
+- 3.1 design session: ADR 0013 (Proposed) and `docs/plans/3.1-browser.md`. Verified with the repo's `fc` CLI on a scratch collection: today's `deck:`, `deckonly:` and `tag:` match any part of a name, so chips need a whole-name form. Looked up: bottom-placed search on Android (Chrome 135), filter chip guidance. Not verified: search speed on the phone and in wasm, typing in a `Dialog` with the phone's keyboard open. No code, no dependency.
+
+- 2.7b Release builds (ADR 0012 build notes, step 2.7b): Linux blank-window fix in `main.rs`, `dist:linux` (pacman package from the `.deb`), Android release build signed with the debug key and `dist:android`, `dist:android:install`, `dist:windows`, README "Dogfood builds". Merged (PR #47).
 - 2.7a App identity (ADR 0012 build notes, step 2.7a): workspace version `0.1.0` (Gradle reads it for Android), About in Settings (version and build ID), app ID `io.github.emobe.flashcards`, `.dev` desktop and Android debug builds. Merged (PR #46).
 - 2.6 Settings and local backups (ADR 0006 build notes, step 2.6): `listBackups`, `backupNow`, `restoreListedBackup`, Backups section in Settings, `BackupPanel` deleted. Merged (PR #44).
 - 2.5b Option presets (ADR 0010 build notes, step 2.5b): preset methods in `fc-api`, `OptionsScreen`. Merged (PR #43).
