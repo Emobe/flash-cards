@@ -4,6 +4,8 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
+**No phone checks until Anthony says so (from 2026-10-16).** Anthony is away for a few days and cannot check the phone app. Sessions test on his PC only (desktop app and web client) and do not build for, install on or use the phone. Phone behaviour is assumed to work for now, so it does not block a step. Every skipped phone check still goes under "Not verified" in the build notes and in the list below, for Anthony to run when he is back. Phone checks waiting: (none yet).
+
 **3.1 Browser: search and filter, design session done, waiting for Anthony's review.** ADR 0013 (Proposed) and the build plan `docs/plans/3.1-browser.md` are on `step/3.1-browser`. Nothing is built, and nothing may be until ADR 0013 is Accepted. The ADR ends with eight questions. Main points: chips plus a plain search box, joined into one query text; a new `=` whole-name form (`deck:="Polish::Verbs"`), because today `deckonly:Verbs` also finds "Irregular Verbs" and `tag:verbs` finds `adverbs` (checked with the CLI); the search box and chips at the bottom on the phone; three PRs (3.1a core and API, 3.1b screen, 3.1c saved searches).
 
 2.6 Settings and local backups is **done and merged (PR #44)**; 2.5 Deck management is done (PR #42, #43). Build notes: ADR 0006, step 2.6. Folder choosing is out (agreed): Export is how a copy leaves the device.
