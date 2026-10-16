@@ -401,3 +401,73 @@ proposed:
 6. Rows do nothing when tapped in 3.1; 3.2 opens the editor from them.
 7. The last search is remembered per device.
 8. Three PRs: 3.1a, 3.1b, 3.1c.
+
+## Build notes (step 3.1a, core and API)
+
+Branch `step/3.1a-search-api`. No migration, no sync format change, no new dependency.
+
+- **Grammar (`search/parse.rs`).** The lexed word records whether its value starts with an `=`
+  that is not in quotes. For `deck:`, `deckonly:`, `tag:`, `note:` and `card:` the `=` is taken off
+  and the term gets `whole: true`; every other key keeps it (`front:=x` is the text `=x`,
+  `difficulty:=5` is still a number). An `=` with no name after it is the usual "needs a deck after
+  the colon" error. Inside quotes `\\` is kept as a pair, so `Pattern` reads one backslash and the
+  quote after it closes the string: a name ending in `\` can be written as a chip writes it.
+- **Matching (`search/compile.rs`, `functions.rs`).** Decks with `=` match the whole path
+  (`deckonly:=` too, without the decks inside), note types and templates the whole name. Tags use a
+  new SQL function `fc_tag_is(tag, pattern)`: the whole folded tag, or any part of it before a `::`,
+  is the pattern. Case, accents and `*` work as before.
+- **`SearchRow::detail` (`search/run.rs`).** The first field after the sort field (by position)
+  whose readable text is not empty, else the first such field before it, from the start. Title and
+  detail come from one statement that reads all of the note's values.
+- **`fc-api` (`crates/fc-api/src/search.rs`).** `search`, `checkQuery`, `getSavedSearches`,
+  `saveSearch`, `updateSavedSearch`, `deleteSavedSearch`. The row's `state` reuses
+  `StudyCardState`. `due` is `{kind: "day", days}` from today for review cards and
+  `{kind: "time", minutes}` from now, rounded up (negative when overdue), for learning and
+  relearning cards. `checkQuery`'s message is the core's sentence without "(at character N)"; the
+  position is in characters. `search`'s error keeps the full sentence. `checkQuery` does not need a
+  collection, and an unknown field name only shows when the search runs.
+- **Tests.** 7 more core search tests and 1 more SQL function test: finding 1's collection with
+  every `=` form, `=` only when unquoted and first, an empty `=`, a deck called `a"b*c\` and a tag
+  `x\`, `-deck:=`, `detail` for Basic, an empty field, Cloze, a sound, a picture and a sort field
+  that is last. 8 `fc-api` tests through `dispatch`: every sort both ways in both modes, paging and
+  `limit` 0, syntax and unknown-field errors, `checkQuery` positions, due in minutes (an hour, 30
+  rounded up, 10 overdue) and in days (3 ahead, 2 overdue), saved searches end to end, no
+  collection open. The 300 random boolean queries test still passes.
+- **CLI.** No new command. `tests/coverage.rs` needs no row (it lists `Collection` operations, and
+  none was added). `fc search` on a scratch collection with finding 1's decks and tags:
+  `deck:=Verbs` and `deckonly:=Verbs` find Verbs only, `deck:="Polish::Verbs"` that deck,
+  `deck:=Polish` Polish and Polish::Verbs, `deckonly:=Polish` Polish, `tag:=verbs` `verbs` and
+  `verbs::irregular` but not `adverbs`, and `deck:"=Verbs"` nothing.
+- **For 3.1b.** `html::readable` leaves `[sound:name]` as written, so the row shows ♪ for that text.
+  A picture leaves no text at all (an `<img>` is a tag), so a field with only a picture is skipped
+  for `detail` and never reaches the screen: there is nothing to turn into 🖼 unless the core keeps
+  a marker for it.
+
+### Verified
+
+- `cargo xtask check` passes (Rust tests, clippy, the wasm build, bindings, `tsc`, Vitest).
+- `fc search` with the `=` forms on a scratch collection, as above.
+
+### Not verified
+
+- The phone: no build was installed (Anthony is away, STATUS). 3.1a has no UI; the phone runs it with
+  the next debug APK.
+- The web client and the desktop app: nothing calls the new methods until 3.1b.
+- Search speed with `fc_tag_is` was not measured (it checks every `::` prefix of a tag on each row).
+- Windows, Firefox, Safari.
+
+### Deviations from the plan
+
+- `card:=2` is a template called "2", not the second template. The plan did not say; with `=` the
+  value is always a name.
+- Title and detail are read with one statement over all of the note's values instead of one
+  statement per field (proposed in the chat plan, approved with it).
+- `seed` in `search` is a `u32`, since ADR 0002 allows no 64-bit numbers in API types (in the chat
+  plan).
+- Two input types were named `NewSavedSearchInput` and `SavedSearchIdInput` (not `SaveSearchInput`
+  and `DeleteSavedSearchInput`): the binding test compares files in generated import order, and
+  Biome sorts imports ignoring case, which put those two names elsewhere and failed the check.
+- The grammar and `detail` went in one commit, not two.
+- The "learning card due in an hour" test sets the Default preset's learning steps to 60 minutes
+  through `setPresetOptions`; the review-card days are checked by moving the clock around the
+  card's due day rather than making a card due in exactly 3 days.

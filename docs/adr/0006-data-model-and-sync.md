@@ -1094,7 +1094,11 @@ dependency feature (`rusqlite` `functions`, see below), no new crate.
     review: `deck:Animals` finds `Polish::Animals`, `tag:lan` finds `lang::polish`), ignoring case and
     accents, `*` as a wildcard. `deck:` looks at the whole path. `deckonly:` looks at the deck's own
     name when the text has no `::`, so `deckonly:Polish` is the deck called Polish and not
-    `Polish::Animals`. There is no way to ask for a whole-name match. Field names before a colon
+    `Polish::Animals`. There is no way to ask for a whole-name match (**changed by ADR 0013, step
+    3.1a:** `=` before the name, not in quotes, matches the whole name: `deck:="Polish::Verbs"`
+    and the decks inside it, `deckonly:="Polish::Verbs"` that deck only, `tag:="verbs"` and the tags
+    inside it but not `adverbs`, `note:="Basic"`, `card:="Card 2"`, which with `=` is always a
+    name; inside quotes `\\` is a backslash). Field names before a colon
     (`front:`) still match whole. Untagged notes are `-tag:*`.
   - A card with no deck register is in the Default deck, as everywhere else.
   - `is:learning` includes relearning. `is:due` is a review card whose due day is today or earlier, or

@@ -8,9 +8,7 @@ Kept current by every session. A new session reads this first.
 
 - **3.1a search on the phone** (next debug APK): the app starts and opens the real collection as before (3.1a changed the search grammar, not storage). No UI to try yet; search speed through the Browse screen is timed in 3.1b.
 
-**3.1a in progress** on `step/3.1a-search-api`. Done: core `=` whole-name form (`deck:=`, `deckonly:=`, `tag:=` with the new `fc_tag_is`, `note:=`, `card:=`, which with `=` is always a name), `\\` kept as a pair inside quotes, `SearchRow::detail`, tests, module doc; `fc-api` `search`, `checkQuery`, `getSavedSearches`, `saveSearch`, `updateSavedSearch`, `deleteSavedSearch` with bindings and tests (`crates/fc-api/src/search.rs`, `search_tests.rs`). Left: `fc search` check with `=` on a scratch collection, ADR 0006 1.9 notes row, ADR 0013 build notes, PR.
-
-**3.1 Browser: search and filter, ready to build.** ADR 0013 is **Accepted** (2026-10-16, every question answered as proposed; see "Decisions on review") and the build plan `docs/plans/3.1-browser.md` is merged. Next: `/step 3.1a` (core and API), then 3.1b (screen), then 3.1c (saved searches). Main points: chips plus a plain search box, joined into one query text; a new `=` whole-name form (`deck:="Polish::Verbs"`), because today `deckonly:Verbs` also finds "Irregular Verbs" and `tag:verbs` finds `adverbs` (checked with the CLI); the search box and chips at the bottom on the phone; three PRs (3.1a core and API, 3.1b screen, 3.1c saved searches).
+**3.1a Browser core and API is done** (PR open from `step/3.1a-search-api`; build notes: ADR 0013, step 3.1a). **Next: `/step 3.1b`** (the Browse screen), then 3.1c (saved searches), each on a new branch from `master` once 3.1a is merged. Plan: `docs/plans/3.1-browser.md`. For 3.1b: a field with only a picture leaves no text, so `detail` skips it and there is no 🖼 to show (ADR 0013 build notes).
 
 2.6 Settings and local backups is **done and merged (PR #44)**; 2.5 Deck management is done (PR #42, #43). Build notes: ADR 0006, step 2.6. Folder choosing is out (agreed): Export is how a copy leaves the device.
 
@@ -25,9 +23,11 @@ the phone. Anthony removes it, and the old `dev.placeholder.flashcards` app; ses
 
 ## Branch
 
-`step/3.1-browser` (the design session) is merged as PR #48. 3.1a starts a new branch from `master`. `tool/prune-target` (the `cargo xtask prune` PR) is separate and still open; its STATUS line is on that branch.
+`step/3.1a-search-api`: 3.1a, PR open. `step/3.1-browser` (the design session) is merged as PR #48. `tool/prune-target` (the `cargo xtask prune` PR) is separate and still open; its STATUS line is on that branch.
 
 ## Done
+
+- 3.1a Browser core and API (ADR 0013 build notes, step 3.1a): `=` whole-name form for `deck:`, `deckonly:`, `tag:` (`fc_tag_is`), `note:` and `card:`; `\\` inside quotes; `SearchRow::detail`; `fc-api` `search`, `checkQuery`, `getSavedSearches`, `saveSearch`, `updateSavedSearch`, `deleteSavedSearch` and bindings. No migration, no dependency. Not verified: the phone (next APK), speed of `fc_tag_is`.
 
 - 3.1 design session: ADR 0013 (Accepted 2026-10-16) and `docs/plans/3.1-browser.md`. Verified with the repo's `fc` CLI on a scratch collection: today's `deck:`, `deckonly:` and `tag:` match any part of a name, so chips need a whole-name form. Looked up: bottom-placed search on Android (Chrome 135), filter chip guidance. Not verified: search speed on the phone and in wasm, typing in a `Dialog` with the phone's keyboard open. No code, no dependency.
 
