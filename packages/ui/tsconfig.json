@@ -6,7 +6,7 @@
     "types": [],
     "tsBuildInfoFile": "../../node_modules/.tsbuild/ui.tsbuildinfo"
   },
-  "include": ["src"],
+  "include": ["src", "src/**/*.json"],
   "references": [
     {
       "path": "../core-client"
