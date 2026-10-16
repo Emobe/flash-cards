@@ -212,7 +212,8 @@ fn quotes_make_keywords_and_spaces_into_text() {
         tree("deck:\"My Deck\""),
         Node::Term(Term::Deck {
             pattern: "My Deck".to_owned(),
-            subdecks: true
+            subdecks: true,
+            whole: false
         })
     );
 }
@@ -503,6 +504,240 @@ fn note_types_and_templates() {
         "quoted: it is text"
     );
     assert_eq!(titles(&f.c, "card:\"Card 2\"").len(), 1);
+}
+
+/// The collection of ADR 0013 finding 1: decks Polish, Polish::Verbs, Irregular Verbs and Verbs,
+/// one card in each named after its deck, and tags verbs, verbs::irregular and adverbs.
+fn whole_names() -> Collection {
+    let (c, clock) = setup();
+    let polish = c.create_deck("Polish", None).unwrap();
+    let polish_verbs = c.create_deck("Verbs", Some(polish)).unwrap();
+    let irregular = c.create_deck("Irregular Verbs", None).unwrap();
+    let verbs = c.create_deck("Verbs", None).unwrap();
+    let p = basic(&c, &clock, polish, "polish", "");
+    let pv = basic(&c, &clock, polish_verbs, "polish verbs", "");
+    let iv = basic(&c, &clock, irregular, "irregular verbs", "");
+    basic(&c, &clock, verbs, "verbs", "");
+    c.add_tags(&[p.0], &["verbs"]).unwrap();
+    c.add_tags(&[pv.0], &["verbs::irregular"]).unwrap();
+    c.add_tags(&[iv.0], &["adverbs"]).unwrap();
+    let f = fields(&c, builtin::basic_and_reversed());
+    c.add_note_to_deck(
+        default_deck(),
+        builtin::basic_and_reversed(),
+        &[(f[0], "reversed"), (f[1], "")],
+    )
+    .unwrap();
+    c
+}
+
+#[test]
+fn an_equals_sign_matches_the_whole_deck_path() {
+    let c = whole_names();
+    assert_eq!(
+        titles(&c, "deck:Verbs"),
+        ["irregular verbs", "polish verbs", "verbs"],
+        "any part, as before"
+    );
+    assert_eq!(titles(&c, "deck:=Verbs"), ["verbs"]);
+    assert_eq!(titles(&c, "deck:=\"Polish::Verbs\""), ["polish verbs"]);
+    assert_eq!(
+        titles(&c, "deck:=Polish"),
+        ["polish", "polish verbs"],
+        "with the decks inside it"
+    );
+    assert_eq!(titles(&c, "deckonly:=Polish"), ["polish"]);
+    assert_eq!(titles(&c, "deckonly:=\"Polish::Verbs\""), ["polish verbs"]);
+    assert_eq!(
+        titles(&c, "deckonly:=Verbs"),
+        ["verbs"],
+        "the path, so not Polish::Verbs"
+    );
+    assert_eq!(titles(&c, "deck:=\"irregular verbs\""), ["irregular verbs"]);
+    assert_eq!(
+        titles(&c, "deck:=POLISH::verbs"),
+        ["polish verbs"],
+        "case is ignored"
+    );
+    assert_eq!(titles(&c, "deck:=Pol*"), ["polish", "polish verbs"]);
+    assert_eq!(
+        titles(&c, "deck:=*Verbs"),
+        ["irregular verbs", "polish verbs", "verbs"]
+    );
+    assert!(titles(&c, "deck:=Verb").is_empty());
+    assert_eq!(
+        titles(&c, "-deck:=\"Polish\""),
+        ["irregular verbs", "reversed", "verbs"]
+    );
+}
+
+#[test]
+fn an_equals_sign_matches_the_whole_tag_and_the_tags_inside_it() {
+    let c = whole_names();
+    assert_eq!(
+        titles(&c, "tag:verbs"),
+        ["irregular verbs", "polish", "polish verbs"],
+        "adverbs too, as before"
+    );
+    assert_eq!(titles(&c, "tag:=verbs"), ["polish", "polish verbs"]);
+    assert_eq!(titles(&c, "tag:=\"verbs::irregular\""), ["polish verbs"]);
+    assert_eq!(titles(&c, "tag:=VERBS"), ["polish", "polish verbs"]);
+    assert_eq!(
+        titles(&c, "tag:=*verbs"),
+        ["irregular verbs", "polish", "polish verbs"]
+    );
+    assert!(titles(&c, "tag:=irregular").is_empty());
+    assert_eq!(titles(&c, "-tag:=verbs").len(), 3);
+}
+
+#[test]
+fn an_equals_sign_matches_the_whole_note_type_and_template_name() {
+    let f = fixture();
+    assert_eq!(titles(&f.c, "note:=Basic").len(), 5);
+    assert_eq!(titles(&f.c, "note:=\"Basic and reversed\"").len(), 2);
+    assert_eq!(titles(&f.c, "note:=basic*").len(), 7);
+    assert!(titles(&f.c, "note:=reversed").is_empty());
+    assert_eq!(titles(&f.c, "card:=\"Card 2\"").len(), 1);
+    assert!(titles(&f.c, "card:=Card").is_empty());
+    assert!(
+        titles(&f.c, "card:=2").is_empty(),
+        "with = it is a name, not a number"
+    );
+}
+
+#[test]
+fn an_equals_sign_counts_only_unquoted_and_first() {
+    let (c, clock) = setup();
+    let x = c.create_deck("=x", None).unwrap();
+    let ax = c.create_deck("a=x", None).unwrap();
+    basic(&c, &clock, x, "=x", "");
+    basic(&c, &clock, ax, "a=x", "");
+    assert_eq!(
+        titles(&c, "deck:\"=x\""),
+        ["=x", "a=x"],
+        "in quotes it is text"
+    );
+    assert_eq!(titles(&c, "deck:=\"=x\""), ["=x"]);
+    assert!(titles(&c, "deck:=x").is_empty(), "no deck called x");
+    assert_eq!(titles(&c, "deck:a=x"), ["a=x"]);
+    assert_eq!(
+        tree("front:=x"),
+        Node::Term(Term::Field {
+            name: "front".to_owned(),
+            text: "=x".to_owned()
+        }),
+        "fields keep the sign"
+    );
+    assert_eq!(tree("difficulty:=5"), tree("difficulty:5"));
+}
+
+#[test]
+fn an_equals_sign_with_no_name_is_a_mistake() {
+    for query in [
+        "deck:=",
+        "deckonly:=",
+        "tag:=",
+        "note:=",
+        "card:=",
+        "deck:=\"\"",
+    ] {
+        let message = parse(query).unwrap_err().to_string();
+        assert!(message.contains("needs"), "{query}: {message}");
+    }
+    assert_eq!(error_position("a deck:="), 2);
+}
+
+#[test]
+fn a_quoted_name_may_hold_quotes_stars_and_a_trailing_backslash() {
+    let (c, clock) = setup();
+    let odd = c.create_deck("a\"b*c\\", None).unwrap();
+    let plain = c.create_deck("abxc", None).unwrap();
+    basic(&c, &clock, odd, "odd", "");
+    basic(&c, &clock, plain, "plain", "");
+    // How a chip writes it: `"` and `\` escaped, `*` escaped so it is not a wildcard.
+    assert_eq!(titles(&c, r#"deck:="a\"b\*c\\""#), ["odd"]);
+    assert_eq!(titles(&c, r#"deck:"a\"b\*c\\""#), ["odd"]);
+    assert_eq!(
+        titles(&c, r#"deck:="a\"b*c\\""#),
+        ["odd"],
+        "an unescaped star is a wildcard"
+    );
+    assert!(titles(&c, r#"deck:="ab\*c""#).is_empty());
+    assert_eq!(
+        tree(r#""a\\""#),
+        text("a\\\\"),
+        "the pair reaches the pattern"
+    );
+    assert_eq!(
+        tree(r#""a\\" b"#),
+        Node::And(vec![text("a\\\\"), text("b")])
+    );
+    c.add_tags(&[basic(&c, &clock, plain, "tagged", "").0], &["x\\"])
+        .unwrap();
+    assert_eq!(titles(&c, r#"tag:="x\\""#), ["tagged"]);
+}
+
+#[test]
+fn detail_is_the_next_field_with_text() {
+    let (c, clock) = setup();
+    let detail = |query: &str| -> String {
+        c.search(query, &SearchOptions::default()).unwrap().rows[0]
+            .detail
+            .clone()
+    };
+    basic(
+        &c,
+        &clock,
+        default_deck(),
+        "kot",
+        "<b>cat</b>&nbsp;(animal)",
+    );
+    basic(&c, &clock, default_deck(), "empty", "");
+    basic(
+        &c,
+        &clock,
+        default_deck(),
+        "sound",
+        "[sound:kot-0123456789abcdef.mp3]",
+    );
+    basic(
+        &c,
+        &clock,
+        default_deck(),
+        "picture",
+        "<img src=\"kot-0123456789abcdef.png\">",
+    );
+    assert_eq!(detail("front:kot"), "cat (animal)");
+    assert_eq!(detail("front:empty"), "");
+    assert_eq!(
+        detail("front:sound"),
+        "[sound:kot-0123456789abcdef.mp3]",
+        "the screen shows a note for this"
+    );
+    assert_eq!(detail("front:picture"), "", "a picture leaves no text");
+    let f = fields(&c, builtin::cloze());
+    c.add_note_to_deck(
+        default_deck(),
+        builtin::cloze(),
+        &[(f[0], "The {{c1::cat}} sat"), (f[1], "an extra")],
+    )
+    .unwrap();
+    assert_eq!(detail("extra"), "an extra");
+    // With the sort field moved to the last field, the detail is the first field before it.
+    let three = c
+        .create_note_type("Three", crate::notetype::Kind::Standard)
+        .unwrap();
+    let third = c.add_field(three, "Third").unwrap();
+    let f = fields(&c, three);
+    c.set_sort_field(three, third).unwrap();
+    c.add_note_to_deck(
+        default_deck(),
+        three,
+        &[(f[0], "first"), (f[1], "second"), (f[2], "last")],
+    )
+    .unwrap();
+    let row = &c.search("last", &SearchOptions::default()).unwrap().rows[0];
+    assert_eq!((row.title.as_str(), row.detail.as_str()), ("last", "first"));
 }
 
 // ---- States ----

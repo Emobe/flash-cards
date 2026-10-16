@@ -4,7 +4,11 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-**No phone checks until Anthony says so (from 2026-10-16).** Anthony is away for a few days and cannot check the phone app. Sessions test on his PC only (desktop app and web client) and do not build for, install on or use the phone. Phone behaviour is assumed to work for now, so it does not block a step. Every skipped phone check still goes under "Not verified" in the build notes and in the list below, for Anthony to run when he is back. Phone checks waiting: (none yet).
+**No phone checks until Anthony says so (from 2026-10-16).** Anthony is away for a few days and cannot check the phone app. Sessions test on his PC only (desktop app and web client) and do not build for, install on or use the phone. Phone behaviour is assumed to work for now, so it does not block a step. Every skipped phone check still goes under "Not verified" in the build notes and in the list below, for Anthony to run when he is back. Phone checks waiting (each added as it comes up):
+
+- **3.1a search on the phone** (next debug APK): the app starts and opens the real collection as before (3.1a changed the search grammar, not storage). No UI to try yet; search speed through the Browse screen is timed in 3.1b.
+
+**3.1a in progress** on `step/3.1a-search-api`. Done: core `=` whole-name form (`deck:=`, `deckonly:=`, `tag:=` with the new `fc_tag_is`, `note:=`, `card:=`, which with `=` is always a name), `\\` kept as a pair inside quotes, `SearchRow::detail`, tests, module doc. Left: `fc-api` search methods and bindings and their tests, `fc search` check with `=` on a scratch collection, ADR 0006 1.9 notes row, ADR 0013 build notes, PR.
 
 **3.1 Browser: search and filter, ready to build.** ADR 0013 is **Accepted** (2026-10-16, every question answered as proposed; see "Decisions on review") and the build plan `docs/plans/3.1-browser.md` is merged. Next: `/step 3.1a` (core and API), then 3.1b (screen), then 3.1c (saved searches). Main points: chips plus a plain search box, joined into one query text; a new `=` whole-name form (`deck:="Polish::Verbs"`), because today `deckonly:Verbs` also finds "Irregular Verbs" and `tag:verbs` finds `adverbs` (checked with the CLI); the search box and chips at the bottom on the phone; three PRs (3.1a core and API, 3.1b screen, 3.1c saved searches).
 
