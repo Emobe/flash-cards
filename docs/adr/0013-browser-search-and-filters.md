@@ -1,7 +1,8 @@
 # 0013: Browser: search box, filter chips, sorting and saved searches
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-16
+Accepted: 2026-10-16 (with the answers in Decisions on review)
 
 ## Context
 
@@ -386,3 +387,17 @@ New `fc-api` methods, thin over `fc_core::search`:
 7. **The last search is remembered per device** and shown when Browse opens.
 8. **Three PRs** as in the plan (`docs/plans/3.1-browser.md`): 3.1a core and API, 3.1b the screen,
    3.1c saved searches.
+
+## Decisions on review
+
+Anthony's answer on 2026-10-16, in chat: "I accept the plan". Every question is answered as
+proposed:
+
+1. Chips plus a plain search box.
+2. The `=` whole-name form, also usable typed.
+3. The search panel at the bottom on the phone, at the top from 600 px.
+4. "Added" and "Answered" chips are kept.
+5. Notes by default, with a switch to cards.
+6. Rows do nothing when tapped in 3.1; 3.2 opens the editor from them.
+7. The last search is remembered per device.
+8. Three PRs: 3.1a, 3.1b, 3.1c.

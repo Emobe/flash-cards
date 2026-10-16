@@ -6,7 +6,7 @@ Kept current by every session. A new session reads this first.
 
 **No phone checks until Anthony says so (from 2026-10-16).** Anthony is away for a few days and cannot check the phone app. Sessions test on his PC only (desktop app and web client) and do not build for, install on or use the phone. Phone behaviour is assumed to work for now, so it does not block a step. Every skipped phone check still goes under "Not verified" in the build notes and in the list below, for Anthony to run when he is back. Phone checks waiting: (none yet).
 
-**3.1 Browser: search and filter, design session done, waiting for Anthony's review.** ADR 0013 (Proposed) and the build plan `docs/plans/3.1-browser.md` are on `step/3.1-browser`. Nothing is built, and nothing may be until ADR 0013 is Accepted. The ADR ends with eight questions. Main points: chips plus a plain search box, joined into one query text; a new `=` whole-name form (`deck:="Polish::Verbs"`), because today `deckonly:Verbs` also finds "Irregular Verbs" and `tag:verbs` finds `adverbs` (checked with the CLI); the search box and chips at the bottom on the phone; three PRs (3.1a core and API, 3.1b screen, 3.1c saved searches).
+**3.1 Browser: search and filter, ready to build.** ADR 0013 is **Accepted** (2026-10-16, every question answered as proposed; see "Decisions on review") and the build plan `docs/plans/3.1-browser.md` is merged. Next: `/step 3.1a` (core and API), then 3.1b (screen), then 3.1c (saved searches). Main points: chips plus a plain search box, joined into one query text; a new `=` whole-name form (`deck:="Polish::Verbs"`), because today `deckonly:Verbs` also finds "Irregular Verbs" and `tag:verbs` finds `adverbs` (checked with the CLI); the search box and chips at the bottom on the phone; three PRs (3.1a core and API, 3.1b screen, 3.1c saved searches).
 
 2.6 Settings and local backups is **done and merged (PR #44)**; 2.5 Deck management is done (PR #42, #43). Build notes: ADR 0006, step 2.6. Folder choosing is out (agreed): Export is how a copy leaves the device.
 
@@ -21,11 +21,11 @@ the phone. Anthony removes it, and the old `dev.placeholder.flashcards` app; ses
 
 ## Branch
 
-`step/3.1-browser` (from `master` after PR #47). `tool/prune-target` (the `cargo xtask prune` PR) is separate and still open; its STATUS line is on that branch.
+`step/3.1-browser` (the design session) is merged as PR #48. 3.1a starts a new branch from `master`. `tool/prune-target` (the `cargo xtask prune` PR) is separate and still open; its STATUS line is on that branch.
 
 ## Done
 
-- 3.1 design session: ADR 0013 (Proposed) and `docs/plans/3.1-browser.md`. Verified with the repo's `fc` CLI on a scratch collection: today's `deck:`, `deckonly:` and `tag:` match any part of a name, so chips need a whole-name form. Looked up: bottom-placed search on Android (Chrome 135), filter chip guidance. Not verified: search speed on the phone and in wasm, typing in a `Dialog` with the phone's keyboard open. No code, no dependency.
+- 3.1 design session: ADR 0013 (Accepted 2026-10-16) and `docs/plans/3.1-browser.md`. Verified with the repo's `fc` CLI on a scratch collection: today's `deck:`, `deckonly:` and `tag:` match any part of a name, so chips need a whole-name form. Looked up: bottom-placed search on Android (Chrome 135), filter chip guidance. Not verified: search speed on the phone and in wasm, typing in a `Dialog` with the phone's keyboard open. No code, no dependency.
 
 - 2.7b Release builds (ADR 0012 build notes, step 2.7b): Linux blank-window fix in `main.rs`, `dist:linux` (pacman package from the `.deb`), Android release build signed with the debug key and `dist:android`, `dist:android:install`, `dist:windows`, README "Dogfood builds". Merged (PR #47).
 - 2.7a App identity (ADR 0012 build notes, step 2.7a): workspace version `0.1.0` (Gradle reads it for Android), About in Settings (version and build ID), app ID `io.github.emobe.flashcards`, `.dev` desktop and Android debug builds. Merged (PR #46).
