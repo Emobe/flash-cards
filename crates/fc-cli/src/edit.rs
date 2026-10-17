@@ -209,7 +209,6 @@ fn part_map<T>(
     new: &[T],
     old: &[T],
     parts: impl Fn(&T) -> (Id, &str) + Copy,
-    once: bool,
 ) -> Result<Vec<(Id, Option<Id>)>, Failure> {
     let find = |list: &[T], wanted: &str, what: &str| -> Result<Id, Failure> {
         list.iter()
@@ -232,25 +231,38 @@ fn part_map<T>(
         chosen.retain(|(t, _)| *t != to);
         chosen.push((to, from));
     }
+    // The rest: the old part with the same name, then the one in the same position. An old part
+    // is used once.
     let mut used: Vec<Id> = chosen.iter().filter_map(|(_, from)| *from).collect();
-    for (position, item) in new.iter().enumerate() {
+    let mut matched: Vec<(Id, Option<Id>)> = Vec::new();
+    for item in new {
         let (id, name) = parts(item);
         if chosen.iter().any(|(t, _)| *t == id) {
             continue;
         }
-        let by_name = old
+        let pick = old
             .iter()
             .map(parts)
-            .find(|(_, other)| other.eq_ignore_ascii_case(name))
-            .map(|(id, _)| id);
-        let by_position = old.get(position).map(|item| parts(item).0);
-        let mut pick = by_name.or(by_position);
-        if once && pick.is_some_and(|p| used.contains(&p)) {
-            pick = None;
-        }
+            .find(|(old_id, other)| !used.contains(old_id) && other.eq_ignore_ascii_case(name))
+            .map(|(old_id, _)| old_id);
         used.extend(pick);
-        chosen.push((id, pick));
+        matched.push((id, pick));
     }
+    for (position, item) in new.iter().enumerate() {
+        let (id, _) = parts(item);
+        if let Some(entry) = matched
+            .iter_mut()
+            .find(|(t, from)| *t == id && from.is_none())
+        {
+            let pick = old
+                .get(position)
+                .map(|old| parts(old).0)
+                .filter(|p| !used.contains(p));
+            used.extend(pick);
+            entry.1 = pick;
+        }
+    }
+    chosen.extend(matched);
     Ok(chosen)
 }
 
@@ -294,21 +306,15 @@ pub fn change_note_type(file: &str, args: &[String]) -> Result<String, Failure> 
     let from = collection
         .note_type(first.note_type)?
         .ok_or_else(|| Failure::Core("That note's note type is gone.".to_owned()))?;
-    let field_map = part_map(
-        "field",
-        &fields,
-        &to.fields,
-        &from.fields,
-        |f: &Field| (f.id, f.name.as_str()),
-        false,
-    )?;
+    let field_map = part_map("field", &fields, &to.fields, &from.fields, |f: &Field| {
+        (f.id, f.name.as_str())
+    })?;
     let card_map = part_map(
         "card",
         &cards,
         &to.templates,
         &from.templates,
         |t: &Template| (t.id, t.name.as_str()),
-        true,
     )?;
     let done = collection.change_note_type(&notes, to.id, &field_map, &card_map)?;
     collection.close()?;

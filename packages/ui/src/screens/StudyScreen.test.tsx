@@ -1,8 +1,9 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { CoreClient, createFakeTransport, type EventRating, type StudyNext } from "core-client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { typeReversed } from "../browse/testTypes";
 import { CoreProvider } from "../core";
-import { editorHandlers } from "../editor/testEditor";
+import { basic, editorHandlers } from "../editor/testEditor";
 import { PlatformProvider } from "../platform";
 import { RouterProvider } from "../router";
 import { AppShell } from "../shell/AppShell";
@@ -65,6 +66,12 @@ function setup({ queue, summary = null, undone = true }: Options) {
     })),
     undoAnswer: vi.fn(() => ({ undone: undone ? { cardId: "c1" } : null })),
     getMedia: vi.fn(() => ({ contentType: "audio/mpeg" })),
+    getNoteTypes: vi.fn(() => ({ noteTypes: [basic, typeReversed] })),
+    changeNoteType: vi.fn((_input: unknown) => ({
+      notes: 1,
+      carried: 1,
+      undo: { id: "u-type", message: "Changed 1 note to Basic and reversed." },
+    })),
   };
   const client = new CoreClient(createFakeTransport(handlers));
   const view = render(
@@ -484,6 +491,18 @@ describe("editing the card's note (step 3.2b)", () => {
     await waitFor(() => expect(nextCard).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(renderCard.mock.lastCall?.[0]).toEqual({ cardId: "c2" }));
     expect(screen.getByText("Saved.")).not.toBeNull();
+  });
+
+  test("after a note type change the card is gone, so study moves to the next one", async () => {
+    const { changeNoteType, nextCard, renderCard } = setup({ queue: [card("c1"), card("c2")] });
+    const editor = await openEditor();
+    fireEvent.click(await within(editor).findByRole("button", { name: "Change" }));
+    const window = await screen.findByRole("dialog", { name: "Change note type" });
+    fireEvent.click(await within(window).findByRole("button", { name: "Change" }));
+    await waitFor(() => expect(changeNoteType).toHaveBeenCalled());
+    expect(await screen.findByText("Changed 1 note to Basic and reversed.")).not.toBeNull();
+    await waitFor(() => expect(nextCard).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(renderCard.mock.lastCall?.[0]).toEqual({ cardId: "c2" }));
   });
 
   test("answering the card clears the notice", async () => {

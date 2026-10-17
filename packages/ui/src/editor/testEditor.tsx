@@ -31,6 +31,7 @@ export const basic: NoteTypeSummary = {
     { id: "f-front", name: "Front" },
     { id: "f-back", name: "Back" },
   ],
+  templates: [{ id: "t-card-1", name: "Card 1" }],
 };
 
 export const editorDecks = [
