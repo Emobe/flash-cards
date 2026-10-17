@@ -306,3 +306,24 @@ describe("Browse", () => {
     expect(screen.queryByText("Show more")).toBeNull();
   });
 });
+
+describe("picker focus", () => {
+  test("on a phone a picker starts on its first option, not the filter box", async () => {
+    renderBrowse();
+    fireEvent.click(await screen.findByRole("button", { name: /^Deck/ }));
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findByLabelText("Default");
+    await waitFor(() =>
+      expect(document.activeElement).toBe(within(dialog).getByLabelText("Default")),
+    );
+  });
+
+  test("when wide the filter box is focused, ready to type", async () => {
+    useWidth(true);
+    renderBrowse();
+    fireEvent.click(await screen.findByRole("button", { name: /^Deck/ }));
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findByLabelText("Default");
+    expect(document.activeElement).not.toBe(within(dialog).getByLabelText("Default"));
+  });
+});

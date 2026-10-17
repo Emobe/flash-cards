@@ -1,5 +1,6 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Dialog } from "../components/Dialog";
+import { useWideLayout } from "../shell/useMediaQuery";
 
 export type PickerOption = {
   value: string;
@@ -37,6 +38,16 @@ export function PickerDialog({
   const [picked, setPicked] = useState(() => new Set(selected));
   const [filter, setFilter] = useState("");
   const name = useId();
+  const list = useRef<HTMLFieldSetElement>(null);
+  const wide = useWideLayout();
+
+  // The window focuses the filter box when it opens, which on a phone opens the keyboard over the
+  // list. In the compact layout start on the first option instead; the filter is one tap away.
+  // This runs after `Dialog`'s own effect (a child's effects run first).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only when the window opens.
+  useEffect(() => {
+    if (!wide) list.current?.querySelector("input")?.focus();
+  }, []);
   const known = new Set(options.map((o) => o.value));
   const all: PickerOption[] = [
     ...options,
@@ -85,7 +96,7 @@ export function PickerDialog({
             }}
           />
         )}
-        <fieldset className="picker-list">
+        <fieldset ref={list} className="picker-list">
           <legend className="visually-hidden">{title}</legend>
           {shown.length === 0 && <p className="picker-none">Nothing here matches.</p>}
           {shown.map((o) => (
