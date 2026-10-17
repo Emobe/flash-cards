@@ -14,11 +14,13 @@ pub struct Options {
     pub limit: Option<u32>,
     pub offset: Option<u32>,
     pub seed: Option<u64>,
+    /// Print every matching ID, with no limit (`search_ids`).
+    pub ids: bool,
 }
 
 impl Options {
-    /// Takes `--sort`, `--notes`, `--limit`, `--offset` and `--seed` out of `args`. What is left
-    /// over is returned.
+    /// Takes `--sort`, `--notes`, `--limit`, `--offset`, `--seed` and `--ids` out of `args`. What is
+    /// left over is returned.
     pub fn take(args: &[String]) -> Result<(Self, Vec<String>), Failure> {
         let mut options = Self::default();
         let mut rest = Vec::new();
@@ -40,6 +42,7 @@ impl Options {
                         Some(Sort::parse(&text).map_err(|e| Failure::Usage(e.to_string()))?);
                 }
                 "--notes" => options.notes = true,
+                "--ids" => options.ids = true,
                 "--limit" => options.limit = Some(number("--limit", value("--limit")?)? as u32),
                 "--offset" => options.offset = Some(number("--offset", value("--offset")?)? as u32),
                 "--seed" => options.seed = Some(number("--seed", value("--seed")?)?),
@@ -123,6 +126,16 @@ fn search_options(options: &Options) -> SearchOptions {
 
 pub fn search(file: &str, query: &str, options: &Options) -> Result<String, Failure> {
     let open = open(file)?;
+    if options.ids {
+        let mode = options.mode();
+        let ids = open.collection.search_ids(query, mode)?;
+        let what = if mode == Mode::Notes { "note" } else { "card" };
+        let mut text = format!("{} match:", plural(ids.len(), what));
+        for id in ids {
+            text.push_str(&format!("\n  {id}"));
+        }
+        return Ok(text);
+    }
     let wanted = search_options(options);
     let page = open.collection.search(query, &wanted)?;
     page_text(&open, &page, wanted.mode, wanted.offset)

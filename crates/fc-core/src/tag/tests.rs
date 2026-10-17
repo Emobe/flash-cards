@@ -86,9 +86,9 @@ fn a_note_starts_with_no_tags_and_gains_and_loses_them() {
     let c = collection();
     let n = note(&c, "a");
     assert!(c.note_tags(n).unwrap().is_empty());
-    assert_eq!(c.add_tags(&[n], &["verbs", "polish"]).unwrap(), 2);
+    assert_eq!(c.add_tags(&[n], &["verbs", "polish"]).unwrap().len(), 2);
     assert_eq!(c.note_tags(n).unwrap(), ["polish", "verbs"]);
-    assert_eq!(c.remove_tags(&[n], &["verbs"]).unwrap(), 1);
+    assert_eq!(c.remove_tags(&[n], &["verbs"]).unwrap().len(), 1);
     assert_eq!(c.note_tags(n).unwrap(), ["polish"]);
 }
 
@@ -98,7 +98,7 @@ fn adding_a_tag_a_note_has_writes_nothing() {
     let n = note(&c, "a");
     c.add_tags(&[n], &["polish"]).unwrap();
     let before = c.register_clock("note_tag", n, "polish").unwrap();
-    assert_eq!(c.add_tags(&[n], &["polish", "POLISH"]).unwrap(), 0);
+    assert_eq!(c.add_tags(&[n], &["polish", "POLISH"]).unwrap().len(), 0);
     assert_eq!(c.register_clock("note_tag", n, "polish").unwrap(), before);
     assert_eq!(stored(&c, n).len(), 1);
 }
@@ -107,7 +107,7 @@ fn adding_a_tag_a_note_has_writes_nothing() {
 fn removing_a_tag_a_note_lacks_writes_nothing() {
     let c = collection();
     let n = note(&c, "a");
-    assert_eq!(c.remove_tags(&[n], &["polish"]).unwrap(), 0);
+    assert_eq!(c.remove_tags(&[n], &["polish"]).unwrap().len(), 0);
     assert!(stored(&c, n).is_empty());
     assert!(c.register_clock("note_tag", n, "polish").unwrap().is_none());
 }
@@ -225,7 +225,7 @@ fn tags_with_polish_letters_match_ignoring_case() {
     let c = collection();
     let n = note(&c, "a");
     c.add_tags(&[n], &["żółć"]).unwrap();
-    assert_eq!(c.add_tags(&[n], &["ŻÓŁĆ"]).unwrap(), 0);
+    assert_eq!(c.add_tags(&[n], &["ŻÓŁĆ"]).unwrap().len(), 0);
     assert_eq!(c.notes_with_tag("Żółć", false).unwrap(), [n]);
 }
 
@@ -239,7 +239,7 @@ fn two_spellings_that_merged_in_show_once_in_the_smallest_spelling_and_remove_to
     let tags = c.tags().unwrap();
     assert_eq!(names(&tags), ["Polish"]);
     assert_eq!(tags[0].notes, 1);
-    assert_eq!(c.remove_tags(&[n], &["polish"]).unwrap(), 2);
+    assert_eq!(c.remove_tags(&[n], &["polish"]).unwrap().len(), 2);
     assert!(c.note_tags(n).unwrap().is_empty());
 }
 

@@ -278,8 +278,9 @@ impl Collection {
     }
 
     /// Moves live cards into a live deck. Nothing moves if any card is not a live card of a live
-    /// note. Only a card whose deck changes is written.
-    pub fn move_cards(&self, cards: &[Id], deck: Id) -> Result<(), DeckError> {
+    /// note. Only a card whose deck changes is written. Answers each moved card with the deck it was
+    /// in.
+    pub fn move_cards(&self, cards: &[Id], deck: Id) -> Result<Vec<(Id, Id)>, DeckError> {
         Tree::load(&self.conn)?
             .live(deck)
             .ok_or(DeckError::NotFound)?;
@@ -296,15 +297,17 @@ impl Collection {
                         rusqlite::Error::QueryReturnedNoRows => DeckError::NotFound,
                         e => e.into(),
                     })?;
-            if card_deck(&stored) != deck {
-                moving.push(*card);
+            let from = card_deck(&stored);
+            if from != deck && !moving.iter().any(|(id, _)| id == card) {
+                moving.push((*card, from));
             }
         }
-        Ok(self.write(|w| {
-            for card in &moving {
+        self.write(|w| {
+            for (card, _) in &moving {
                 w.set(CARD.entity, *card, "deck", blob(deck))?;
             }
             Ok(())
-        })?)
+        })?;
+        Ok(moving)
     }
 }

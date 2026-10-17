@@ -60,14 +60,14 @@ impl Collection {
         Ok(found)
     }
 
-    fn set_suspended(&self, cards: &[Id], on: bool) -> Result<(), StudyError> {
+    fn set_suspended(&self, cards: &[Id], on: bool) -> Result<Vec<Id>, StudyError> {
         let changing: Vec<Id> = self
             .hidden(cards)?
             .into_iter()
             .filter(|(_, hidden)| hidden.suspended != on)
             .map(|(id, _)| id)
             .collect();
-        Ok(self.write(|w| {
+        self.write(|w| {
             for card in &changing {
                 w.set(
                     CARD.entity,
@@ -77,16 +77,18 @@ impl Collection {
                 )?;
             }
             Ok(())
-        })?)
+        })?;
+        Ok(changing)
     }
 
     /// Takes the cards out of the queue until they are unsuspended. A card that is suspended
-    /// already is left alone.
-    pub fn suspend_cards(&self, cards: &[Id]) -> Result<(), StudyError> {
+    /// already is left alone. Answers the cards that changed.
+    pub fn suspend_cards(&self, cards: &[Id]) -> Result<Vec<Id>, StudyError> {
         self.set_suspended(cards, true)
     }
 
-    pub fn unsuspend_cards(&self, cards: &[Id]) -> Result<(), StudyError> {
+    /// Puts suspended cards back in the queue. Answers the cards that changed.
+    pub fn unsuspend_cards(&self, cards: &[Id]) -> Result<Vec<Id>, StudyError> {
         self.set_suspended(cards, false)
     }
 

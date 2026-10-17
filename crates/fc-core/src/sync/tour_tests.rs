@@ -300,7 +300,7 @@ fn random_op(d: &Dev, rng: &mut Rng) {
     };
     let word = WORDS[rng.below(WORDS.len())];
     let tag = TAGS[rng.below(TAGS.len())];
-    let _ = match rng.below(46) {
+    let _ = match rng.below(49) {
         0..=4 => {
             let t = rng.pick_copy(&note_types).unwrap_or_else(builtin::basic);
             let fields = c
@@ -370,7 +370,7 @@ fn random_op(d: &Dev, rng: &mut Rng) {
                 .map_or(Ok(()), |k| c.restore_deck(k).map_err(drop))
         }
         21 => match (rng.pick_copy(&cards()), rng.pick_copy(&decks)) {
-            (Some(k), Some(deck)) => c.move_cards(&[k], deck).map_err(drop),
+            (Some(k), Some(deck)) => c.move_cards(&[k], deck).map(drop).map_err(drop),
             _ => Ok(()),
         },
         22 => rng.pick_copy(&decks).map_or(Ok(()), |k| {
@@ -414,6 +414,7 @@ fn random_op(d: &Dev, rng: &mut Rng) {
             } else {
                 c.unsuspend_cards(&[k])
             }
+            .map(drop)
             .map_err(drop)
         }),
         31 => rng.pick_copy(&cards()).map_or(Ok(()), |k| {
@@ -541,6 +542,29 @@ fn random_op(d: &Dev, rng: &mut Rng) {
                     }
                     .map_err(drop)
                 })
+        }
+        46 => {
+            let Some(n) = rng.pick_copy(&notes) else {
+                return;
+            };
+            let Some(note) = c.note(n).ok().flatten() else {
+                return;
+            };
+            let Some(f) = rng.pick(&note.fields) else {
+                return;
+            };
+            c.edit_note_with(n, &[(f.field, word)], Some(&[tag]))
+                .map(drop)
+                .map_err(drop)
+        }
+        47 => {
+            let picked: Vec<Id> = (0..3).filter_map(|_| rng.pick_copy(&notes)).collect();
+            c.delete_notes(&picked).map(drop).map_err(drop)
+        }
+        48 => {
+            let dead: Vec<Id> = c.deleted_notes().unwrap().iter().map(|n| n.id).collect();
+            let picked: Vec<Id> = (0..3).filter_map(|_| rng.pick_copy(&dead)).collect();
+            c.restore_notes(&picked).map(drop).map_err(drop)
         }
         _ => {
             // A note that names a media file, so "unused" changes.

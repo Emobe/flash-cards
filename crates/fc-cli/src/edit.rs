@@ -57,10 +57,23 @@ fn change_text(change: &NoteChange) -> String {
     text
 }
 
-pub fn edit_note(file: &str, note: &str, values: &[String]) -> Result<String, Failure> {
-    if values.is_empty() {
+pub fn edit_note(file: &str, note: &str, args: &[String]) -> Result<String, Failure> {
+    let mut values = Vec::new();
+    let mut tags: Option<Vec<&str>> = None;
+    let mut args = args.iter();
+    while let Some(arg) = args.next() {
+        if arg == "--tag" {
+            let tag = args
+                .next()
+                .ok_or_else(|| Failure::Usage("--tag needs a tag.".to_owned()))?;
+            tags.get_or_insert_with(Vec::new).push(tag);
+        } else {
+            values.push(arg.clone());
+        }
+    }
+    if values.is_empty() && tags.is_none() {
         return Err(Failure::Usage(
-            "edit-note needs at least one Field=value.".to_owned(),
+            "edit-note needs at least one Field=value or --tag.".to_owned(),
         ));
     }
     let note = note_id(note)?;
@@ -71,14 +84,22 @@ pub fn edit_note(file: &str, note: &str, values: &[String]) -> Result<String, Fa
     let note_type = collection
         .note_type(found.note_type)?
         .ok_or_else(|| Failure::Core("That note's note type is gone.".to_owned()))?;
-    let given = field_values(&note_type, values)?;
+    let given = field_values(&note_type, &values)?;
     let given: Vec<(Id, &str)> = given
         .iter()
         .map(|(id, text)| (*id, text.as_str()))
         .collect();
-    let change = collection.set_note_fields(note, &given)?;
+    let edit = collection.edit_note_with(note, &given, tags.as_deref())?;
     collection.close()?;
-    Ok(format!("Changed note {note}. {}", change_text(&change)))
+    let tags = if edit.old_tags.is_some() {
+        " Its tags changed."
+    } else {
+        ""
+    };
+    Ok(format!(
+        "Changed note {note}. {}{tags}",
+        change_text(&edit.change)
+    ))
 }
 
 pub fn delete_notes(file: &str, notes: &[String]) -> Result<String, Failure> {
@@ -87,22 +108,38 @@ pub fn delete_notes(file: &str, notes: &[String]) -> Result<String, Failure> {
     }
     let wanted: Vec<Id> = notes.iter().map(|n| note_id(n)).collect::<Result<_, _>>()?;
     let collection = open(file)?;
-    for note in &wanted {
-        collection.delete_note(*note)?;
-    }
+    let done = collection.delete_notes(&wanted)?;
     collection.close()?;
     Ok(format!(
-        "Deleted {}. They are in the trash: restore one with restore-note",
-        plural(wanted.len(), "note")
+        "Deleted {} and {}. They are in the trash: restore them with restore-note",
+        plural(done.notes.len(), "note"),
+        plural(done.cards.len(), "card")
     ))
 }
 
-pub fn restore_note(file: &str, note: &str) -> Result<String, Failure> {
-    let note = note_id(note)?;
+pub fn restore_notes(file: &str, notes: &[String]) -> Result<String, Failure> {
+    if notes.is_empty() {
+        return Err(Failure::Usage("restore-note needs note IDs.".to_owned()));
+    }
+    let wanted: Vec<Id> = notes.iter().map(|n| note_id(n)).collect::<Result<_, _>>()?;
     let collection = open(file)?;
-    let change = collection.restore_note(note)?;
+    let done = collection.restore_notes(&wanted)?;
     collection.close()?;
-    Ok(format!("Restored note {note}. {}", change_text(&change)))
+    Ok(if let [one] = wanted.as_slice() {
+        format!(
+            "Restored note {one}. {}",
+            change_text(&NoteChange {
+                added_cards: done.cards,
+                ..Default::default()
+            })
+        )
+    } else {
+        format!(
+            "Restored {} and {}.",
+            plural(done.notes.len(), "note"),
+            plural(done.cards.len(), "card")
+        )
+    })
 }
 
 pub fn find_duplicates(file: &str, note_type: &str, text: &str) -> Result<String, Failure> {

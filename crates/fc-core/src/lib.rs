@@ -21,12 +21,14 @@ pub mod study;
 pub mod sync;
 pub mod tag;
 pub mod template;
+pub mod undo;
 
 use std::sync::{Arc, Mutex};
 
 use clock::Host;
 use collection::{Collection, CollectionError};
 use events::{Listener, Listeners};
+use id::Id;
 
 /// Version of the core library, taken from its Cargo manifest.
 pub fn version() -> &'static str {
@@ -46,6 +48,8 @@ pub struct Core {
     listeners: Listeners,
     /// Where a native host keeps backups, for the methods that list and write them.
     backup_dir: Mutex<Option<std::path::PathBuf>>,
+    /// The last change that can be undone (`undo`). Dropped when a collection opens or closes.
+    last_change: Mutex<Option<undo::KeptChange>>,
 }
 
 impl Core {
@@ -86,6 +90,7 @@ impl Core {
         }
         *open = Some(collection);
         *self.open_error.lock().expect("open error lock") = None;
+        *self.last_change.lock().expect("last change lock") = None;
         Ok(())
     }
 
@@ -100,7 +105,24 @@ impl Core {
         // Closed under the lock, so the session's end event arrives in order with the others.
         let mut open = self.collection.lock().expect("collection lock");
         *self.open_error.lock().expect("open error lock") = None;
+        *self.last_change.lock().expect("last change lock") = None;
         open.take().map_or(Ok(()), Collection::close)
+    }
+
+    /// Keeps a change so it can be undone, in place of the one kept before.
+    pub fn keep_change(&self, change: undo::KeptChange) {
+        *self.last_change.lock().expect("last change lock") = Some(change);
+    }
+
+    /// Takes the kept change if it is the one with this ID, so it can be undone once. `None` if
+    /// another change came after it, or a collection was opened or closed since.
+    pub fn take_change(&self, id: Id) -> Option<undo::KeptChange> {
+        let mut kept = self.last_change.lock().expect("last change lock");
+        if kept.as_ref().is_some_and(|change| change.id == id) {
+            kept.take()
+        } else {
+            None
+        }
     }
 
     /// Runs `f` on the open collection, or returns `None` when none is open.
@@ -129,6 +151,23 @@ pub fn example_divide(dividend: f64, divisor: f64) -> Result<f64, DivideByZero> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_kept_change_is_taken_once_by_its_id_and_dropped_by_a_new_collection() {
+        let core = Core::new();
+        let change = |n: u8| undo::KeptChange {
+            id: Id::from_bytes([n; 16]),
+            reverse: undo::Reverse::RestoreNotes(vec![]),
+        };
+        core.keep_change(change(1));
+        core.keep_change(change(2));
+        assert_eq!(core.take_change(Id::from_bytes([1; 16])), None);
+        assert_eq!(core.take_change(Id::from_bytes([2; 16])), Some(change(2)));
+        assert_eq!(core.take_change(Id::from_bytes([2; 16])), None);
+        core.keep_change(change(3));
+        core.close_collection().unwrap();
+        assert_eq!(core.take_change(Id::from_bytes([3; 16])), None);
+    }
 
     #[test]
     fn version_matches_manifest() {
