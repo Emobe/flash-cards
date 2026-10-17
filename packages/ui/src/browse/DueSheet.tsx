@@ -69,7 +69,7 @@ export function DueSheet({
   const problemId = useId();
 
   const option = (value: Choice, label: React.ReactNode) => (
-    <label className="due-option">
+    <label className="choice">
       <input
         type="radio"
         name={name}
