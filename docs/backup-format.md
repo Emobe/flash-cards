@@ -133,7 +133,7 @@ section 10). What each means is in that ADR and in the module of the core that o
 | `saved_search` | `name`, `query`, `sort`, `mode`, `deleted` |
 | `media_file` | `hash` (SHA-256 hex, which names the `media/` entry), `size`, `deleted` |
 | `requirement` | `feature`, `active`: features a reader must understand to use the data |
-| `card_event` (rows) | one answer (`review`), a set due date (`set_due`), a reset to new (`reset`) or the undo of one of them (`void`): `card`, `kind`, `time_ms`, `utc_offset`, `device`, `previous`, `day`, `rating`, `duration_ms`, `preset`, `desired_retention`, `parameters`, `steps`, `state_before`, `state`, `step`, `stability`, `difficulty`, `due_day`, `due_ms`, `target`, and from storage version 12 `source` and `last_day` (ADR 0007, ADR 0014). A file from before version 12 has rows without the last two |
+| `card_event` (rows) | one answer (`review`), a set due date (`set_due`), a reset to new (`reset`), a card taking the schedule of the card it replaces when its note changes type (`transfer`, with `source` the card it came from) or the undo of one of them (`void`): `card`, `kind`, `time_ms`, `utc_offset`, `device`, `previous`, `day`, `rating`, `duration_ms`, `preset`, `desired_retention`, `parameters`, `steps`, `state_before`, `state`, `step`, `stability`, `difficulty`, `due_day`, `due_ms`, `target`, and from storage version 12 `source` and `last_day` (ADR 0007, ADR 0014). A file from before version 12 has rows without the last two |
 | `fsrs_parameter_set` (rows) | `values_f32`: 21 FSRS parameters that events point at |
 
 A reader that meets an entity or a field it does not know **must keep it** and pass it on (ADR 0008,

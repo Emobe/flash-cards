@@ -14,6 +14,9 @@
 //! because the register names are field IDs) and `card` (note, template, ordinal, deck, deleted).
 //! A card's suspension, flag and scheduling arrive with step 1.7, as extra registers.
 
+mod change_type;
+#[cfg(test)]
+mod change_type_tests;
 #[cfg(test)]
 mod edit_tests;
 mod error;
@@ -29,6 +32,7 @@ mod with_tags_tests;
 use crate::id::Id;
 use crate::sync::{DynamicTable, SyncedTable};
 
+pub use change_type::TypeChange;
 pub use error::NoteError;
 pub use generate::card_id;
 pub use ops::{AddedNote, NewNote, NoteChange, NoteEdit, NotesChange};

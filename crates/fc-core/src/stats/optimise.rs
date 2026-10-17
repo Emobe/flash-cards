@@ -7,13 +7,16 @@
 //! Reading the history and training are separate calls: training takes a while and cannot be
 //! cancelled, and a host should not hold the collection while it runs.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+
+use rusqlite::OptionalExtension;
 
 use super::StudyError;
 use crate::collection::Collection;
 use crate::deck::Tree;
 use crate::id::Id;
 use crate::scheduling::{HistoryReview, Rating, optimise_with_steps, training_item_count};
+use crate::study::{EventKind, events_with_sources};
 
 /// The fewest training items we will train on (see `TrainingSet::items`). `fsrs` returns
 /// the default parameters without a word under 8 items and only fits the first-interval parameters
@@ -77,6 +80,18 @@ impl Collection {
             .filter(|r| !r.deleted)
             .map(|r| (r.id, r.preset == preset))
             .collect();
+        // A card that took its schedule from another by a transfer (ADR 0014, decision 6) trains on
+        // that card's history too. There are few of them, so they are read one by one below.
+        let chained: HashSet<Id> = {
+            let mut statement = self.conn.prepare(
+                "SELECT DISTINCT e.card FROM card_event e
+                 WHERE e.kind = 'transfer' AND e.source IS NOT NULL
+                   AND NOT EXISTS (SELECT 1 FROM card_event v WHERE v.target = e.id)",
+            )?;
+            statement
+                .query_map([], |row| row.get(0))?
+                .collect::<Result<_, _>>()?
+        };
         // A reset starts the card again (ADR 0014, decision 5): only the answers after its last
         // reset are trained on.
         let mut statement = self.conn.prepare(
@@ -98,6 +113,15 @@ impl Collection {
                 row.get::<_, bool>(4)?,
             ))
         })?;
+        let in_preset = |stored: &[u8]| {
+            let deck = crate::deck::card_deck(stored);
+            let deck = if tree.position(deck).is_some() {
+                deck
+            } else {
+                crate::deck::default_deck()
+            };
+            uses.get(&deck).copied().unwrap_or(false)
+        };
         let mut histories: Vec<Vec<HistoryReview>> = Vec::new();
         let mut current: Option<Id> = None;
         // The day of the card's first answer in its history (after its last reset).
@@ -106,13 +130,7 @@ impl Collection {
         for row in rows {
             let (card, stored, day, rating, reset) = row?;
             if current != Some(card) {
-                let deck = crate::deck::card_deck(&stored);
-                let deck = if tree.position(deck).is_some() {
-                    deck
-                } else {
-                    crate::deck::default_deck()
-                };
-                skipping = !uses.get(&deck).copied().unwrap_or(false);
+                skipping = chained.contains(&card) || !in_preset(&stored);
                 current = Some(card);
                 first = None;
                 if !skipping {
@@ -123,19 +141,43 @@ impl Collection {
                 continue;
             }
             let history = histories.last_mut().expect("a history was started");
-            if reset {
-                history.clear();
-                first = None;
+            add_event(history, &mut first, day, rating, reset);
+        }
+        for card in &chained {
+            let live: Option<Vec<u8>> = self
+                .conn
+                .query_row(
+                    "SELECT k.deck FROM card k JOIN note n ON n.id = k.note
+                     WHERE k.id = ?1 AND k.deleted = 0 AND n.deleted = 0",
+                    [card],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            if !live.is_some_and(|stored| in_preset(&stored)) {
                 continue;
             }
-            let Some(rating) = rating.and_then(Rating::from_number) else {
-                continue;
-            };
-            let first = *first.get_or_insert(day);
-            history.push(HistoryReview {
-                day: (day - first).clamp(0, i64::from(u32::MAX)) as u32,
-                rating,
-            });
+            let events = events_with_sources(&self.conn, *card)?;
+            let voided: HashSet<Id> = events
+                .iter()
+                .filter(|e| e.kind == EventKind::Void)
+                .filter_map(|e| e.target)
+                .collect();
+            let mut history = Vec::new();
+            let mut first = None;
+            for e in events.iter().filter(|e| !voided.contains(&e.id)) {
+                match (&e.kind, e.rating) {
+                    (EventKind::Reset, _) => add_event(&mut history, &mut first, e.day, None, true),
+                    (EventKind::Review, Some(rating)) => add_event(
+                        &mut history,
+                        &mut first,
+                        e.day,
+                        Some(i64::from(rating.number())),
+                        false,
+                    ),
+                    _ => {}
+                }
+            }
+            histories.push(history);
         }
         histories.retain(|h| !h.is_empty());
         let reviews = histories.iter().map(|h| h.len() as u32).sum();
@@ -156,4 +198,28 @@ impl Collection {
     pub fn optimise_preset(&self, preset: Id) -> Result<Optimised, StudyError> {
         self.optimisation_data(preset)?.optimise()
     }
+}
+
+/// Adds one event to a card's training history: a reset empties it, an answer is added with its
+/// day counted from the first answer after the last reset.
+fn add_event(
+    history: &mut Vec<HistoryReview>,
+    first: &mut Option<i64>,
+    day: i64,
+    rating: Option<i64>,
+    reset: bool,
+) {
+    if reset {
+        history.clear();
+        *first = None;
+        return;
+    }
+    let Some(rating) = rating.and_then(Rating::from_number) else {
+        return;
+    };
+    let first = *first.get_or_insert(day);
+    history.push(HistoryReview {
+        day: (day - first).clamp(0, i64::from(u32::MAX)) as u32,
+        rating,
+    });
 }

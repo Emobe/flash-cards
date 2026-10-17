@@ -1,10 +1,10 @@
-//! `fc edit-note`, `fc delete-note`, `fc restore-note`, `fc find-duplicates`, `fc set-tags`,
+//! `fc edit-note`, `fc change-notetype`, `fc delete-note`, `fc restore-note`, `fc find-duplicates`, `fc set-tags`,
 //! `fc delete-tag`, `fc delete-media` and `fc restore-media`: changing and deleting what is already
 //! in a collection, tried from a terminal.
 
 use fc_core::id::Id;
 use fc_core::note::NoteChange;
-use fc_core::notetype::NoteType;
+use fc_core::notetype::{Field, NoteType, Template};
 
 use super::notetype::find_note_type;
 use super::{Failure, note_id, open, plural};
@@ -199,4 +199,132 @@ pub fn restore_media(file: &str, name: &str) -> Result<String, Failure> {
     collection.restore_media(name)?;
     collection.close()?;
     Ok(format!("Restored {name}"))
+}
+
+/// `NEW=OLD` arguments for the new and the old part list, by name or ID. `NEW=` means nothing fills
+/// it. A part not given is matched by name ignoring case, then by position.
+fn part_map<T>(
+    kind: &str,
+    given: &[String],
+    new: &[T],
+    old: &[T],
+    parts: impl Fn(&T) -> (Id, &str) + Copy,
+    once: bool,
+) -> Result<Vec<(Id, Option<Id>)>, Failure> {
+    let find = |list: &[T], wanted: &str, what: &str| -> Result<Id, Failure> {
+        list.iter()
+            .map(parts)
+            .find(|(id, name)| id.to_string() == wanted || name.eq_ignore_ascii_case(wanted))
+            .map(|(id, _)| id)
+            .ok_or_else(|| Failure::Core(format!("No {what} {kind} called \"{wanted}\".")))
+    };
+    let mut chosen: Vec<(Id, Option<Id>)> = Vec::new();
+    for arg in given {
+        let (to, from) = arg
+            .split_once('=')
+            .ok_or_else(|| Failure::Usage(format!("\"{arg}\" is not New={kind}.")))?;
+        let to = find(new, to, "new")?;
+        let from = if from.is_empty() {
+            None
+        } else {
+            Some(find(old, from, "old")?)
+        };
+        chosen.retain(|(t, _)| *t != to);
+        chosen.push((to, from));
+    }
+    let mut used: Vec<Id> = chosen.iter().filter_map(|(_, from)| *from).collect();
+    for (position, item) in new.iter().enumerate() {
+        let (id, name) = parts(item);
+        if chosen.iter().any(|(t, _)| *t == id) {
+            continue;
+        }
+        let by_name = old
+            .iter()
+            .map(parts)
+            .find(|(_, other)| other.eq_ignore_ascii_case(name))
+            .map(|(id, _)| id);
+        let by_position = old.get(position).map(|item| parts(item).0);
+        let mut pick = by_name.or(by_position);
+        if once && pick.is_some_and(|p| used.contains(&p)) {
+            pick = None;
+        }
+        used.extend(pick);
+        chosen.push((id, pick));
+    }
+    Ok(chosen)
+}
+
+pub fn change_note_type(file: &str, args: &[String]) -> Result<String, Failure> {
+    let mut fields = Vec::new();
+    let mut cards = Vec::new();
+    let mut words = Vec::new();
+    let mut args = args.iter();
+    while let Some(arg) = args.next() {
+        let list = match arg.as_str() {
+            "--field" => Some(&mut fields),
+            "--card" => Some(&mut cards),
+            _ => None,
+        };
+        match list {
+            Some(list) => list.push(
+                args.next()
+                    .ok_or_else(|| Failure::Usage(format!("{arg} needs New=Old.")))?
+                    .clone(),
+            ),
+            None => words.push(arg.clone()),
+        }
+    }
+    let [wanted, notes @ ..] = words.as_slice() else {
+        return Err(Failure::Usage(
+            "change-notetype needs a note type and note IDs.".to_owned(),
+        ));
+    };
+    if notes.is_empty() {
+        return Err(Failure::Usage(
+            "change-notetype needs a note type and note IDs.".to_owned(),
+        ));
+    }
+    let notes: Vec<Id> = notes.iter().map(|n| note_id(n)).collect::<Result<_, _>>()?;
+    let collection = open(file)?;
+    let to = find_note_type(&collection, wanted)?;
+    let first = collection
+        .note(notes[0])?
+        .filter(|n| !n.deleted)
+        .ok_or_else(|| Failure::Core("No note with that ID.".to_owned()))?;
+    let from = collection
+        .note_type(first.note_type)?
+        .ok_or_else(|| Failure::Core("That note's note type is gone.".to_owned()))?;
+    let field_map = part_map(
+        "field",
+        &fields,
+        &to.fields,
+        &from.fields,
+        |f: &Field| (f.id, f.name.as_str()),
+        false,
+    )?;
+    let card_map = part_map(
+        "card",
+        &cards,
+        &to.templates,
+        &from.templates,
+        |t: &Template| (t.id, t.name.as_str()),
+        true,
+    )?;
+    let done = collection.change_note_type(&notes, to.id, &field_map, &card_map)?;
+    collection.close()?;
+    Ok(format!(
+        "Changed {} from {} to {}. Cards made or brought back: {}. Cards removed: {}. Schedules \
+         carried: {}.{}",
+        plural(done.notes.len(), "note"),
+        from.name,
+        to.name,
+        done.cards_added.len(),
+        done.cards_removed.len(),
+        done.carried.len(),
+        if done.reset.is_empty() {
+            String::new()
+        } else {
+            format!(" Cards reset to new: {}.", done.reset.len())
+        }
+    ))
 }

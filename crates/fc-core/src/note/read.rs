@@ -175,4 +175,23 @@ impl Collection {
         }
         Ok(found)
     }
+
+    /// The note types of live notes, each once, in the order they first appear. One means the
+    /// notes can change type together. `NotFound` if a note is missing or deleted.
+    pub fn note_types_among(&self, notes: &[Id]) -> Result<Vec<Id>, NoteError> {
+        let mut statement = self
+            .conn
+            .prepare_cached("SELECT note_type FROM note WHERE id = ?1 AND deleted = 0")?;
+        let mut found: Vec<Id> = Vec::new();
+        for note in notes {
+            let note_type: Option<Id> = rusqlite::OptionalExtension::optional(
+                statement.query_row([note], |row| row.get(0)),
+            )?;
+            let note_type = note_type.ok_or(NoteError::NotFound)?;
+            if !found.contains(&note_type) {
+                found.push(note_type);
+            }
+        }
+        Ok(found)
+    }
 }

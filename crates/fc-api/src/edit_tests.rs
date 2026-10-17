@@ -461,7 +461,7 @@ fn describe_target_counts_notes_cards_suspended_and_what_a_delete_takes() {
     let describe = |target: Value| ok(&core, "describeTarget", json!({ "target": target }));
     assert_eq!(
         describe(json!({ "notes": [one, two, one] })),
-        json!({ "notes": 2, "cards": 3, "suspended": 0, "noteCards": 3, "newCards": 3 })
+        json!({ "notes": 2, "cards": 3, "suspended": 0, "noteCards": 3, "newCards": 3, "noteTypeId": null })
     );
     ok(
         &core,
@@ -471,11 +471,14 @@ fn describe_target_counts_notes_cards_suspended_and_what_a_delete_takes() {
     // One card of a two-card note: a delete still takes both.
     assert_eq!(
         describe(json!({ "cards": [one_cards[0], two_cards[0]] })),
-        json!({ "notes": 2, "cards": 2, "suspended": 2, "noteCards": 3, "newCards": 2 })
+        json!({ "notes": 2, "cards": 2, "suspended": 2, "noteCards": 3, "newCards": 2, "noteTypeId": null })
     );
     assert_eq!(
         describe(json!({ "notes": [one] })),
-        json!({ "notes": 1, "cards": 2, "suspended": 1, "noteCards": 2, "newCards": 2 })
+        json!({
+            "notes": 1, "cards": 2, "suspended": 1, "noteCards": 2, "newCards": 2,
+            "noteTypeId": builtin::basic_and_reversed().to_string(),
+        })
     );
     assert_eq!(describe(json!({ "notes": [] }))["cards"], 0);
     ok(
@@ -627,6 +630,219 @@ fn reset_cards_and_its_undo_says_what_was_studied_since() {
     assert_eq!(none, json!({ "count": 0, "undo": null }));
 }
 
+// ---- changeNoteType -------------------------------------------------------------------------------
+
+fn templates(core: &Core, note_type: Id) -> Vec<String> {
+    core.with_collection(|c| {
+        c.note_type(note_type)
+            .unwrap()
+            .unwrap()
+            .templates
+            .iter()
+            .map(|t| t.id.to_string())
+            .collect()
+    })
+    .unwrap()
+}
+
+/// The input to change Basic notes to Basic and reversed, Card 1 keeping its schedule.
+fn change_input(core: &Core, target: Value) -> Value {
+    let (of, nf) = (
+        fields(core, builtin::basic()),
+        fields(core, builtin::basic_and_reversed()),
+    );
+    let (ot, nt) = (
+        templates(core, builtin::basic()),
+        templates(core, builtin::basic_and_reversed()),
+    );
+    json!({
+        "target": target,
+        "noteTypeId": builtin::basic_and_reversed().to_string(),
+        "fields": [{ "fieldId": nf[0], "from": of[0] }, { "fieldId": nf[1], "from": of[1] }],
+        "templates": [{ "templateId": nt[0], "from": ot[0] }, { "templateId": nt[1], "from": null }],
+    })
+}
+
+fn type_of(core: &Core, id: &str) -> String {
+    note(core, id)["noteTypeId"].as_str().unwrap().to_owned()
+}
+
+#[test]
+fn change_note_type_keeps_the_schedule_and_its_undo_changes_it_back() {
+    let (core, clock) = core();
+    let (one, one_cards) = add(&core, "one", &[], false);
+    let (two, _) = add(&core, "two", &[], false);
+    study(&core, &one_cards[0]);
+    let before = schedule(&core, &one_cards[0]);
+
+    let out = ok(
+        &core,
+        "changeNoteType",
+        change_input(&core, json!({ "notes": [one, two] })),
+    );
+    assert_eq!(
+        (out["notes"].as_u64(), out["carried"].as_u64()),
+        (Some(2), Some(1))
+    );
+    assert_eq!(
+        out["undo"]["message"],
+        "Changed 2 notes to Basic and reversed."
+    );
+    assert_eq!(
+        type_of(&core, &one),
+        builtin::basic_and_reversed().to_string()
+    );
+    assert_eq!(note(&core, &one)["cardCount"], 2);
+    let (card_1, new_state) = core
+        .with_collection(|c| {
+            let cards = c.cards_of_note(one.parse().unwrap()).unwrap();
+            let s = c.card_schedule(cards[0].id).unwrap();
+            (cards[0].id, s)
+        })
+        .unwrap();
+    assert_eq!(new_state.memory, before.memory);
+    assert_eq!(new_state.due_day, before.due_day);
+
+    // Studied meanwhile, then undone: the old card is back with that study.
+    clock.advance(86_400_000);
+    study(&core, &card_1.to_string());
+    let studied = schedule(&core, &card_1.to_string());
+    assert_eq!(
+        undo(&core, &out["undo"]).unwrap()["message"],
+        "Changed 2 notes back to Basic."
+    );
+    assert_eq!(type_of(&core, &one), builtin::basic().to_string());
+    assert_eq!(note(&core, &one)["fields"][0]["value"], "one");
+    let back = schedule(&core, &one_cards[0]);
+    assert_eq!(back.due_day, studied.due_day);
+    assert_eq!(back.memory, studied.memory);
+    // It goes once.
+    gone(undo(&core, &out["undo"]));
+}
+
+#[test]
+fn change_note_type_on_cards_changes_their_notes_and_refuses_mixed_notes() {
+    let (core, _) = core();
+    let (_, basic_cards) = add(&core, "one", &[], false);
+    let (reversed, _) = add(&core, "two", &[], true);
+    let input = change_input(&core, json!({ "cards": [basic_cards[0]] }));
+    let out = ok(&core, "changeNoteType", input);
+    assert_eq!(out["notes"], 1);
+
+    let (a, _) = add(&core, "three", &[], false);
+    let mixed = call(
+        &core,
+        "changeNoteType",
+        change_input(&core, json!({ "notes": [a, reversed] })),
+    )
+    .unwrap_err();
+    assert_eq!(mixed.kind, ErrorKind::InvalidInput);
+    assert_eq!(mixed.message, "Select notes of one note type to change it.");
+    assert_eq!(type_of(&core, &a), builtin::basic().to_string());
+}
+
+#[test]
+fn change_note_type_refuses_what_leaves_a_note_with_no_cards_or_names_a_card_twice() {
+    let (core, _) = core();
+    let (note_id, _) = add(&core, "one", &[], false);
+    let nf = fields(&core, builtin::basic_and_reversed());
+    let (ot, nt) = (
+        templates(&core, builtin::basic()),
+        templates(&core, builtin::basic_and_reversed()),
+    );
+    let empty = call(
+        &core,
+        "changeNoteType",
+        json!({
+            "target": { "notes": [note_id] },
+            "noteTypeId": builtin::basic_and_reversed().to_string(),
+            "fields": [{ "fieldId": nf[0], "from": null }, { "fieldId": nf[1], "from": null }],
+            "templates": [],
+        }),
+    )
+    .unwrap_err();
+    assert_eq!(empty.kind, ErrorKind::InvalidInput);
+    assert!(
+        empty
+            .message
+            .starts_with("1 note would be left with no cards.")
+    );
+    let twice = call(
+        &core,
+        "changeNoteType",
+        json!({
+            "target": { "notes": [note_id] },
+            "noteTypeId": builtin::basic_and_reversed().to_string(),
+            "fields": [],
+            "templates": [
+                { "templateId": nt[0], "from": ot[0] },
+                { "templateId": nt[1], "from": ot[0] },
+            ],
+        }),
+    )
+    .unwrap_err();
+    assert_eq!(twice.kind, ErrorKind::InvalidInput);
+    assert_eq!(type_of(&core, &note_id), builtin::basic().to_string());
+}
+
+#[test]
+fn a_note_that_changed_type_again_is_left_alone_by_the_undo() {
+    let (core, _) = core();
+    let (one, _) = add(&core, "one", &[], false);
+    let (two, _) = add(&core, "two", &[], false);
+    let out = ok(
+        &core,
+        "changeNoteType",
+        change_input(&core, json!({ "notes": [one, two] })),
+    );
+    // Another change to one of them, outside the kept undo, then the undo of the first.
+    let other = core
+        .with_collection(|c| {
+            let other = c
+                .create_note_type("Basic 2", fc_core::notetype::Kind::Standard)
+                .unwrap();
+            let from = c.note_type(builtin::basic_and_reversed()).unwrap().unwrap();
+            let to = c.note_type(other).unwrap().unwrap();
+            c.change_note_type(
+                &[one.parse().unwrap()],
+                other,
+                &[
+                    (to.fields[0].id, Some(from.fields[0].id)),
+                    (to.fields[1].id, Some(from.fields[1].id)),
+                ],
+                &[],
+            )
+            .unwrap();
+            other
+        })
+        .unwrap();
+    assert_eq!(
+        undo(&core, &out["undo"]).unwrap()["message"],
+        "Changed 1 note back to Basic. 1 note could not be changed back, because it was deleted or changed again."
+    );
+    assert_eq!(type_of(&core, &two), builtin::basic().to_string());
+    assert_eq!(type_of(&core, &one), other.to_string());
+}
+
+#[test]
+fn get_note_types_lists_the_templates() {
+    let (core, _) = core();
+    let out = ok(&core, "getNoteTypes", Value::Null);
+    let reversed = out["noteTypes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["id"] == builtin::basic_and_reversed().to_string())
+        .unwrap();
+    let names: Vec<&str> = reversed["templates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, vec!["Card 1", "Card 2"]);
+}
+
 #[test]
 fn a_second_change_makes_the_first_token_too_old() {
     let (core, _) = core();
@@ -714,6 +930,15 @@ fn every_method_needs_an_open_collection() {
             json!({ "target": target, "fromDays": 0, "toDays": 0 }),
         ),
         ("resetCards", json!({ "target": target })),
+        (
+            "changeNoteType",
+            json!({
+                "target": target,
+                "noteTypeId": builtin::basic().to_string(),
+                "fields": [],
+                "templates": [],
+            }),
+        ),
         ("describeTarget", json!({ "target": target })),
     ] {
         let error = call(&core, method, input).unwrap_err();

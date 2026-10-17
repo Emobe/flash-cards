@@ -22,6 +22,9 @@ pub enum EventKind {
     SetDue,
     /// The card becomes new again: no memory, step 0. Its history stays.
     Reset,
+    /// A card made by changing a note's type takes the schedule of the card it replaces (ADR 0014,
+    /// decision 6). `source` names that card.
+    Transfer,
     /// A kind this build does not know, from a newer app. It is kept as it is.
     Unknown(String),
 }
@@ -33,6 +36,7 @@ impl EventKind {
             Self::Void => "void",
             Self::SetDue => "set_due",
             Self::Reset => "reset",
+            Self::Transfer => "transfer",
             Self::Unknown(text) => text,
         }
     }
@@ -43,6 +47,7 @@ impl EventKind {
             "void" => Self::Void,
             "set_due" => Self::SetDue,
             "reset" => Self::Reset,
+            "transfer" => Self::Transfer,
             _ => Self::Unknown(text),
         }
     }
@@ -81,7 +86,7 @@ pub struct CardEvent {
     pub due_ms: Option<i64>,
     /// For a void: the event it cancels.
     pub target: Option<Id>,
-    /// For a `transfer` (step 3.2e): the card whose schedule it carries.
+    /// For a `transfer`: the card whose schedule it carries.
     pub source: Option<Id>,
     /// For an event that is not an answer: the study day of the card's last answer, which it keeps.
     pub last_day: Option<i64>,
@@ -212,6 +217,35 @@ pub(crate) fn events_of(conn: &Connection, card: Id) -> rusqlite::Result<Vec<Car
         select(conn)?
     ))?;
     statement.query_map([card], from_row)?.collect()
+}
+
+/// A card's events together with those of the cards it took its schedule from by a `transfer`
+/// (ADR 0014, decision 6), and theirs in turn, in the order the fold applies them. A card already
+/// taken is not taken again, so a type changed and changed back does not count anything twice. A
+/// transfer that was voided is not followed.
+pub(crate) fn events_with_sources(conn: &Connection, card: Id) -> rusqlite::Result<Vec<CardEvent>> {
+    let mut seen = std::collections::HashSet::from([card]);
+    let mut all = Vec::new();
+    let mut queue = vec![card];
+    while let Some(next) = queue.pop() {
+        let events = events_of(conn, next)?;
+        let voided: std::collections::HashSet<Id> = events
+            .iter()
+            .filter(|e| e.kind == EventKind::Void)
+            .filter_map(|e| e.target)
+            .collect();
+        for e in &events {
+            if let (EventKind::Transfer, Some(source), false) =
+                (&e.kind, e.source, voided.contains(&e.id))
+                && seen.insert(source)
+            {
+                queue.push(source);
+            }
+        }
+        all.extend(events);
+    }
+    all.sort_by_key(|e| (e.time_ms, e.id));
+    Ok(all)
 }
 
 pub(crate) fn event(conn: &Connection, id: Id) -> rusqlite::Result<Option<CardEvent>> {

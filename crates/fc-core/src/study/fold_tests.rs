@@ -14,7 +14,7 @@ use crate::deck::default_preset;
 use crate::scheduling::{CardState, Rating, Scheduler, Steps, default_parameters};
 
 /// Every cache row, in a fixed order, as text (floats and all), for comparing two caches.
-pub(super) fn snapshot(conn: &Connection) -> Vec<String> {
+pub(crate) fn snapshot(conn: &Connection) -> Vec<String> {
     let mut statement = conn
         .prepare(
             "SELECT hex(card), state, step, due_day, due_ms, stability, difficulty, last_day,

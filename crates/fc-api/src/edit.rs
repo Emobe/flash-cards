@@ -46,9 +46,13 @@ fn note_error(what: &str, error: NoteError) -> ApiError {
             ErrorKind::NotFound,
             "That note or one of its cards was deleted. Search again and try once more.",
         ),
-        NoteError::UnknownField | NoteError::NoCards { .. } | NoteError::Tag(_) => {
-            ApiError::invalid_input(error.to_string())
-        }
+        NoteError::UnknownField
+        | NoteError::NoCards { .. }
+        | NoteError::MixedTypes
+        | NoteError::SameType
+        | NoteError::LeavesNoCards { .. }
+        | NoteError::DuplicateSource
+        | NoteError::Tag(_) => ApiError::invalid_input(error.to_string()),
         NoteError::Collection(inner) => collection_error(what, inner),
     }
 }
@@ -771,6 +775,132 @@ impl Method for ResetCards {
     }
 }
 
+// ---- changeNoteType -------------------------------------------------------------------------------
+
+/// What fills a field of the new note type.
+#[derive(Debug, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct FieldMapping {
+    /// A field of the new note type (a UUID string).
+    pub field_id: String,
+    /// The field of the old note type whose value fills it, or `null` to leave it empty.
+    pub from: Option<String>,
+}
+
+/// Which old card gives a new template's cards their schedule.
+#[derive(Debug, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct TemplateMapping {
+    /// A template of the new note type (a UUID string).
+    pub template_id: String,
+    /// The template of the old note type whose cards give it their schedule, or `null` to start as
+    /// new.
+    pub from: Option<String>,
+}
+
+#[derive(Debug, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct ChangeNoteTypeInput {
+    /// The notes, or the cards whose notes change. They must share one note type.
+    pub target: Target,
+    /// The new note type (a UUID string).
+    pub note_type_id: String,
+    pub fields: Vec<FieldMapping>,
+    /// Used when the old and new note types are both standard or both cloze, otherwise ignored.
+    pub templates: Vec<TemplateMapping>,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct ChangeNoteTypeOutput {
+    pub notes: u32,
+    /// Cards that kept the schedule of the card they replace.
+    pub carried: u32,
+    pub undo: Option<UndoToken>,
+}
+
+fn pairs(
+    given: impl Iterator<Item = (String, Option<String>)>,
+) -> Result<Vec<(Id, Option<Id>)>, ApiError> {
+    given
+        .map(|(to, from)| Ok((parse_id(&to)?, from.as_deref().map(parse_id).transpose()?)))
+        .collect()
+}
+
+/// The pairs the other way round, for the ones that have a source: `(source, Some(target))`. A
+/// source used twice keeps its first target.
+fn reversed(pairs: &[(Id, Option<Id>)]) -> Vec<(Id, Option<Id>)> {
+    let mut out: Vec<(Id, Option<Id>)> = Vec::new();
+    for (to, from) in pairs {
+        if let Some(from) = from
+            && !out.iter().any(|(f, _)| f == from)
+        {
+            out.push((*from, Some(*to)));
+        }
+    }
+    out
+}
+
+/// Changes the note type of notes, keeping each carried card's schedule, deck and suspension.
+pub struct ChangeNoteType;
+
+impl Method for ChangeNoteType {
+    const NAME: &'static str = "changeNoteType";
+    type Input = ChangeNoteTypeInput;
+    type Output = ChangeNoteTypeOutput;
+
+    fn call(
+        core: &Core,
+        input: ChangeNoteTypeInput,
+        _: &OpContext,
+    ) -> Result<ChangeNoteTypeOutput, ApiError> {
+        let target = input.target.parse()?;
+        let to = parse_id(&input.note_type_id)?;
+        let fields = pairs(input.fields.into_iter().map(|m| (m.field_id, m.from)))?;
+        let templates = pairs(input.templates.into_iter().map(|m| (m.template_id, m.from)))?;
+        let what = "change a note type";
+        with(core, |c| {
+            let notes = target.notes(c, what)?;
+            let done = c
+                .change_note_type(&notes, to, &fields, &templates)
+                .map_err(|e| note_error(what, e))?;
+            let (Some(from), false) = (done.from, done.notes.is_empty()) else {
+                return Ok(ChangeNoteTypeOutput {
+                    notes: 0,
+                    carried: 0,
+                    undo: None,
+                });
+            };
+            let name = c
+                .note_type(to)
+                .map_err(|e| note_error(what, e.into()))?
+                .map_or_else(String::new, |t| t.name);
+            let message = format!(
+                "Changed {} to {name}.",
+                plural(done.notes.len(), "note", "notes")
+            );
+            let (n, carried) = (count(done.notes.len()), count(done.carried.len()));
+            let reverse = Reverse::NoteType {
+                notes: done.notes,
+                from,
+                to,
+                fields: reversed(&fields),
+                templates: reversed(&templates),
+            };
+            let undo = keep(core, c, message, reverse)?;
+            Ok(ChangeNoteTypeOutput {
+                notes: n,
+                carried,
+                undo: Some(undo),
+            })
+        })
+    }
+}
+
 // ---- describeTarget -------------------------------------------------------------------------------
 
 #[derive(Debug, Serialize, TS)]
@@ -788,6 +918,9 @@ pub struct TargetSummary {
     pub note_cards: u32,
     /// How many of `cards` are new: a set due date leaves them alone and a reset skips them.
     pub new_cards: u32,
+    /// The note type all the notes share, so they can change type together. `null` for notes of
+    /// several types (or none).
+    pub note_type_id: Option<String>,
 }
 
 /// What a selection comes to before acting on it: "12 notes (18 cards)", whether Suspend should
@@ -817,12 +950,19 @@ impl Method for DescribeTarget {
                 .suspended_among(&cards)
                 .map_err(|e| study_error(what, e))?;
             let new = c.new_among(&cards).map_err(|e| study_error(what, e))?;
+            let types = c
+                .note_types_among(&notes)
+                .map_err(|e| note_error(what, e))?;
             Ok(TargetSummary {
                 notes: count(notes.iter().collect::<HashSet<_>>().len()),
                 cards: count(cards.iter().collect::<HashSet<_>>().len()),
                 suspended: count(suspended.len()),
                 note_cards: count(note_cards),
                 new_cards: count(new.len()),
+                note_type_id: match types.as_slice() {
+                    [one] => Some(one.to_string()),
+                    _ => None,
+                },
             })
         })
     }
@@ -1004,6 +1144,49 @@ fn reverse(c: &Collection, reverse: Reverse) -> Result<Option<String>, ApiError>
             Ok(Some(format!(
                 "Put back the schedule of {}.{refused}",
                 plural(done.voided.len(), "card", "cards")
+            )))
+        }
+        Reverse::NoteType {
+            notes,
+            from,
+            to,
+            fields,
+            templates,
+        } => {
+            // Notes that changed type again, or were deleted, since are left as they are.
+            let mut still = Vec::new();
+            for note in &notes {
+                match c.note(*note) {
+                    Ok(Some(found)) if !found.deleted && found.note_type == to => still.push(*note),
+                    Ok(_) | Err(NoteError::NotFound) => {}
+                    Err(error) => return Err(note_error(what, error)),
+                }
+            }
+            if still.is_empty() {
+                return Ok(None);
+            }
+            let done = match c.change_note_type(&still, from, &fields, &templates) {
+                Ok(done) => done,
+                Err(NoteError::NotFound) => return Ok(None),
+                Err(error) => return Err(note_error(what, error)),
+            };
+            let name = c
+                .note_type(from)
+                .map_err(|e| note_error(what, e.into()))?
+                .map_or_else(String::new, |t| t.name);
+            let left = notes.len() - done.notes.len();
+            let left = if left == 0 {
+                String::new()
+            } else {
+                format!(
+                    " {} could not be changed back, because {} deleted or changed again.",
+                    plural(left, "note", "notes"),
+                    if left == 1 { "it was" } else { "they were" }
+                )
+            };
+            Ok(Some(format!(
+                "Changed {} back to {name}.{left}",
+                plural(done.notes.len(), "note", "notes")
             )))
         }
         Reverse::Edit {

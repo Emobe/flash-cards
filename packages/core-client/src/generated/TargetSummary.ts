@@ -22,4 +22,9 @@ export type TargetSummary = {
    * How many of `cards` are new: a set due date leaves them alone and a reset skips them.
    */
   newCards: number;
+  /**
+   * The note type all the notes share, so they can change type together. `null` for notes of
+   * several types (or none).
+   */
+  noteTypeId: string | null;
 };

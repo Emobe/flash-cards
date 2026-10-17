@@ -191,6 +191,13 @@ fn describe_event(event: &CardEvent) -> String {
                 event.day
             )
         }
+        EventKind::Transfer => format!(
+            "{when} (day {}) schedule taken from card {}: {} -> {}",
+            event.day,
+            event.source.map_or("?".to_owned(), |s| s.to_string()),
+            event.state_before.map_or("?", state_name),
+            event.state.map_or("?", state_name),
+        ),
         EventKind::Void => format!(
             "{when} (day {}) undo of {}",
             event.day,
