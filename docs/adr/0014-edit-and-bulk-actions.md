@@ -1,7 +1,8 @@
 # 0014: Editing notes, multi-select and bulk actions
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-17
+Accepted: 2026-10-17 (every question as proposed, see Decisions on review)
 
 ## Context
 
@@ -391,3 +392,18 @@ New `fc-api` methods. A `target` is `{ notes: string[] }` or `{ cards: string[] 
 6. **One level of undo, in memory**, with a notice that stays until the next change or Dismiss.
 7. **In Notes view, card actions apply to every card of the notes.**
 8. **Five PRs** as in the plan (`docs/plans/3.2-edit-and-bulk.md`).
+
+## Decisions on review
+
+Anthony's answer on 2026-10-17, in chat: "set it as accepted, merge". He changed nothing, so every
+question is answered as proposed:
+
+1. The editor is a layer over Browse and Study, with an explicit Save and "Discard your changes?" on
+   Back.
+2. A Select button plus long press on the phone, checkboxes from 600 px.
+3. Delete asks first.
+4. "Reschedule" is Set due date and Reset to new, and Set due date leaves new cards alone.
+5. Change note type keeps schedules through the `transfer` event (option A), with migration 12.
+6. One level of undo, in memory, with a notice that stays until the next change or Dismiss.
+7. In Notes view, card actions apply to every card of the notes.
+8. Five PRs: 3.2a to 3.2e.
