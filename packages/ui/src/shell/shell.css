@@ -238,3 +238,25 @@
   border: var(--border-control);
   border-radius: var(--radius);
 }
+
+/* A dialog as a sheet from the bottom (pickers): in thumb reach, and above the keyboard. */
+@media (max-width: 599.98px) {
+  .dialog-sheet {
+    width: 100%;
+    max-width: none;
+    max-height: calc(
+      100dvh -
+      var(--keyboard-inset, 0px) -
+      env(safe-area-inset-top) -
+      var(--space-6)
+    );
+    margin: auto 0 var(--keyboard-inset, 0px);
+    padding-bottom: calc(env(safe-area-inset-bottom) + var(--space-5));
+    border-bottom: 0;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  .shell[data-keyboard="open"] .dialog-sheet {
+    padding-bottom: var(--space-4);
+  }
+}

@@ -102,3 +102,27 @@ export function ChevronIcon() {
     </Svg>
   );
 }
+
+export function SortIcon() {
+  return (
+    <Svg>
+      <path d="M8 5v14M4.5 8.5 8 5l3.5 3.5M16 19V5M12.5 15.5 16 19l3.5-3.5" />
+    </Svg>
+  );
+}
+
+export function CheckIcon() {
+  return (
+    <Svg>
+      <path d="m5 12.5 4.5 4.5L19 7.5" />
+    </Svg>
+  );
+}
+
+export function CloseIcon() {
+  return (
+    <Svg>
+      <path d="M6 6l12 12M18 6 6 18" />
+    </Svg>
+  );
+}

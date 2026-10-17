@@ -415,3 +415,85 @@ fn with_no_collection_open_every_method_says_so() {
         "checking needs no collection"
     );
 }
+
+/// The queries the Browse screen's chips write (`packages/ui/src/browse/query-fixtures.json`, also
+/// checked by `query.test.ts`) find exactly the notes they should, through the real parser.
+#[test]
+fn the_browse_screen_chip_queries_find_the_right_notes() {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../packages/ui/src/browse/query-fixtures.json"
+    ))
+    .unwrap();
+    let (core, _clock) = core();
+    core.with_collection(|c| {
+        let mut decks = std::collections::HashMap::new();
+        let mut note_types = std::collections::HashMap::from([
+            ("Basic".to_owned(), builtin::basic()),
+            (
+                "Basic and reversed".to_owned(),
+                builtin::basic_and_reversed(),
+            ),
+        ]);
+        for note in fixture["notes"].as_array().unwrap() {
+            let mut parent = None;
+            let mut path = String::new();
+            for part in note["deck"].as_str().unwrap().split("::") {
+                path = if path.is_empty() {
+                    part.to_owned()
+                } else {
+                    format!("{path}::{part}")
+                };
+                let id = *decks
+                    .entry(path.clone())
+                    .or_insert_with(|| c.create_deck(part, parent).unwrap());
+                parent = Some(id);
+            }
+            let type_name = note["noteType"].as_str().unwrap();
+            let note_type = *note_types.entry(type_name.to_owned()).or_insert_with(|| {
+                c.create_note_type(type_name, fc_core::notetype::Kind::Standard)
+                    .unwrap()
+            });
+            let first_field = c.note_type(note_type).unwrap().unwrap().fields[0].id;
+            let tags: Vec<&str> = note["tags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|t| t.as_str().unwrap())
+                .collect();
+            let added = c
+                .add_note_with(&fc_core::note::NewNote {
+                    deck: parent.unwrap(),
+                    note_type,
+                    values: &[(first_field, note["title"].as_str().unwrap())],
+                    tags: &tags,
+                })
+                .unwrap();
+            if note["suspended"] == true {
+                c.suspend_cards(&added.cards).unwrap();
+            }
+        }
+    })
+    .unwrap();
+
+    for case in fixture["cases"].as_array().unwrap() {
+        let query = case["query"].as_str().unwrap();
+        let out = search(
+            &core,
+            query,
+            json!({"key": "field", "descending": false}),
+            "notes",
+            0,
+            1000,
+        );
+        let mut found = titles(&out);
+        found.sort();
+        let mut expected: Vec<String> = case["expect"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|t| t.as_str().unwrap().to_owned())
+            .collect();
+        expected.sort();
+        assert_eq!(found, expected, "{}: {query}", case["about"]);
+    }
+}

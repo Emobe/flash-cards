@@ -11,16 +11,19 @@ function inDialogEntry(): boolean {
  * A modal window on a native `dialog`, so focus, Escape and the backdrop just work. Mount it to
  * open it and unmount it to close it. `onClose` runs when the person dismisses it (Escape or the
  * back button). It takes a history entry while open, so the Android back button closes the window
- * and does not leave the screen behind it.
+ * and does not leave the screen behind it. `variant="sheet"` makes it a sheet from the bottom of
+ * the screen in the compact layout, for pickers in thumb reach.
  */
 export function Dialog({
   title,
   onClose,
   children,
+  variant,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  variant?: "sheet";
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -52,7 +55,12 @@ export function Dialog({
   }, []);
 
   return (
-    <dialog ref={ref} className="dialog" aria-labelledby={titleId} onClose={onClose}>
+    <dialog
+      ref={ref}
+      className={variant === "sheet" ? "dialog dialog-sheet" : "dialog"}
+      aria-labelledby={titleId}
+      onClose={onClose}
+    >
       <h2 id={titleId}>{title}</h2>
       {children}
     </dialog>

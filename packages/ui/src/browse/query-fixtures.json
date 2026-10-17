@@ -1,0 +1,166 @@
+{
+  "about": "Shared by two languages: query.test.ts checks that toQuery writes each query and fromQuery reads it back, and crates/fc-api/src/search_tests.rs builds the notes below and checks that each query finds exactly the expected titles (notes mode). Change both sides together.",
+  "notes": [
+    { "title": "kot", "deck": "Polish::Animals", "tags": ["animals"], "noteType": "Basic" },
+    {
+      "title": "pies",
+      "deck": "Polish::Animals",
+      "tags": ["animals"],
+      "noteType": "Basic",
+      "suspended": true
+    },
+    { "title": "być", "deck": "Polish::Verbs", "tags": ["verbs"], "noteType": "Basic" },
+    {
+      "title": "iść",
+      "deck": "Irregular Verbs",
+      "tags": ["verbs::irregular"],
+      "noteType": "Basic and reversed"
+    },
+    { "title": "szybko", "deck": "Verbs", "tags": ["adverbs"], "noteType": "Basic" },
+    {
+      "title": "cytat",
+      "deck": "Quotes \"best\"",
+      "tags": ["x\\"],
+      "noteType": "Słowa \"polskie\""
+    },
+    { "title": "gwiazda", "deck": "a*b\\", "tags": ["s*r"], "noteType": "Star*Type" },
+    { "title": "litera", "deck": "aXb\\", "tags": ["sXr"], "noteType": "StarXType" },
+    { "title": "łódź", "deck": "Łódź", "tags": ["żółw"], "noteType": "Basic" }
+  ],
+  "cases": [
+    {
+      "about": "nothing chosen",
+      "filters": {},
+      "text": "",
+      "query": "",
+      "expect": ["kot", "pies", "być", "iść", "szybko", "cytat", "gwiazda", "litera", "łódź"]
+    },
+    {
+      "about": "a deck by its whole name, not Irregular Verbs or Polish::Verbs",
+      "filters": { "decks": ["Verbs"] },
+      "text": "",
+      "query": "deck:=\"Verbs\"",
+      "expect": ["szybko"]
+    },
+    {
+      "about": "two decks, the first with the decks inside it",
+      "filters": { "decks": ["Polish", "Irregular Verbs"] },
+      "text": "",
+      "query": "(deck:=\"Polish\" or deck:=\"Irregular Verbs\")",
+      "expect": ["kot", "pies", "być", "iść"]
+    },
+    {
+      "about": "a deck path with ::",
+      "filters": { "decks": ["Polish::Verbs"] },
+      "text": "",
+      "query": "deck:=\"Polish::Verbs\"",
+      "expect": ["być"]
+    },
+    {
+      "about": "a deck with quotes",
+      "filters": { "decks": ["Quotes \"best\""] },
+      "text": "",
+      "query": "deck:=\"Quotes \\\"best\\\"\"",
+      "expect": ["cytat"]
+    },
+    {
+      "about": "a star is not a wildcard, and a name may end with a backslash",
+      "filters": { "decks": ["a*b\\"] },
+      "text": "",
+      "query": "deck:=\"a\\*b\\\\\"",
+      "expect": ["gwiazda"]
+    },
+    {
+      "about": "a tag and the tags inside it, not adverbs",
+      "filters": { "tags": ["verbs"] },
+      "text": "",
+      "query": "tag:=\"verbs\"",
+      "expect": ["być", "iść"]
+    },
+    {
+      "about": "two tags, one nested",
+      "filters": { "tags": ["verbs::irregular", "adverbs"] },
+      "text": "",
+      "query": "(tag:=\"verbs::irregular\" or tag:=\"adverbs\")",
+      "expect": ["iść", "szybko"]
+    },
+    {
+      "about": "tags with a backslash, a star and Polish letters",
+      "filters": { "tags": ["x\\", "s*r", "żółw"] },
+      "text": "",
+      "query": "(tag:=\"x\\\\\" or tag:=\"s\\*r\" or tag:=\"żółw\")",
+      "expect": ["cytat", "gwiazda", "łódź"]
+    },
+    {
+      "about": "a note type by its whole name, not Basic and reversed",
+      "filters": { "noteTypes": ["Basic"] },
+      "text": "",
+      "query": "note:=\"Basic\"",
+      "expect": ["kot", "pies", "być", "szybko", "łódź"]
+    },
+    {
+      "about": "note types with quotes, Polish letters and a star",
+      "filters": { "noteTypes": ["Słowa \"polskie\"", "Star*Type"] },
+      "text": "",
+      "query": "(note:=\"Słowa \\\"polskie\\\"\" or note:=\"Star\\*Type\")",
+      "expect": ["cytat", "gwiazda"]
+    },
+    {
+      "about": "a deck with Polish letters, and one state",
+      "filters": { "decks": ["Łódź"], "states": ["new"] },
+      "text": "",
+      "query": "deck:=\"Łódź\" is:new",
+      "expect": ["łódź"]
+    },
+    {
+      "about": "several states",
+      "filters": { "states": ["suspended", "buried"] },
+      "text": "",
+      "query": "(is:suspended or is:buried)",
+      "expect": ["pies"]
+    },
+    {
+      "about": "the text is in brackets, so its or cannot reach the chips",
+      "filters": { "decks": ["Verbs"] },
+      "text": "kot or być",
+      "query": "deck:=\"Verbs\" (kot or być)",
+      "expect": []
+    },
+    {
+      "about": "every chip kind",
+      "filters": {
+        "decks": ["Polish"],
+        "tags": ["animals"],
+        "noteTypes": ["Basic"],
+        "states": ["new", "suspended"],
+        "due": "now",
+        "added": "today",
+        "answered": "again"
+      },
+      "text": "",
+      "query": "deck:=\"Polish\" tag:=\"animals\" note:=\"Basic\" (is:new or is:suspended) is:due added:1 rated:1:1",
+      "expect": []
+    },
+    {
+      "about": "added today and text",
+      "filters": { "added": "today" },
+      "text": "kot or pies",
+      "query": "added:1 (kot or pies)",
+      "expect": ["kot", "pies"]
+    },
+    {
+      "about": "due and answered choices",
+      "filters": { "due": "week", "answered": "week" },
+      "text": "",
+      "query": "due:1..7 rated:7",
+      "expect": []
+    },
+    {
+      "about": "only text",
+      "filters": {},
+      "text": "być",
+      "query": "(być)",
+      "expect": ["być"]
+    }
+  ]
+}
