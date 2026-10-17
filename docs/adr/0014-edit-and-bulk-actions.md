@@ -846,3 +846,98 @@ The plan was approved in chat with "go", every proposed choice taken.
   rest only through 0014's Context and the earlier build notes (said in the chat plan).
 - One more existing test changed than expected: the fold test that used `set_due` as the name of an
   unknown kind now uses `move_due`.
+
+## Build notes (step 3.2e, change note type)
+
+Branch `step/3.2e-change-notetype`. No migration (3.2d added `source` and `last_day`), no new
+dependency, no bridge, permission or CSP change. The plan was approved in chat with "go", every
+proposed choice taken.
+
+- **`EventKind::Transfer`** (`transfer`, `study/transfer.rs`): records the source card's full result
+  (state, step, memory, due) and its day of last answer in `last_day`, with `source` naming the card.
+  The fold always applies the recorded result, even when the event did not build on the card's last
+  event. An older build reads it as an unknown kind and applies the same result when it builds on the
+  last event (tested). It is never earlier than the target's last event or the source's last event,
+  so history reads in order.
+- **`Collection::change_note_type(notes, to, fields, templates)`** (`note/change_type.rs`), one
+  write: values mapped onto the new field IDs (only changed ones written), the `note_type` register,
+  `reconcile`, one `NoteEdited` per note, then a `Transfer` per new or returning card with a source
+  card, and the source's deck and suspension. Old values and old cards stay stored. Cloze to cloze
+  carries by cloze number; between kinds nothing is carried and `templates` is ignored.
+  `note_types_among` tells `describeTarget` whether a selection shares a type.
+- **Maps.** A field listed with no source is emptied; one not listed keeps what it has stored. A
+  template listed with no source is "start as new" (a card that comes back from an earlier life is
+  reset with a `Reset` event); one not listed is left as it is. Undo uses "not listed", so the old
+  values and cards come back as they were.
+- **Refused, nothing written:** notes of several types (`MixedTypes`, "Select notes of one note type
+  to change it."), the same type (`SameType`), a note that would be left with no cards
+  (`LeavesNoCards`), one old card for two new ones (`DuplicateSource`), a field or template of
+  another note type (`UnknownField`).
+- **A transfer is skipped when the target already has that schedule** (a change back with nothing
+  studied in between), so a round trip adds no events.
+- **History and the optimiser** follow `source` (`events_with_sources`, a chain, each card once).
+  `card_history` gains `HistoryKind::Transfer`; `optimisation_data` reads the few chained cards one by
+  one, so an old card in the trash is counted once, through the live card that replaced it.
+- **`fc-api`:** `changeNoteType` (`target`, `noteTypeId`, `fields`, `templates`; answers `notes`,
+  `carried`, `undo`); `Reverse::NoteType` (undo is a change back with the reversed maps, for the
+  notes still of the new type; "Changed 12 notes back to Basic."); `getNoteTypes` also lists
+  templates; `describeTarget` also gives `noteTypeId` (`null` for a mixed selection).
+- **CLI:** `fc change-notetype <file> <type> [--field New=Old]... [--card New=Old]... <note ID>...`
+  (parts not given are matched by name, then position, each old part once); `fc schedule` and
+  `fc history` show a transfer.
+- **UI:** `browse/ChangeTypeWindow.tsx` (a `Dialog variant="layer"`: the type, one select per new
+  field and per new card, the card choices exclusive, a sentence saying what it will do),
+  `browse/changeType.ts` (defaults and the sentence, tested). "Change note type" is in More in the
+  selection bar at both widths. The editor has a Change button next to the type, off while there are
+  unsaved edits; after a change the editor closes and the screen shows the notice with Undo. Study
+  moves on to the next card, since the card is replaced. In Cards view a type change clears the
+  selection (the cards are replaced); in Notes view it stays.
+- **Tests:** 22 core tests (`note/change_type_tests.rs`) and 2 (`study/transfer_tests.rs`): the
+  schedule, deck and suspension carried, field maps, refusals writing nothing (digest), a change back
+  with and without study in between, start as new, cloze, merge into another and a fresh collection,
+  two devices changing at once, history, the optimiser across a chain and a reset, the fold with a
+  concurrent answer (a mutation check, the fold taking the result only when built on, fails it), an
+  older build reading the kind. 5 `fc-api` tests, 1 CLI test, 22 Vitest tests (window, maps, selection
+  bar, editor, Study).
+
+### Verified
+
+- `cargo xtask check` passes.
+- **Web** (`bun run web:dev`'s vite, headless Brave over CDP, real clicks and keys, screenshots
+  read): at 390 px light and dark and 1100 px light and dark, three notes with two answered Easy:
+  More, the window with its defaults and sentence, Change ("Changed 3 notes to Basic and reversed.",
+  "3 notes (6 cards)"), Undo ("Changed 3 notes back to Basic."), the editor's Change button, Cloze
+  chosen with its sentence, and the core's refusal shown in the window.
+- **Desktop** (`bun run dev`, scratch `XDG_DATA_HOME`, a collection made with `fc`, `xdotool`):
+  Ctrl+A, More, the window, Change, and Undo; read back with `fc`: the new Card 1 is a review card
+  with the old card's due day and memory and a `transfer` event, Card 2 is new, and after Undo the
+  old card is live again with its one answer and no extra event.
+
+### Not verified
+
+- **The phone, partly.** Anthony stopped the checks (usage). Seen with `adb` taps and the UI dump:
+  the debug APK installed, More, the window opened with its defaults, Android back closed it and kept
+  the selection, Change gave "12 notes (24 cards)", Undo gave "Changed 12 notes back to Basic.".
+  Screenshots came out black, so the layout was not seen. Not done: the editor's Change button, a
+  longer list of fields.
+- Timings: nothing measured for `change_note_type` on thousands of notes (one write; per note two
+  reads and a reconcile, as `restore_notes`).
+- The editor's Change button on the desktop app, Windows, Firefox, Safari.
+
+### Deviations from the plan
+
+- **None in what was built.** The seven choices listed at the plan (same type refused; a note left with
+  no cards refused; one old card to one new card; listed and unlisted map entries; a transfer skipped
+  when the schedule is the same; Change off while the editor has unsaved edits; buried state not
+  carried) were taken as proposed, and Anthony said "go".
+- **Not done from the plan:** the timing on 10,000 notes (usage), and the phone checks beyond the list
+  above (Anthony stopped them).
+- **Small additions not in the plan:** `note_types_among`, `HistoryKind::Transfer`, `templates` in
+  `getNoteTypes`, `noteTypeId` in `describeTarget`, CLI display of a transfer, and the CLI's default
+  matching.
+
+### Seen, not changed
+
+- **Notes view shows one card of a note**, the one with the lowest card ID (`MIN(c.id)` in
+  `search/run.rs`). After a change to Basic and reversed a note can read "New" while its Card 1 is a
+  review card, and another reads "Due in 9 days". It was always so for Basic and reversed notes (3.1).

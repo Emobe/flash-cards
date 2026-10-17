@@ -24,3 +24,7 @@
 .change-type-summary {
   color: var(--text);
 }
+
+.change-type-group legend {
+  padding: 0;
+}
