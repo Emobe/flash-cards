@@ -46,4 +46,14 @@ describe("rowText", () => {
     expect(rowText("kot [sound:a.mp3] pies")).toBe("kot ♪ pies");
     expect(rowText("<b>not markup</b>")).toBe("<b>not markup</b>");
   });
+
+  test("a cloze shows its answers without the markers", () => {
+    expect(rowText("{{c1::Warszawa}} jest stolicą {{c2::Polski}}.")).toBe(
+      "Warszawa jest stolicą Polski.",
+    );
+    expect(rowText("{{c1::kot::animal}} i {{C12::pies}}")).toBe("kot i pies");
+    expect(rowText("{{c1::duży {{c2::kot}}}}")).toBe("duży kot");
+    expect(rowText("{{c1::Warszawa}} [sound:a.mp3]")).toBe("Warszawa ♪");
+    expect(rowText("{{Front}} and {{c1::}} and {{c1:x}}")).toBe("{{Front}} and  and {{c1:x}}");
+  });
 });

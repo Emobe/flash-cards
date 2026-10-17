@@ -25,7 +25,19 @@ function plural(n: number, unit: string): string {
   return `${n} ${unit}${n === 1 ? "" : "s"}`;
 }
 
-/** A field's plain text as a row shows it: a sound becomes ♪. */
+/** An innermost cloze marker: `{{c1::answer}}` or `{{c1::answer::hint}}`. */
+const CLOZE = /\{\{c\d+::((?:(?!\{\{|\}\}|::).)*)(?:::(?:(?!\{\{|\}\}).)*)?\}\}/gis;
+
+/**
+ * A field's plain text as a row shows it: a cloze shows its answers without the markers, and a
+ * sound becomes ♪.
+ */
 export function rowText(text: string): string {
-  return text.replace(/\[sound:[^\]]*\]/g, "♪");
+  let shown = text;
+  // Inside out, so nested clozes come apart too.
+  for (let previous = ""; previous !== shown; ) {
+    previous = shown;
+    shown = shown.replace(CLOZE, "$1");
+  }
+  return shown.replace(/\[sound:[^\]]*\]/g, "♪");
 }

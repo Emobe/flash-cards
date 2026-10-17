@@ -573,6 +573,10 @@ dependency.
   menu.
 - **No 🖼 in rows:** the core leaves no text for a picture (3.1a notes). Only `[sound:…]`
   becomes ♪.
+- **Cloze markers are taken out of row text** (Anthony, in chat, after the PR opened):
+  `{{c1::Warszawa}} jest stolicą {{c2::Polski}}.` shows as `Warszawa jest stolicą Polski.`.
+  Hints are dropped and nested clozes come apart too. This is done in `rowText` in the UI. The core's
+  `title` and `detail` still carry the markers.
 - **`formatDue` choices the plan left open:**
   - a learning card due now or overdue reads "Learning";
   - from 60 minutes the label is in hours ("In 3 hours");
