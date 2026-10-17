@@ -1,6 +1,6 @@
 //! Folding events into the schedule cache (ADR 0007, part 9, and ADR 0006, section 4).
 //!
-//! A card's schedule is what its events add up to. The fold drops voided reviews, applies the rest
+//! A card's schedule is what its events add up to. The fold drops voided events, applies the rest
 //! in order of `(time, ID)`, and for each takes its recorded result when it built on the event just
 //! applied. An event that did not (two devices answered the same card without seeing each other) is
 //! recomputed from the card as it is at that point, with the inputs it recorded and the fuzz from
@@ -17,7 +17,7 @@ use super::event::{CardEvent, EventKind, events_of, from_row};
 use super::schedule::{Applied, Cached, after, after_change, clear_cached, compute, write_cached};
 use crate::collection::{Collection, CollectionError};
 use crate::id::Id;
-use crate::scheduling::{Scheduler, Steps, default_parameters, parameter_set_id};
+use crate::scheduling::{CardState, Scheduler, Steps, default_parameters, parameter_set_id};
 
 /// Bumped whenever the fold or the state machine changes what it gives for the same events (ADR
 /// 0007, Consequences). A collection whose cache was built by another version is rebuilt on open.
@@ -80,6 +80,42 @@ fn recompute(event: &CardEvent, cached: Option<&Cached>, sets: &ParameterSets) -
     .ok()
 }
 
+/// A set due date or a reset computed again from the card as it is when the fold reaches it (ADR
+/// 0014, decision 5), with the day of the last answer the card keeps. A set due date takes the card's
+/// memory and last answer day at that point and the due day it recorded; on a card that is new at
+/// that point it does nothing, as it would have done nothing when written. A reset needs nothing
+/// from the card.
+fn recompute_change(event: &CardEvent, cached: Option<&Cached>) -> Option<(Applied, i64)> {
+    match event.kind {
+        EventKind::SetDue => {
+            let card = cached.filter(|c| c.state != CardState::New)?;
+            Some((
+                Applied {
+                    state_before: card.state,
+                    state: CardState::Review,
+                    step: 0,
+                    memory: Some(card.memory?),
+                    due_day: Some(event.due_day?),
+                    due_ms: None,
+                },
+                card.last_day,
+            ))
+        }
+        EventKind::Reset => Some((
+            Applied {
+                state_before: cached.map_or(CardState::New, |c| c.state),
+                state: CardState::New,
+                step: 0,
+                memory: None,
+                due_day: None,
+                due_ms: None,
+            },
+            cached.map_or(event.day, |c| c.last_day),
+        )),
+        _ => None,
+    }
+}
+
 /// The cache row for a card with these events (in `(time, ID)` order), or `None` if it is new.
 pub(crate) fn fold(events: &[CardEvent], sets: &ParameterSets) -> Option<Cached> {
     let voided: HashSet<Id> = events
@@ -114,6 +150,22 @@ pub(crate) fn fold(events: &[CardEvent], sets: &ParameterSets) -> Option<Cached>
                         Some(rating),
                         &applied,
                     ));
+                }
+            }
+            // Not answers: the recorded result when built on the last event, otherwise computed
+            // again. Either way the card keeps the day of its last answer.
+            EventKind::SetDue | EventKind::Reset => {
+                let recorded = event.applied().filter(|_| builds_on_last).map(|applied| {
+                    let last_day = event
+                        .last_day
+                        .or(cached.as_ref().map(|c| c.last_day))
+                        .unwrap_or(event.day);
+                    (applied, last_day)
+                });
+                if let Some((applied, last_day)) =
+                    recorded.or_else(|| recompute_change(event, cached.as_ref()))
+                {
+                    cached = Some(after_change(cached.as_ref(), event.id, last_day, &applied));
                 }
             }
             // A kind from a newer app counts only where it builds on the last event: its recorded

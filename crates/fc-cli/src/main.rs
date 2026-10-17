@@ -148,6 +148,11 @@ Usage:
                    Keep cards out of the queue until tomorrow
   fc unbury <file> (<card ID>... | --deck <deck>)
                    Bring buried cards back today, or every buried card in a deck
+  fc set-due <file> <days | from-to> <card ID>...
+                   Make cards review cards due in that many days (0 is today), or on a day in the
+                   range for each card. New cards are left as they are
+  fc reset <file> <card ID>...
+                   Make cards new again. Their history is kept
   fc history <file> <card ID>
                    Print a card's reviews, oldest first (answers that were undone are left out)
   fc stats <file> [--deck <deck>] [--days <n>]
@@ -236,6 +241,8 @@ const COMMANDS: &[&str] = &[
     "unsuspend",
     "bury",
     "unbury",
+    "set-due",
+    "reset",
     "history",
     "stats",
     "forecast",
@@ -991,6 +998,12 @@ fn run(args: &[String]) -> Result<String, Failure> {
             } else {
                 study::next(file, deck.as_deref())
             }
+        }
+        [command, file, days, cards @ ..] if command == "set-due" && !cards.is_empty() => {
+            study::set_due(file, days, cards)
+        }
+        [command, file, cards @ ..] if command == "reset" && !cards.is_empty() => {
+            study::reset(file, cards)
         }
         [command, file, rest @ ..]
             if matches!(

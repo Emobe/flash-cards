@@ -15,8 +15,13 @@ use crate::scheduling::{CardState, Memory, Rating};
 pub enum EventKind {
     /// An answer.
     Review,
-    /// Cancels the review it targets (undo). The review stays stored.
+    /// Cancels the event it targets (undo). That event stays stored.
     Void,
+    /// The card becomes a review card due on a chosen study day, keeping its memory and the day of
+    /// its last answer (ADR 0014, decision 5).
+    SetDue,
+    /// The card becomes new again: no memory, step 0. Its history stays.
+    Reset,
     /// A kind this build does not know, from a newer app. It is kept as it is.
     Unknown(String),
 }
@@ -26,6 +31,8 @@ impl EventKind {
         match self {
             Self::Review => "review",
             Self::Void => "void",
+            Self::SetDue => "set_due",
+            Self::Reset => "reset",
             Self::Unknown(text) => text,
         }
     }
@@ -34,6 +41,8 @@ impl EventKind {
         match text.as_str() {
             "review" => Self::Review,
             "void" => Self::Void,
+            "set_due" => Self::SetDue,
+            "reset" => Self::Reset,
             _ => Self::Unknown(text),
         }
     }

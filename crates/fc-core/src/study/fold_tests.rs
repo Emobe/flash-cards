@@ -400,7 +400,7 @@ fn an_unknown_kind_that_builds_on_the_last_event_applies_its_recorded_result() {
         first.time_ms + 1_000,
         first.day,
     );
-    set_due.kind = EventKind::Unknown("set_due".to_owned());
+    set_due.kind = EventKind::Unknown("move_due".to_owned());
     set_due.rating = None;
     set_due.state = Some(CardState::Review);
     set_due.step = Some(0);

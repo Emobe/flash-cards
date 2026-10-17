@@ -31,6 +31,7 @@ fn study_error(what: &str, error: StudyError) -> ApiError {
         StudyError::NotFound => ApiError::new(ErrorKind::NotFound, error.to_string()),
         StudyError::StartHour
         | StudyError::LaterAnswer
+        | StudyError::DueRange
         | StudyError::Scheduling(_)
         | StudyError::NotEnoughHistory { .. } => ApiError::invalid_input(error.to_string()),
         StudyError::Collection(inner) => match ApiError::from(inner) {

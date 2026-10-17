@@ -118,6 +118,16 @@ pub fn fuzz(interval_days: u32, event_id: Id) -> u32 {
     days.clamp(2, u64::from(MAX_INTERVAL_DAYS)) as u32
 }
 
+/// A whole number of days chosen evenly from `from..=to` (ADR 0014, decision 5), from the 8 random
+/// bytes at the end of an event's UUIDv7, as `fuzz` does, so the same event always gives the same
+/// day. `to` below `from` reads as `from`.
+pub fn day_in_range(from: u32, to: u32, event_id: Id) -> u32 {
+    let span = u64::from(to.max(from) - from) + 1;
+    let mut tail = [0u8; 8];
+    tail.copy_from_slice(&event_id.as_bytes()[8..]);
+    from + (u64::from_be_bytes(tail) % span) as u32
+}
+
 fn outcome(
     card: CardNow,
     rating: Rating,

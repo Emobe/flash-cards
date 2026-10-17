@@ -65,7 +65,8 @@ impl TrainingSet {
 
 impl Collection {
     /// The history of every card that exists now in a deck that uses this preset, undone reviews
-    /// left out. A card moved to a deck with another preset takes its history with it.
+    /// left out, from the card's last reset on. A card moved to a deck with another preset takes its
+    /// history with it.
     pub fn optimisation_data(&self, preset: Id) -> Result<TrainingSet, StudyError> {
         let tree = Tree::load(&self.conn)?;
         let options = self.preset(preset)?.ok_or(StudyError::NotFound)?;
@@ -76,12 +77,15 @@ impl Collection {
             .filter(|r| !r.deleted)
             .map(|r| (r.id, r.preset == preset))
             .collect();
+        // A reset starts the card again (ADR 0014, decision 5): only the answers after its last
+        // reset are trained on.
         let mut statement = self.conn.prepare(
-            "SELECT e.card, k.deck, e.day, e.rating
+            "SELECT e.card, k.deck, e.day, e.rating, e.kind = 'reset'
              FROM card_event e
              JOIN card k ON k.id = e.card
              JOIN note n ON n.id = k.note
-             WHERE e.kind = 'review' AND e.rating IS NOT NULL AND k.deleted = 0 AND n.deleted = 0
+             WHERE (e.kind = 'reset' OR (e.kind = 'review' AND e.rating IS NOT NULL))
+               AND k.deleted = 0 AND n.deleted = 0
                AND NOT EXISTS (SELECT 1 FROM card_event v WHERE v.target = e.id)
              ORDER BY e.card, e.time_ms, e.id",
         )?;
@@ -90,16 +94,18 @@ impl Collection {
                 row.get::<_, Id>(0)?,
                 row.get::<_, Vec<u8>>(1)?,
                 row.get::<_, i64>(2)?,
-                row.get::<_, i64>(3)?,
+                row.get::<_, Option<i64>>(3)?,
+                row.get::<_, bool>(4)?,
             ))
         })?;
         let mut histories: Vec<Vec<HistoryReview>> = Vec::new();
-        let mut current: Option<(Id, i64)> = None;
+        let mut current: Option<Id> = None;
+        // The day of the card's first answer in its history (after its last reset).
+        let mut first: Option<i64> = None;
         let mut skipping = false;
-        let mut reviews = 0u32;
         for row in rows {
-            let (card, stored, day, rating) = row?;
-            if current.map(|(c, _)| c) != Some(card) {
+            let (card, stored, day, rating, reset) = row?;
+            if current != Some(card) {
                 let deck = crate::deck::card_deck(&stored);
                 let deck = if tree.position(deck).is_some() {
                     deck
@@ -107,23 +113,32 @@ impl Collection {
                     crate::deck::default_deck()
                 };
                 skipping = !uses.get(&deck).copied().unwrap_or(false);
-                current = Some((card, day));
+                current = Some(card);
+                first = None;
                 if !skipping {
                     histories.push(Vec::new());
                 }
             }
-            let Some(rating) = Rating::from_number(rating).filter(|_| !skipping) else {
+            if skipping {
+                continue;
+            }
+            let history = histories.last_mut().expect("a history was started");
+            if reset {
+                history.clear();
+                first = None;
+                continue;
+            }
+            let Some(rating) = rating.and_then(Rating::from_number) else {
                 continue;
             };
-            let first = current.map_or(day, |(_, first)| first);
-            let history = histories.last_mut().expect("a history was started");
+            let first = *first.get_or_insert(day);
             history.push(HistoryReview {
                 day: (day - first).clamp(0, i64::from(u32::MAX)) as u32,
                 rating,
             });
-            reviews += 1;
         }
         histories.retain(|h| !h.is_empty());
+        let reviews = histories.iter().map(|h| h.len() as u32).sum();
         let items = training_item_count(&histories);
         Ok(TrainingSet {
             preset,
