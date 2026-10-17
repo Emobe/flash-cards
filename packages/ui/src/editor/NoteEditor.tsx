@@ -84,6 +84,7 @@ export function NoteEditor({
   const [asking, setAsking] = useState<"discard" | "delete" | null>(null);
   const editing = useFieldEditing({ status: setStatus, error: setError });
   const saving = useRef(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const load = useCallback(() => {
     setLoaded({ status: "loading" });
@@ -223,6 +224,24 @@ export function NoteEditor({
     }
   }
 
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  const loadedStatus = loaded.status;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the form only exists once loaded, so the listener is attached again when the status changes.
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && (key === "enter" || key === "s")) {
+        event.preventDefault();
+        void saveRef.current();
+      }
+    };
+    form.addEventListener("keydown", onKeyDown);
+    return () => form.removeEventListener("keydown", onKeyDown);
+  }, [loadedStatus]);
+
   return (
     <Dialog title="Edit note" variant="layer" onClose={requestClose}>
       {loaded.status === "loading" && <p role="status">Opening...</p>}
@@ -241,13 +260,7 @@ export function NoteEditor({
           className="add note-editor"
           aria-label="Edit the note"
           onSubmit={(event) => event.preventDefault()}
-          onKeyDown={(event) => {
-            const key = event.key.toLowerCase();
-            if ((event.ctrlKey || event.metaKey) && (key === "enter" || key === "s")) {
-              event.preventDefault();
-              void save();
-            }
-          }}
+          ref={formRef}
         >
           <div className="add-choices">
             <div className="add-choice">

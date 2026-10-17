@@ -546,7 +546,11 @@ mod tests {
             .with_collection(|c| c.notes_of_cards(&[card.parse().unwrap()]))
             .unwrap()
             .unwrap();
-        assert_eq!(first["noteId"], note[0].to_string(), "the card's note, for the editor");
+        assert_eq!(
+            first["noteId"],
+            note[0].to_string(),
+            "the card's note, for the editor"
+        );
 
         let html = call(&core, "renderCard", json!({ "cardId": card })).unwrap();
         assert!(

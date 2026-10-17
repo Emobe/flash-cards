@@ -2,11 +2,14 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { CoreClient, createFakeTransport, type EventRating, type StudyNext } from "core-client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { CoreProvider } from "../core";
+import { editorHandlers } from "../editor/testEditor";
 import { PlatformProvider } from "../platform";
 import { RouterProvider } from "../router";
 import { AppShell } from "../shell/AppShell";
 import { THEME_KEY, ThemeProvider } from "../theme";
 import { StudyScreen } from "./StudyScreen";
+
+vi.mock("../editor/FieldEditor", () => import("../editor/testEditor"));
 
 const counts = { newCount: 4, learningCount: 1, reviewCount: 2 };
 const previews = [
@@ -44,6 +47,7 @@ type Options = {
 function setup({ queue, summary = null, undone = true }: Options) {
   const next = [...queue];
   const handlers = {
+    ...editorHandlers(),
     startStudySession: vi.fn(() => ({ sessionId: "s1" })),
     endStudySession: vi.fn(() => ({ summary })),
     nextCard: vi.fn(() => {
@@ -394,5 +398,100 @@ describe("the card frame", () => {
       );
     });
     expect(await screen.findByText(/did not start by itself/)).not.toBeNull();
+  });
+});
+
+describe("editing the card's note (step 3.2b)", () => {
+  async function openEditor(how: "button" | "key" = "button") {
+    await screen.findByRole("button", { name: /^Edit/ });
+    if (how === "button") fireEvent.click(screen.getByRole("button", { name: /^Edit/ }));
+    else press("e");
+    return screen.findByRole("dialog", { name: "Edit note" });
+  }
+
+  async function changeAndSave(editor: HTMLElement) {
+    fireEvent.change(await within(editor).findByLabelText("Back", { selector: "textarea" }), {
+      target: { value: "a cat" },
+    });
+    fireEvent.click(within(editor).getByRole("button", { name: "Save" }));
+  }
+
+  test("Edit and e open the card's note", async () => {
+    const { getNote } = setup({ queue: [card("c1")] });
+    let editor = await openEditor("button");
+    await waitFor(() =>
+      expect(getNote).toHaveBeenCalledWith({ noteId: "n-c1" }, expect.anything()),
+    );
+    fireEvent.click(within(editor).getByRole("button", { name: "Back" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Edit note" })).toBeNull());
+    editor = await openEditor("key");
+    expect(editor).not.toBeNull();
+  });
+
+  test("the answer keys do nothing while the editor is open", async () => {
+    const { answerCard } = setup({ queue: [card("c1")] });
+    await showAnswer();
+    await openEditor();
+    press("1");
+    press(" ");
+    expect(answerCard).not.toHaveBeenCalled();
+  });
+
+  test("the answer's time leaves out the time in the editor", async () => {
+    const now = vi.spyOn(performance, "now").mockReturnValue(1_000);
+    try {
+      const { answerCard } = setup({ queue: [card("c1")] });
+      await showAnswer();
+      now.mockReturnValue(2_000);
+      const editor = await openEditor();
+      await within(editor).findByLabelText("Back", { selector: "textarea" });
+      now.mockReturnValue(7_000);
+      fireEvent.click(within(editor).getByRole("button", { name: "Back" }));
+      now.mockReturnValue(8_000);
+      fireEvent.click(await screen.findByRole("button", { name: /^Good/ }));
+      await waitFor(() => expect(answerCard).toHaveBeenCalled());
+      expect(answerCard.mock.calls[0]?.[0].durationMs).toBe(2_000);
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  test("after a save the same card is shown again on the same side, with Saved. and Undo", async () => {
+    const { renderCard, nextCard, undoChange } = setup({ queue: [card("c1"), card("c2")] });
+    await showAnswer();
+    await changeAndSave(await openEditor());
+    expect(await screen.findByText("Saved.")).not.toBeNull();
+    await waitFor(() => expect(renderCard).toHaveBeenCalledTimes(2));
+    expect(renderCard.mock.calls[1]?.[0]).toEqual({ cardId: "c1" });
+    expect(nextCard).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: /^Good/ })).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(await screen.findByText("Undone.")).not.toBeNull();
+    expect(undoChange).toHaveBeenCalledWith({ undoId: "u1" }, expect.anything());
+    await waitFor(() => expect(renderCard).toHaveBeenCalledTimes(3));
+  });
+
+  test("when the edit removed the card, study moves to the next one", async () => {
+    const { updateNote, nextCard, renderCard } = setup({ queue: [card("c1"), card("c2")] });
+    updateNote.mockImplementation(() => ({
+      cardsAdded: [],
+      cardsRemoved: ["c1"],
+      duplicates: [],
+      undo: { id: "u1", message: "Saved." },
+    }));
+    await changeAndSave(await openEditor());
+    await waitFor(() => expect(nextCard).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(renderCard.mock.lastCall?.[0]).toEqual({ cardId: "c2" }));
+    expect(screen.getByText("Saved.")).not.toBeNull();
+  });
+
+  test("answering the card clears the notice", async () => {
+    setup({ queue: [card("c1"), card("c2")] });
+    await showAnswer();
+    await changeAndSave(await openEditor());
+    await screen.findByText("Saved.");
+    fireEvent.click(screen.getByRole("button", { name: /^Good/ }));
+    await waitFor(() => expect(screen.queryByText("Saved.")).toBeNull());
   });
 });
