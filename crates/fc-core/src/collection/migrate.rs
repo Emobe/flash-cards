@@ -72,6 +72,10 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         version: 11,
         apply: v11,
     },
+    Migration {
+        version: 12,
+        apply: v12,
+    },
 ];
 
 /// The newest version in `migrations`.
@@ -527,6 +531,20 @@ fn v11(tx: &Transaction) -> rusqlite::Result<()> {
             PRIMARY KEY (entity_type, row_id, column)
         ) WITHOUT ROWID;",
     )
+}
+
+/// Version 12 (step 3.2d): two nullable columns on `card_event` (ADR 0014, decisions 5 and 6).
+/// `last_day` is the study day of the card's last answer, recorded by events that are not answers
+/// (`set_due`, `reset`, `transfer`), so the fold never takes the event's own day for it. `source`
+/// is the card a `transfer` carries a schedule from (step 3.2e). Older apps send rows without them,
+/// so they are nullable (ADR 0008, part 6), and a value an older build kept as unknown moves in.
+fn v12(tx: &Transaction) -> rusqlite::Result<()> {
+    tx.execute_batch(
+        "ALTER TABLE card_event ADD COLUMN source BLOB;
+        ALTER TABLE card_event ADD COLUMN last_day INTEGER;",
+    )?;
+    crate::sync::adopt_unknown(tx, "card_event", "card_event", &["source", "last_day"])?;
+    Ok(())
 }
 
 /// What a database file is, before anything is written to it.

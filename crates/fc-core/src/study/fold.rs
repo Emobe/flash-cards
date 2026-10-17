@@ -14,7 +14,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 use super::StudyError;
 use super::answer::parse_steps_text;
 use super::event::{CardEvent, EventKind, events_of, from_row};
-use super::schedule::{Applied, Cached, after, clear_cached, compute, write_cached};
+use super::schedule::{Applied, Cached, after, after_change, clear_cached, compute, write_cached};
 use crate::collection::{Collection, CollectionError};
 use crate::id::Id;
 use crate::scheduling::{Scheduler, Steps, default_parameters, parameter_set_id};
@@ -120,7 +120,8 @@ pub(crate) fn fold(events: &[CardEvent], sets: &ParameterSets) -> Option<Cached>
             // result is all we can know of it.
             EventKind::Unknown(_) => {
                 if let Some(applied) = event.applied().filter(|_| builds_on_last) {
-                    cached = Some(after(cached.as_ref(), event.id, event.day, None, &applied));
+                    let last_day = event.last_day.unwrap_or(event.day);
+                    cached = Some(after_change(cached.as_ref(), event.id, last_day, &applied));
                 }
             }
             EventKind::Void => {}
@@ -149,7 +150,7 @@ pub(crate) fn rebuild_all(conn: &Connection) -> rusqlite::Result<()> {
     {
         let mut statement = tx.prepare(&format!(
             "SELECT {} ORDER BY card, time_ms, id",
-            super::event::SELECT
+            super::event::select(&tx)?
         ))?;
         let mut rows = statement.query([])?;
         let mut current: Vec<CardEvent> = Vec::new();

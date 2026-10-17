@@ -83,6 +83,8 @@ impl Collection {
             due_day: None,
             due_ms: None,
             target: Some(target.id),
+            source: None,
+            last_day: None,
         };
         let sets = ParameterSets::load(&self.conn)?;
         self.write(|w| {

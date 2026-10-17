@@ -382,7 +382,13 @@ impl WriteTx<'_> {
             .columns
             .iter()
             .cloned()
-            .partition(|(name, _)| table.columns.contains(&name.as_str()));
+            // A column this build knows but this database does not have yet (a layout from before
+            // the migration that adds it, as in the tests that model an older build) is kept as
+            // unknown data, as the older build would.
+            .partition(|(name, _)| {
+                table.columns.contains(&name.as_str())
+                    && targets.column(table.table, name).is_some()
+            });
         for (i, (name, _)) in known.iter().enumerate() {
             if known[..i].iter().any(|(other, _)| other == name) {
                 return Ok(RowOutcome::Rejected(format!(

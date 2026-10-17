@@ -151,7 +151,6 @@ impl Collection {
 ///
 /// A later migration that adds a register or column calls this once for it, with the names of
 /// the new registers or columns, after its own schema changes.
-#[cfg_attr(not(test), allow(dead_code))] // No migration needs it yet; the tests do.
 pub(crate) fn adopt_unknown(
     tx: &Transaction,
     entity: &str,
@@ -164,7 +163,6 @@ pub(crate) fn adopt_unknown(
 }
 
 /// Opens the write guard for the rest of the closure, if it is not open already.
-#[cfg_attr(not(test), allow(dead_code))] // No migration needs it yet; the tests do.
 fn with_guard<T>(tx: &Transaction, f: impl FnOnce() -> rusqlite::Result<T>) -> rusqlite::Result<T> {
     let opened = tx.execute("INSERT OR IGNORE INTO write_guard (id) VALUES (1)", [])? == 1;
     let result = f();
@@ -174,7 +172,6 @@ fn with_guard<T>(tx: &Transaction, f: impl FnOnce() -> rusqlite::Result<T>) -> r
     result
 }
 
-#[cfg_attr(not(test), allow(dead_code))] // No migration needs it yet; the tests do.
 fn adopt_registers(
     tx: &Transaction,
     entity: &str,
@@ -236,7 +233,6 @@ fn adopt_registers(
     Ok(moved)
 }
 
-#[cfg_attr(not(test), allow(dead_code))] // No migration needs it yet; the tests do.
 fn adopt_columns(
     tx: &Transaction,
     entity: &str,

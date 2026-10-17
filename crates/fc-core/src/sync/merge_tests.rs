@@ -1475,11 +1475,42 @@ fn a_version_10_collection_upgrades_and_can_merge() {
     };
     let old = Collection::create_with(location, v10, host.clone()).unwrap();
     let (note, card) = add(&old, "kot", "cat");
-    crate::study::answer_tests::good(&old, card);
+    // An answer as the version-10 build wrote it: without the columns of version 12.
+    let id = Id::new_v7(START, &[4; 10]);
+    let event = crate::study::fold_tests::from_other_device(
+        card,
+        id,
+        None,
+        None,
+        crate::scheduling::Rating::Good,
+        START,
+        START / DAY,
+    );
+    let values: Vec<_> = event
+        .values()
+        .into_iter()
+        .filter(|(c, _)| !["source", "last_day"].contains(c))
+        .collect();
+    let names: String = values.iter().map(|(c, _)| format!(", {c}")).collect();
+    let marks = ", ?".repeat(values.len());
+    old.conn
+        .execute_batch("INSERT INTO write_guard (id) VALUES (1)")
+        .unwrap();
+    old.conn
+        .execute(
+            &format!("INSERT INTO card_event (id{names}) VALUES (?{marks})"),
+            rusqlite::params_from_iter(
+                std::iter::once(rusqlite::types::Value::Blob(id.as_bytes().to_vec()))
+                    .chain(values.into_iter().map(|(_, v)| v)),
+            ),
+        )
+        .unwrap();
+    old.conn.execute_batch("DELETE FROM write_guard").unwrap();
+    old.rebuild_schedule().unwrap();
     old.close().unwrap();
 
     let upgraded = Collection::open(location, host).unwrap();
-    assert_eq!(upgraded.info().unwrap().schema_version, 11);
+    assert_eq!(upgraded.info().unwrap().schema_version, 12);
     check_schema(&upgraded.conn, SYNCED_TABLES).unwrap();
     assert_eq!(front(&upgraded, note), "kot");
     // It gives its changes to a new collection and takes theirs.

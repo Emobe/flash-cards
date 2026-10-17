@@ -35,7 +35,6 @@ pub use registry::{
 pub use requires::SUPPORTED_FEATURES;
 pub(crate) use restore::FileMode;
 pub use unknown::UnknownRegister;
-#[cfg(test)]
 pub(crate) use unknown::adopt_unknown;
 pub(crate) use write::seed_row;
 pub use write::{RegisterClock, WriteTx};

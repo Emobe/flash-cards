@@ -816,6 +816,11 @@ const UPGRADED: Schema = Schema {
             version: 12,
             apply: adopt_v11,
         },
+        // The real version 12: `source` and `last_day`, which the older app kept as unknown.
+        Migration {
+            version: 13,
+            apply: MIGRATIONS[11].apply,
+        },
     ],
     tables: SYNCED_TABLES,
 };
@@ -915,7 +920,7 @@ fn an_older_app_keeps_what_it_does_not_know_relays_it_and_adopts_it_after_an_upg
 
     // After an upgrade it has all of it in its tables, and nothing is left in the store.
     let upgraded = Collection::open_with(file.path(), UPGRADED, host_of(&full, 6)).unwrap();
-    assert_eq!(upgraded.info().unwrap().schema_version, 12);
+    assert_eq!(upgraded.info().unwrap().schema_version, 13);
     assert_same(&digest(&upgraded), &digest(&reference.c), "upgraded");
     let kept: i64 = upgraded
         .conn
