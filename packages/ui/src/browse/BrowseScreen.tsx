@@ -1,9 +1,9 @@
-import type { SearchMode, SearchResultRow } from "core-client";
+import type { SavedSearchSummary, SearchMode, SearchResultRow } from "core-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
 import { useCore } from "../core";
 import { PageHeading, useRouter } from "../router";
-import { SortIcon } from "../shell/icons";
+import { CloseIcon, SortIcon } from "../shell/icons";
 import { BottomAction } from "../shell/slot";
 import { useWideLayout } from "../shell/useMediaQuery";
 import { useKeyShortcut } from "../shell/useShortcuts";
@@ -22,8 +22,9 @@ import {
 } from "./chips";
 import { formatDue, rowText } from "./format";
 import { PickerDialog, type PickerOption } from "./PickerDialog";
+import { SavedSheet } from "./SavedSheet";
 import { SortDialog, sortLabel } from "./SortDialog";
-import { useBrowseSearch } from "./useBrowseSearch";
+import { differsFrom, useBrowseSearch } from "./useBrowseSearch";
 import "./browse.css";
 
 /**
@@ -64,6 +65,30 @@ function useNames() {
     };
   }, [load]);
   return { names, reload: load };
+}
+
+/**
+ * The saved searches, read when the screen opens and after each write. `reload` answers once the
+ * list is in, so a caller can mark a new one open only after the list has it. A failed read keeps
+ * what was there.
+ */
+function useSavedSearches() {
+  const core = useCore();
+  const [searches, setSearches] = useState<SavedSearchSummary[] | null>(null);
+  const reload = useCallback(
+    () =>
+      core
+        .call("getSavedSearches", null)
+        .then((list) => setSearches(list.searches))
+        .catch(() => {
+          // The screen works without them; the sheet shows what it last had.
+        }),
+    [core],
+  );
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+  return { searches, reload };
 }
 
 function options(kind: ChipKind, names: Names | null): PickerOption[] {
@@ -135,7 +160,8 @@ export function BrowseScreen() {
   const { names, reload } = useNames();
   const { navigate } = useRouter();
   const wide = useWideLayout();
-  const [open, setOpen] = useState<ChipKind | "sort" | null>(null);
+  const saved = useSavedSearches();
+  const [open, setOpen] = useState<ChipKind | "sort" | "saved" | null>(null);
   const box = useRef<HTMLInputElement>(null);
   useKeyShortcut("/", () => box.current?.focus());
 
@@ -143,6 +169,13 @@ export function BrowseScreen() {
   const rows = results?.rows ?? [];
   const end = useLoadMore(search.hasMore, rows.length, search.loadMore);
   const deckPaths = new Map(names?.decks.map((d) => [d.id, d.path]));
+  const openSaved = saved.searches?.find((s) => s.id === state.savedId) ?? null;
+
+  // A remembered saved search that is gone (deleted here or on another device) is dropped quietly.
+  const { setSavedId } = search;
+  useEffect(() => {
+    if (saved.searches && state.savedId !== null && openSaved === null) setSavedId(null);
+  }, [saved.searches, state.savedId, openSaved, setSavedId]);
 
   function openPicker(kind: ChipKind) {
     if (kind === "decks" || kind === "tags" || kind === "noteTypes") reload();
@@ -153,6 +186,10 @@ export function BrowseScreen() {
     <ChipRow
       filters={state.filters}
       names={names}
+      onSaved={() => {
+        void saved.reload();
+        setOpen("saved");
+      }}
       onOpen={openPicker}
       onClear={(kind) => search.setFilters(withChosen(state.filters, kind, []))}
     />
@@ -226,6 +263,23 @@ export function BrowseScreen() {
         <p className="browse-count" role="status">
           {search.searching || !results ? "Searching…" : count(results.total, state.mode)}
         </p>
+        {openSaved && (
+          <p className="browse-saved">
+            <span>
+              Saved: <strong>{openSaved.name}</strong>
+              {differsFrom(state, openSaved) && <span className="browse-changed"> · changed</span>}
+            </span>
+            <button
+              type="button"
+              className="browse-saved-close"
+              aria-label={`Close saved search ${openSaved.name}`}
+              title="Close saved search"
+              onClick={() => setSavedId(null)}
+            >
+              <CloseIcon />
+            </button>
+          </p>
+        )}
       </div>
       {panel}
       {results &&
@@ -268,7 +322,17 @@ export function BrowseScreen() {
           onClose={() => setOpen(null)}
         />
       )}
-      {open !== null && open !== "sort" && (
+      {open === "saved" && (
+        <SavedSheet
+          state={state}
+          searches={saved.searches}
+          reload={saved.reload}
+          onOpen={search.openSaved}
+          onOpened={setSavedId}
+          onClose={() => setOpen(null)}
+        />
+      )}
+      {open !== null && open !== "sort" && open !== "saved" && (
         <PickerDialog
           key={open}
           title={chipNames[open]}

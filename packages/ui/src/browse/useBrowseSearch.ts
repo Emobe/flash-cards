@@ -250,6 +250,13 @@ export function useBrowseSearch() {
     [searchNow],
   );
 
+  const setSavedId = useCallback((savedId: string | null) => {
+    const next = { ...stateRef.current, savedId };
+    stateRef.current = next;
+    setState(next);
+    writeState(next);
+  }, []);
+
   const loadMore = useCallback(async () => {
     const before = shownRef.current;
     if (!before || before.rows.length >= before.total || running.current) return;
@@ -323,12 +330,7 @@ export function useBrowseSearch() {
         seed: saved.sort.key === "random" ? newSeed() : s.seed,
         savedId: saved.id,
       })),
-    /** Which saved search is open, without changing the search (after a save, rename or delete). */
-    setSavedId: (savedId: string | null) => {
-      const next = { ...stateRef.current, savedId };
-      stateRef.current = next;
-      setState(next);
-      writeState(next);
-    },
+    /** Which saved search is open, without changing the search (after a save or delete). */
+    setSavedId,
   };
 }

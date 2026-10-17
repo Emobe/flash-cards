@@ -309,3 +309,104 @@
   font-weight: 400;
   text-align: right;
 }
+
+/* The open saved search under the heading, and the Saved sheet (step 3.1c). */
+.browse-saved {
+  display: flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+}
+
+.browse-saved > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.browse-saved strong {
+  color: var(--text);
+}
+
+.browse-saved-close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--target);
+  height: var(--target);
+  padding: 0;
+  background: none;
+  color: var(--muted);
+  border: 0;
+  border-radius: 999px;
+}
+
+.saved-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+.saved-list {
+  min-height: 0;
+  max-height: 50vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.saved-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-1) 0;
+  border-top: var(--border);
+}
+
+.saved-open {
+  display: flex;
+  flex: 1 1 10rem;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+  min-height: var(--target);
+  padding: 0 var(--space-2);
+  background: none;
+  color: var(--text);
+  border: 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.saved-open[aria-current="true"] {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.saved-note {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: 400;
+}
+
+.saved-buttons {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.saved-gone {
+  flex: 1 1 10rem;
+  padding: 0 var(--space-2);
+  color: var(--muted);
+}
+
+.saved-actions {
+  flex-wrap: wrap;
+}
