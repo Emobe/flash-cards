@@ -10,7 +10,10 @@ Kept current by every session. A new session reads this first.
 - **3.1b Browse on the phone** (next debug APK, taps allowed, never unlock): the bottom panel in the hand and in landscape; typing with the keyboard open (panel above it, rows visible); a picker sheet with the Find box and the keyboard open; Android back closing a picker; time a one-word text search and a chip search on the real collection and write the numbers in the ADR 0013 3.1b notes. Also the first APK with `zip` 9 (PR #50 adds `nix` for Android).
 - **3.1c Saved searches on the phone** (next debug APK, taps allowed, never unlock): the Saved sheet with the name field and the keyboard open (field and buttons visible), Android back closing the sheet and the name form.
 
-**3.2 design session done: ADR 0014 Accepted (2026-10-17, every question as proposed) and `docs/plans/3.2-edit-and-bulk.md`, merged (PR #53).** **Next: `/step 3.2`**, which builds it as five stacked PRs, starting with 3.2a (core and API for editing and the simple bulk actions).
+**3.2 design session done: ADR 0014 Accepted (2026-10-17, every question as proposed) and `docs/plans/3.2-edit-and-bulk.md`, merged (PR #53).** **Building 3.2a** (core and API for editing and the simple bulk actions) on `step/3.2a-edit-api`. Choices made at the plan (Anthony said "go" to the plan with its four questions open, so the proposed answers were taken): `updateNote` takes an optional `deckId` and one undo covers the edit and the move; the undo slot is on `fc_core::Core` (`fc_core::undo`), not in `fc-api`; `delete-note` and `restore-note` take several IDs instead of new `delete-notes` and `restore-notes` commands; undo of a move from several decks or of several tags is one write per deck or tag.
+
+- 3.2a done so far: core (`edit_note_with`, `delete_notes`, `restore_notes`, changed sets from `move_cards`, `add_tags`, `remove_tags`, `suspend_cards`, `unsuspend_cards`, `search_ids`, `cards_of_notes`, `notes_of_cards`, the kept change on `Core`) and the CLI, with tests (commit `fd30c21`).
+- 3.2a left: `fc-api` `edit.rs` (the methods, `undoChange`, bindings) and its tests, the timings, the ADR 0014 build notes, the PR.
 
 **Step 3.1 is done**: 3.1c (PR #52), 3.1b (PR #51), 3.1a (PR #49) and `zip` 9.0.4 (PR #50) are merged.
 
