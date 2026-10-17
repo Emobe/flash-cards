@@ -15,8 +15,13 @@ use crate::scheduling::{CardState, Memory, Rating};
 pub enum EventKind {
     /// An answer.
     Review,
-    /// Cancels the review it targets (undo). The review stays stored.
+    /// Cancels the event it targets (undo). That event stays stored.
     Void,
+    /// The card becomes a review card due on a chosen study day, keeping its memory and the day of
+    /// its last answer (ADR 0014, decision 5).
+    SetDue,
+    /// The card becomes new again: no memory, step 0. Its history stays.
+    Reset,
     /// A kind this build does not know, from a newer app. It is kept as it is.
     Unknown(String),
 }
@@ -26,6 +31,8 @@ impl EventKind {
         match self {
             Self::Review => "review",
             Self::Void => "void",
+            Self::SetDue => "set_due",
+            Self::Reset => "reset",
             Self::Unknown(text) => text,
         }
     }
@@ -34,6 +41,8 @@ impl EventKind {
         match text.as_str() {
             "review" => Self::Review,
             "void" => Self::Void,
+            "set_due" => Self::SetDue,
+            "reset" => Self::Reset,
             _ => Self::Unknown(text),
         }
     }
@@ -70,18 +79,26 @@ pub struct CardEvent {
     pub memory: Option<Memory>,
     pub due_day: Option<i64>,
     pub due_ms: Option<i64>,
-    /// For a void: the review it cancels.
+    /// For a void: the event it cancels.
     pub target: Option<Id>,
+    /// For a `transfer` (step 3.2e): the card whose schedule it carries.
+    pub source: Option<Id>,
+    /// For an event that is not an answer: the study day of the card's last answer, which it keeps.
+    pub last_day: Option<i64>,
 }
 
 impl CardEvent {
-    /// The recorded result, if the event has all of it.
+    /// The recorded result, if the event has all of it. Only a new card has no memory.
     pub(crate) fn applied(&self) -> Option<Applied> {
+        let state = self.state?;
+        if state != CardState::New && self.memory.is_none() {
+            return None;
+        }
         Some(Applied {
             state_before: self.state_before?,
-            state: self.state?,
+            state,
             step: self.step?,
-            memory: self.memory?,
+            memory: self.memory.filter(|_| state != CardState::New),
             due_day: self.due_day,
             due_ms: self.due_ms,
         })
@@ -90,7 +107,7 @@ impl CardEvent {
     /// All columns, for `WriteTx::insert_row`.
     pub(crate) fn values(&self) -> Vec<(&'static str, Value)> {
         let blob = |id: Id| Value::Blob(id.as_bytes().to_vec());
-        let columns: [(&'static str, Value); 21] = [
+        let columns: [(&'static str, Value); 23] = [
             ("card", blob(self.card)),
             ("kind", Value::Text(self.kind.as_text().to_owned())),
             ("time_ms", Value::Integer(self.time_ms)),
@@ -118,17 +135,34 @@ impl CardEvent {
             ("due_day", opt(self.due_day)),
             ("due_ms", opt(self.due_ms)),
             ("target", opt(self.target.map(blob))),
+            ("source", opt(self.source.map(blob))),
+            ("last_day", opt(self.last_day)),
         ];
         debug_assert_eq!(columns.len(), CARD_EVENT.columns.len());
         columns.into()
     }
 }
 
-/// The columns `from_row` reads, in its order.
-pub(super) const SELECT: &str =
-    "id, card, kind, time_ms, utc_offset, device, previous, day, rating,
+/// The columns `from_row` reads, in its order, and the table.
+const SELECT: &str = "id, card, kind, time_ms, utc_offset, device, previous, day, rating,
     duration_ms, preset, desired_retention, parameters, steps, state_before, state, step,
-    stability, difficulty, due_day, due_ms, target FROM card_event";
+    stability, difficulty, due_day, due_ms, target, source, last_day FROM card_event";
+
+/// The same for a table from before version 12, which reads `source` and `last_day` as null. Only
+/// the tests that model an older build open a collection on that layout.
+const SELECT_BEFORE_12: &str = "id, card, kind, time_ms, utc_offset, device, previous, day,
+    rating, duration_ms, preset, desired_retention, parameters, steps, state_before, state, step,
+    stability, difficulty, due_day, due_ms, target, NULL, NULL FROM card_event";
+
+/// What `from_row` needs after `SELECT`, for the layout this database has.
+pub(super) fn select(conn: &Connection) -> rusqlite::Result<&'static str> {
+    let current: bool = conn.query_row(
+        "SELECT EXISTS (SELECT 1 FROM pragma_table_info('card_event') WHERE name = 'last_day')",
+        [],
+        |row| row.get(0),
+    )?;
+    Ok(if current { SELECT } else { SELECT_BEFORE_12 })
+}
 
 pub(super) fn from_row(row: &Row<'_>) -> rusqlite::Result<CardEvent> {
     let stability: Option<f64> = row.get(17)?;
@@ -166,19 +200,22 @@ pub(super) fn from_row(row: &Row<'_>) -> rusqlite::Result<CardEvent> {
         due_day: row.get(19)?,
         due_ms: row.get(20)?,
         target: row.get(21)?,
+        source: row.get(22)?,
+        last_day: row.get(23)?,
     })
 }
 
 /// A card's events in the order the fold applies them: by time, then ID.
 pub(crate) fn events_of(conn: &Connection, card: Id) -> rusqlite::Result<Vec<CardEvent>> {
     let mut statement = conn.prepare(&format!(
-        "SELECT {SELECT} WHERE card = ?1 ORDER BY time_ms, id"
+        "SELECT {} WHERE card = ?1 ORDER BY time_ms, id",
+        select(conn)?
     ))?;
     statement.query_map([card], from_row)?.collect()
 }
 
 pub(crate) fn event(conn: &Connection, id: Id) -> rusqlite::Result<Option<CardEvent>> {
-    let mut statement = conn.prepare(&format!("SELECT {SELECT} WHERE id = ?1"))?;
+    let mut statement = conn.prepare(&format!("SELECT {} WHERE id = ?1", select(conn)?))?;
     let mut rows = statement.query_map([id], from_row)?;
     rows.next().transpose()
 }

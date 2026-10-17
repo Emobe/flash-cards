@@ -27,6 +27,8 @@ pub enum Reverse {
     Suspension { cards: Vec<Id>, suspended: bool },
     /// Restore these notes from the trash.
     RestoreNotes(Vec<Id>),
+    /// Void these card events (a set due date or a reset), which puts each card's schedule back.
+    Events(Vec<Id>),
     /// Write a note's old values back, its old tags if they changed, and move its cards back.
     Edit {
         note: Id,

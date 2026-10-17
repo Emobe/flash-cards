@@ -3,7 +3,7 @@
 
 use fc_core::deck::PresetChange;
 use fc_core::scheduling::Due;
-use fc_core::stats::{DayRange, MIN_TRAINING_ITEMS};
+use fc_core::stats::{DayRange, HistoryKind, MIN_TRAINING_ITEMS};
 
 use super::study::{card_id, date, open, preview_text, rating_name, state_name, time};
 use super::{Failure, find_deck, plural};
@@ -54,7 +54,11 @@ pub fn history(file: &str, card: &str) -> Result<String, Failure> {
     let card = card_id(card)?;
     let open = open(file)?;
     let history = open.collection.card_history(card)?;
-    let mut text = format!("Card {card}: {}", plural(history.len(), "review"));
+    let answers = history
+        .iter()
+        .filter(|e| e.kind == HistoryKind::Answer)
+        .count();
+    let mut text = format!("Card {card}: {}", plural(answers, "review"));
     for e in &history {
         let since = e.days_since_previous.map_or(String::new(), |d| {
             format!(", {} after the last", plural(d as usize, "day"))
@@ -70,11 +74,16 @@ pub fn history(file: &str, card: &str) -> Result<String, Failure> {
                 m.stability, m.difficulty
             )
         });
+        let what = match (e.kind, e.rating) {
+            (HistoryKind::SetDue, _) => "due date set",
+            (HistoryKind::Reset, _) => "reset to new",
+            (HistoryKind::Answer, Some(rating)) => rating_name(rating),
+            (HistoryKind::Answer, None) => "?",
+        };
         text.push_str(&format!(
-            "\n  {} (day {}) {}: {} -> {}{since}{result}{memory}",
+            "\n  {} (day {}) {what}: {} -> {}{since}{result}{memory}",
             time(e.time_ms, e.utc_offset),
             e.day,
-            rating_name(e.rating),
             e.state_before.map_or("?", state_name),
             e.state.map_or("?", state_name),
         ));

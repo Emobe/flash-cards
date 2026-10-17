@@ -66,6 +66,8 @@ import type { SearchInput } from "./SearchInput";
 import type { SearchResults } from "./SearchResults";
 import type { SetBackupSettingsInput } from "./SetBackupSettingsInput";
 import type { SetDeckPresetInput } from "./SetDeckPresetInput";
+import type { SetDueDateInput } from "./SetDueDateInput";
+import type { SetDueDateOutput } from "./SetDueDateOutput";
 import type { SetPresetOptionsInput } from "./SetPresetOptionsInput";
 import type { SlowInput } from "./SlowInput";
 import type { SlowOutput } from "./SlowOutput";
@@ -170,6 +172,8 @@ export type Methods = {
   suspendCards: { input: TargetInput; output: ChangeOutput; bytesIn: false; bytesOut: false };
   unsuspendCards: { input: TargetInput; output: ChangeOutput; bytesIn: false; bytesOut: false };
   deleteNotes: { input: TargetInput; output: DeletedNotes; bytesIn: false; bytesOut: false };
+  setDueDate: { input: SetDueDateInput; output: SetDueDateOutput; bytesIn: false; bytesOut: false };
+  resetCards: { input: TargetInput; output: ChangeOutput; bytesIn: false; bytesOut: false };
   describeTarget: { input: TargetInput; output: TargetSummary; bytesIn: false; bytesOut: false };
   undoChange: { input: UndoChangeInput; output: UndoChangeOutput; bytesIn: false; bytesOut: false };
   exportBackupToFile: {

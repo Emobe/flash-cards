@@ -69,7 +69,7 @@ fn a_cards_history_lists_its_reviews_in_order_with_what_each_one_did() {
     answer(&c, card, Rating::Again);
     let history = c.card_history(card).unwrap();
     assert_eq!(history.len(), 3);
-    let ratings: Vec<Rating> = history.iter().map(|e| e.rating).collect();
+    let ratings: Vec<Rating> = history.iter().filter_map(|e| e.rating).collect();
     assert_eq!(ratings, [Rating::Good, Rating::Good, Rating::Again]);
     assert_eq!(history[0].state_before, Some(CardState::New));
     assert_eq!(history[0].state, Some(CardState::Learning));
@@ -110,7 +110,7 @@ fn an_undone_review_and_its_void_are_not_in_the_history_but_stay_stored() {
         .card_history(card)
         .unwrap()
         .iter()
-        .map(|e| e.rating)
+        .filter_map(|e| e.rating)
         .collect();
     assert_eq!(ratings, [Rating::Good, Rating::Hard]);
 }

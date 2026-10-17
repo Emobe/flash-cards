@@ -1504,7 +1504,7 @@ fn a_version_8_collection_upgrades_and_keeps_its_cards() {
     old.close().unwrap();
 
     let upgraded = Collection::open(location, host(&clock)).unwrap();
-    assert_eq!(upgraded.info().unwrap().schema_version, 11);
+    assert_eq!(upgraded.info().unwrap().schema_version, 12);
     check_schema(&upgraded.conn, SYNCED_TABLES).unwrap();
     assert_eq!(
         upgraded

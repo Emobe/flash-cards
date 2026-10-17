@@ -17,25 +17,27 @@ use crate::scheduling::{
 pub(crate) struct Cached {
     pub state: CardState,
     pub step: u32,
-    pub memory: Memory,
+    /// `None` for a card reset to new.
+    pub memory: Option<Memory>,
     /// For a review card: the study day it is due.
     pub due_day: Option<i64>,
     /// For a learning or relearning card: when it is due, in Unix milliseconds.
     pub due_ms: Option<i64>,
-    /// The study day of the last answer.
+    /// The study day of the last answer. A card reset to new keeps it, unused.
     pub last_day: i64,
     pub last_event: Id,
     pub answers: u32,
     pub lapses: u32,
 }
 
-/// What one answer does to a card: the fields a card event records as its result.
+/// What one event does to a card: the fields a card event records as its result.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct Applied {
     pub state_before: CardState,
     pub state: CardState,
     pub step: u32,
-    pub memory: Memory,
+    /// Always there after an answer. `None` only for a new card (a reset).
+    pub memory: Option<Memory>,
     pub due_day: Option<i64>,
     pub due_ms: Option<i64>,
 }
@@ -47,7 +49,7 @@ pub(crate) fn card_now(cached: Option<&Cached>) -> CardNow {
         Some(c) => CardNow {
             state: c.state,
             step: c.step,
-            memory: Some(c.memory),
+            memory: c.memory.filter(|_| c.state != CardState::New),
         },
     }
 }
@@ -74,7 +76,7 @@ pub(crate) fn compute(
         state_before: now.state,
         state: outcome.state,
         step: outcome.step,
-        memory: outcome.memory,
+        memory: Some(outcome.memory),
         due_day,
         due_ms,
     })
@@ -104,6 +106,29 @@ pub(crate) fn after(
     }
 }
 
+/// The cache row after an event that is not an answer (a set due date, a reset, an unknown kind):
+/// the result as recorded, the day of the last answer as given, and the counts unchanged, since
+/// they are totals of the answers.
+pub(crate) fn after_change(
+    cached: Option<&Cached>,
+    event: Id,
+    last_day: i64,
+    applied: &Applied,
+) -> Cached {
+    let (answers, lapses) = cached.map_or((0, 0), |c| (c.answers, c.lapses));
+    Cached {
+        state: applied.state,
+        step: applied.step,
+        memory: applied.memory,
+        due_day: applied.due_day,
+        due_ms: applied.due_ms,
+        last_day,
+        last_event: event,
+        answers,
+        lapses,
+    }
+}
+
 pub(crate) fn read_cached(conn: &Connection, card: Id) -> rusqlite::Result<Option<Cached>> {
     conn.query_row(
         "SELECT state, step, due_day, due_ms, stability, difficulty, last_day, last_event,
@@ -116,10 +141,13 @@ pub(crate) fn read_cached(conn: &Connection, card: Id) -> rusqlite::Result<Optio
                 step: row.get::<_, i64>(1)?.max(0) as u32,
                 due_day: row.get(2)?,
                 due_ms: row.get(3)?,
-                memory: Memory {
-                    stability: row.get::<_, Option<f64>>(4)?.unwrap_or(0.0) as f32,
-                    difficulty: row.get::<_, Option<f64>>(5)?.unwrap_or(0.0) as f32,
-                },
+                memory: row
+                    .get::<_, Option<f64>>(4)?
+                    .zip(row.get::<_, Option<f64>>(5)?)
+                    .map(|(s, d)| Memory {
+                        stability: s as f32,
+                        difficulty: d as f32,
+                    }),
                 last_day: row.get(6)?,
                 last_event: row.get(7)?,
                 answers: row.get::<_, i64>(8)?.max(0) as u32,
@@ -142,8 +170,8 @@ pub(crate) fn write_cached(conn: &Connection, card: Id, cached: &Cached) -> rusq
             cached.step,
             cached.due_day,
             cached.due_ms,
-            f64::from(cached.memory.stability),
-            f64::from(cached.memory.difficulty),
+            cached.memory.map(|m| f64::from(m.stability)),
+            cached.memory.map(|m| f64::from(m.difficulty)),
             cached.last_day,
             cached.last_event,
             cached.answers,
@@ -162,7 +190,7 @@ pub(crate) fn clear_cached(conn: &Connection, card: Id) -> rusqlite::Result<()> 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CardSchedule {
     pub card: Id,
-    /// `New` for a card that was never answered (or whose answers were all undone).
+    /// `New` for a card that was never answered, whose answers were all undone, or that was reset.
     pub state: CardState,
     /// The learning or relearning step, 0 for the first.
     pub step: u32,
@@ -171,9 +199,9 @@ pub struct CardSchedule {
     /// For a learning or relearning card: when it is due, in Unix milliseconds.
     pub due_ms: Option<i64>,
     pub memory: Option<Memory>,
-    /// The study day of the last answer.
+    /// The study day of the last answer. `None` for a new card.
     pub last_day: Option<i64>,
-    /// Answers that count as reviews (not voided).
+    /// Answers that count as reviews (not voided), the whole history even after a reset.
     pub answers: u32,
     pub lapses: u32,
 }
@@ -221,8 +249,8 @@ impl Collection {
                 step: c.step,
                 due_day: c.due_day,
                 due_ms: c.due_ms,
-                memory: Some(c.memory),
-                last_day: Some(c.last_day),
+                memory: c.memory,
+                last_day: (c.state != CardState::New).then_some(c.last_day),
                 answers: c.answers,
                 lapses: c.lapses,
             },

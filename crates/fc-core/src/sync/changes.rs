@@ -152,11 +152,20 @@ impl Collection {
             if !table_exists(&self.conn, table.table)? {
                 continue;
             }
-            let columns: String = table
+            // Only the columns this database has: one on a layout from before a migration (in the
+            // tests that model an older build) keeps a later column as unknown data instead.
+            let present: Vec<String> = self
+                .conn
+                .prepare("SELECT name FROM pragma_table_info(?1)")?
+                .query_map([table.table], |row| row.get(0))?
+                .collect::<Result<_, _>>()?;
+            let names: Vec<&str> = table
                 .columns
                 .iter()
-                .map(|c| format!(", t.\"{c}\""))
+                .copied()
+                .filter(|c| present.iter().any(|p| p == c))
                 .collect();
+            let columns: String = names.iter().map(|c| format!(", t.\"{c}\"")).collect();
             let source = match selection {
                 Selection::All => format!("\"{}\" t", table.table),
                 Selection::Unpushed => format!(
@@ -170,8 +179,8 @@ impl Collection {
             let mut rows = statement.query([])?;
             let mut found: Vec<RowChange> = Vec::new();
             while let Some(row) = rows.next()? {
-                let mut values = Vec::with_capacity(table.columns.len());
-                for (i, name) in table.columns.iter().enumerate() {
+                let mut values = Vec::with_capacity(names.len());
+                for (i, name) in names.iter().enumerate() {
                     values.push(((*name).to_owned(), row.get::<_, Value>(i + 1)?));
                 }
                 found.push(RowChange {

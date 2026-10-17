@@ -1,4 +1,4 @@
-//! One card's review history.
+//! One card's review history: its answers, and the set due dates and resets in between.
 
 use std::collections::HashSet;
 
@@ -8,21 +8,35 @@ use crate::id::Id;
 use crate::scheduling::{CardState, Due, Memory, Rating, elapsed_days};
 use crate::study::EventKind;
 
-/// One answer, as a history screen shows it.
+/// What an entry of a card's history is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HistoryKind {
+    /// An answer, with its rating.
+    Answer,
+    /// The due date was set by hand (ADR 0014, decision 5). Not an answer.
+    SetDue,
+    /// The card was reset to new. Not an answer.
+    Reset,
+}
+
+/// One answer, or a set due date or reset, as a history screen shows it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReviewEntry {
     pub event: Id,
+    pub kind: HistoryKind,
     /// Unix milliseconds.
     pub time_ms: i64,
     /// The device's UTC offset in minutes when it was answered.
     pub utc_offset: i32,
     /// The study day it belongs to.
     pub day: i64,
-    pub rating: Rating,
+    /// `None` for an entry that is not an answer.
+    pub rating: Option<Rating>,
     /// What the card was before and after. `None` if the event does not say (a newer app).
     pub state_before: Option<CardState>,
     pub state: Option<CardState>,
-    /// Study days since the previous review in this list, `None` for the first.
+    /// For an answer: study days since the previous answer in this list, `None` for the first.
+    /// `None` for an entry that is not an answer.
     pub days_since_previous: Option<u32>,
     /// When the answer made the card come back.
     pub due: Option<Due>,
@@ -33,9 +47,9 @@ pub struct ReviewEntry {
 }
 
 impl Collection {
-    /// A card's reviews, oldest first, in the order the schedule folds them. Reviews that were
-    /// undone are left out (`card_events` has them). A deleted card keeps its history, and
-    /// restoring the card shows it again.
+    /// A card's answers, set due dates and resets, oldest first, in the order the schedule folds
+    /// them. Those that were undone are left out (`card_events` has them). A deleted card keeps its
+    /// history, and restoring the card shows it again.
     pub fn card_history(&self, card: Id) -> Result<Vec<ReviewEntry>, StudyError> {
         let found: bool = self.conn.query_row(
             "SELECT EXISTS (SELECT 1 FROM card WHERE id = ?1)",
@@ -52,11 +66,17 @@ impl Collection {
             .filter_map(|e| e.target)
             .collect();
         let mut out: Vec<ReviewEntry> = Vec::new();
+        let mut last_answer: Option<i64> = None;
         for e in events {
-            if e.kind != EventKind::Review || voided.contains(&e.id) {
+            if voided.contains(&e.id) {
                 continue;
             }
-            let Some(rating) = e.rating else { continue };
+            let (kind, rating) = match (&e.kind, e.rating) {
+                (EventKind::Review, Some(rating)) => (HistoryKind::Answer, Some(rating)),
+                (EventKind::SetDue, _) => (HistoryKind::SetDue, None),
+                (EventKind::Reset, _) => (HistoryKind::Reset, None),
+                _ => continue,
+            };
             let due = match (e.due_day, e.due_ms) {
                 (Some(day), _) => {
                     Some(Due::Days((day - e.day).clamp(0, i64::from(u32::MAX)) as u32))
@@ -66,15 +86,22 @@ impl Collection {
                 )),
                 (None, None) => None,
             };
+            let days_since_previous = rating
+                .and(last_answer)
+                .map(|previous| elapsed_days(e.day, previous));
+            if rating.is_some() {
+                last_answer = Some(e.day);
+            }
             out.push(ReviewEntry {
                 event: e.id,
+                kind,
                 time_ms: e.time_ms,
                 utc_offset: e.utc_offset,
                 day: e.day,
                 rating,
                 state_before: e.state_before,
                 state: e.state,
-                days_since_previous: out.last().map(|p| elapsed_days(e.day, p.day)),
+                days_since_previous,
                 due,
                 duration_ms: e.duration_ms.unwrap_or(0),
                 memory: e.memory,

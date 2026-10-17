@@ -18,4 +18,8 @@ export type TargetSummary = {
    * some cards of a note were chosen.
    */
   noteCards: number;
+  /**
+   * How many of `cards` are new: a set due date leaves them alone and a reset skips them.
+   */
+  newCards: number;
 };

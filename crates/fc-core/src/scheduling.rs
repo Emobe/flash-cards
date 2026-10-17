@@ -9,7 +9,7 @@ use fsrs::{ComputeParametersInput, DEFAULT_PARAMETERS, FSRS, FSRSItem, FSRSRevie
 use crate::id::Id;
 
 pub use machine::{
-    CardNow, CardState, Due, MAX_INTERVAL_DAYS, Outcome, Steps, answer, fuzz, preview,
+    CardNow, CardState, Due, MAX_INTERVAL_DAYS, Outcome, Steps, answer, day_in_range, fuzz, preview,
 };
 
 /// How well a card was remembered.

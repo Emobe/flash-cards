@@ -173,8 +173,12 @@ pub fn undo(file: &str) -> Result<String, Failure> {
 fn describe_event(event: &CardEvent) -> String {
     let when = time(event.time_ms, event.utc_offset);
     match &event.kind {
-        EventKind::Review => {
-            let rating = event.rating.map_or("?", rating_name);
+        EventKind::Review | EventKind::SetDue | EventKind::Reset => {
+            let rating = match event.kind {
+                EventKind::SetDue => "due date set",
+                EventKind::Reset => "reset to new",
+                _ => event.rating.map_or("?", rating_name),
+            };
             let before = event.state_before.map_or("?", state_name);
             let after = event.state.map_or("?", state_name);
             let due = match (event.due_ms, event.due_day) {
@@ -219,6 +223,9 @@ pub fn schedule(file: &str, card: &str) -> Result<String, Failure> {
         if let Some(day) = schedule.last_day {
             text.push_str(&format!("\nLast answered: study day {day} ({})", date(day)));
         }
+    }
+    // A card reset to new keeps its counts.
+    if schedule.state != CardState::New || schedule.answers > 0 {
         text.push_str(&format!(
             "\nAnswers: {}, lapses: {}",
             schedule.answers, schedule.lapses
@@ -368,6 +375,58 @@ pub fn hide(
             format!("Unburied {}.", plural(ids.len(), "card"))
         }
     };
+    open.collection.close()?;
+    Ok(text)
+}
+
+/// `3` (in three days) or `3-7` (a day from three to seven days away for each card).
+fn day_range(text: &str) -> Result<(u32, u32), Failure> {
+    let bad = || {
+        Failure::Usage(format!(
+            "\"{text}\" is not a number of days. Give one like 3 (in three days, 0 is today) or a \
+             range like 3-7."
+        ))
+    };
+    let (from, to) = text.split_once('-').unwrap_or((text, text));
+    Ok((
+        from.trim().parse().map_err(|_| bad())?,
+        to.trim().parse().map_err(|_| bad())?,
+    ))
+}
+
+pub fn set_due(file: &str, days: &str, cards: &[String]) -> Result<String, Failure> {
+    let (from, to) = day_range(days)?;
+    let ids = cards
+        .iter()
+        .map(|card| card_id(card))
+        .collect::<Result<Vec<_>, _>>()?;
+    let open = open(file)?;
+    let done = open.collection.set_due(&ids, from, to)?;
+    let mut text = format!("Set the due date of {}.", plural(done.events.len(), "card"));
+    if done.skipped_new > 0 {
+        text.push_str(&format!(
+            " {} left as they are, because they are new.",
+            plural(done.skipped_new, "card")
+        ));
+    }
+    open.collection.close()?;
+    Ok(text)
+}
+
+pub fn reset(file: &str, cards: &[String]) -> Result<String, Failure> {
+    let ids = cards
+        .iter()
+        .map(|card| card_id(card))
+        .collect::<Result<Vec<_>, _>>()?;
+    let open = open(file)?;
+    let done = open.collection.reset_cards(&ids)?;
+    let mut text = format!("Reset {} to new.", plural(done.events.len(), "card"));
+    if done.skipped_new > 0 {
+        text.push_str(&format!(
+            " {} already new.",
+            plural(done.skipped_new, "card")
+        ));
+    }
     open.collection.close()?;
     Ok(text)
 }

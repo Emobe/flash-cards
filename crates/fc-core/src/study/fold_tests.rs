@@ -222,10 +222,12 @@ pub(crate) fn from_other_device(
         state_before: Some(applied.state_before),
         state: Some(applied.state),
         step: Some(applied.step),
-        memory: Some(applied.memory),
+        memory: applied.memory,
         due_day: applied.due_day,
         due_ms: applied.due_ms,
         target: None,
+        source: None,
+        last_day: None,
     }
 }
 
@@ -286,7 +288,7 @@ fn two_events_on_the_same_previous_are_settled_by_recomputing_the_later_one() {
     assert_eq!(got.last_event, mine.id);
     assert_eq!(got.answers, 3);
     // And it is not what this device saw before the other answer arrived.
-    assert_ne!(got.memory, mine.memory.unwrap());
+    assert_ne!(got.memory, mine.memory);
 }
 
 fn after_event(before: &Cached, event: &CardEvent) -> Cached {
@@ -398,7 +400,7 @@ fn an_unknown_kind_that_builds_on_the_last_event_applies_its_recorded_result() {
         first.time_ms + 1_000,
         first.day,
     );
-    set_due.kind = EventKind::Unknown("set_due".to_owned());
+    set_due.kind = EventKind::Unknown("move_due".to_owned());
     set_due.rating = None;
     set_due.state = Some(CardState::Review);
     set_due.step = Some(0);

@@ -13,9 +13,12 @@ pub enum StudyError {
     NotFound,
     /// The day can start at a whole hour from 0 to 23.
     StartHour,
-    /// The card was answered again, here or on another device, after the answer to undo. Undoing
-    /// the older answer would leave the newer one built on something that is gone.
+    /// The card was answered or rescheduled again, here or on another device, after the answer to
+    /// undo. Undoing the older answer would leave the newer event built on something that is gone.
     LaterAnswer,
+    /// A set due date needs a range of whole days from 0 (today) to 36,500, the first no later
+    /// than the last.
+    DueRange,
     /// The scheduler refused the options (a desired retention outside its range). The text is for
     /// the log.
     Scheduling(String),
@@ -36,8 +39,12 @@ impl fmt::Display for StudyError {
                 "The day can start at a whole hour from 0 (midnight) to 23, for example 4 for 4 am.",
             ),
             Self::LaterAnswer => f.write_str(
-                "That card was answered again after this answer, so it cannot be undone. \
+                "That card was answered or rescheduled after this answer, so it cannot be undone. \
                  Answer the card again instead.",
+            ),
+            Self::DueRange => f.write_str(
+                "Choose a number of days from 0 (today) to 36,500, with the first no more than the \
+                 last.",
             ),
             Self::Scheduling(_) => f.write_str(
                 "The card could not be scheduled with these deck options. Check the desired \

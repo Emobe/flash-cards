@@ -83,6 +83,8 @@ impl Collection {
             due_day: None,
             due_ms: None,
             target: Some(target.id),
+            source: None,
+            last_day: None,
         };
         let sets = ParameterSets::load(&self.conn)?;
         self.write(|w| {
@@ -105,7 +107,7 @@ impl Collection {
 
 /// Whether the card has an event, not voided and not a void, after `target` in the order of the
 /// fold, or built directly on it.
-fn has_later_answer(all: &[CardEvent], target: &CardEvent) -> bool {
+pub(super) fn has_later_answer(all: &[CardEvent], target: &CardEvent) -> bool {
     let voided: Vec<Id> = all
         .iter()
         .filter(|e| e.kind == EventKind::Void)

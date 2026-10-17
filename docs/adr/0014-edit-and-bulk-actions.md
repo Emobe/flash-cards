@@ -729,3 +729,120 @@ event yet.
   for an edit.
 - The undo messages from `fc-api` print counts without a thousands separator ("Deleted 5000 notes"),
   unlike the bar ("5,000 notes"); left as 3.2a wrote them.
+
+## Build notes (step 3.2d, set due date and reset)
+
+Branch `step/3.2d-reschedule`. Migration 12. No new dependency, no bridge, permission or CSP change.
+The plan was approved in chat with "go", every proposed choice taken.
+
+- **Migration 12**: nullable `source` and `last_day` on `card_event`, then `adopt_unknown` for both
+  (its first use outside tests). `docs/backup-format.md` lists the columns and the kinds.
+- **The schedule cache can hold a new card with a history.** `Cached.memory` and `Applied.memory`
+  are optional; a reset card is a state-0 row with no memory that keeps its answer and lapse totals
+  and its last event, so a later event can build on it. The queue and search already read a state-0
+  row as new. `CardSchedule.last_day` is `None` for a new card.
+- **Reading an older layout.** Reading events, `changes(All)` and the merge use only the
+  `card_event` columns the database has (a pragma), and a merge keeps a column the database does
+  not have yet as unknown data. In practice every database is migrated before it is read; this keeps
+  the tests that model an older build (upgrades from versions 7 to 11, the tour test) honest.
+- **`EventKind::SetDue` and `Reset`** (`set_due`, `reset`). Each records its full result and the
+  day of the card's last answer (`last_day`), the reset too, so an app that does not know the kind
+  ends on the same card. Fold: the recorded result when built on the card's last event; otherwise a
+  set due date is recomputed from the card at that point (its state, memory and last answer day, the
+  recorded due day) and does nothing on a card that is new at that point, and a reset gives the same
+  result. An unknown kind now uses `last_day` when it has one. No cache version bump.
+- **`Collection::set_due(cards, from, to)`, `reset_cards(cards)`** (`study/reschedule.rs`): one
+  write each, one event per card, the cache updated in the same transaction. New cards are skipped
+  and counted (`Rescheduled.skipped_new`); a deleted card refuses the whole call; a range outside
+  0 to 36,500 or the wrong way round is `StudyError::DueRange`. The day in a range is
+  `scheduling::day_in_range`, from the event ID's last 8 bytes, as the fuzz. **`void_events(ids)`**:
+  one write, newest first, refusing (and counting) an event whose card has a later event that is not
+  voided, as `undo_answer` does; one already voided is skipped. `new_among(cards)` for Browse.
+  `undo_answer` is refused after a later set due date or reset (the existing check); the
+  `LaterAnswer` text now says "answered or rescheduled".
+- **History and statistics.** `ReviewEntry` gains `kind` (`Answer`, `SetDue`, `Reset`) and its
+  `rating` is optional; `days_since_previous` is between answers only. `daily_counts` and
+  `retention` already counted answers only (tests pin it). `optimisation_data` drops a card's answers
+  before its last reset that is not voided.
+- **`fc-api`**: `setDueDate` (`target`, `fromDays`, `toDays`; answers `count`, `skippedNew`,
+  `undo`), `resetCards` (`count`, `undo`), `Reverse::Events` (undo voids the events: "Put back the
+  schedule of 4 cards.", with how many could not be because they were studied since), and
+  `newCards` on `describeTarget`.
+- **CLI**: `fc set-due <file> <days | from-to> <card ID>...`, `fc reset <file> <card ID>...`;
+  `fc schedule` and `fc history` show the two kinds, and `fc schedule` shows the counts of a reset
+  card. `void_events` and `new_among` have reason rows in `tests/coverage.rs`.
+- **UI**: `browse/DueSheet.tsx` (Today, Tomorrow, In N days, Between N and M days; typing a number
+  chooses its option; "11 new cards are not changed"; the sheet is the confirmation) and the Reset
+  question in `SelectionBar` ("Reset 4 cards to new?", the history kept, how many are new already).
+  Both are in More, under 600 px and from 600 px (see deviations).
+- **Tests**: 23 core tests (`study/reschedule_tests.rs`): the result and the event of a set due
+  date, a learning card, new cards skipped, the range spread and that it repeats, bad ranges and a
+  deleted card writing nothing, the next answer's elapsed days, reset and studying it as new, reset
+  skipping new cards, undo of both, undo refused for a card answered since, `undo_answer` refused,
+  another device's answer before and after a set due date, after a reset, a set due date on a card
+  that is new when folded, an unknown kind with the same columns giving the same card, a merge into
+  another collection and a fresh one, history, daily counts and retention, the optimiser after a
+  reset and an undone one, the version-11 upgrade adopting a kept `last_day`. A mutation check (the
+  fold always taking a set due date's recorded result) fails 2 of them. 3 `fc-api` tests, 1 CLI test,
+  4 Vitest tests in `Selection.test.tsx` and 2 for `dueRange`. Existing tests changed where the
+  schema version or the history's `rating` moved, and one fold test used `set_due` as its example of
+  an unknown kind.
+
+### Verified
+
+- `cargo xtask check` passes.
+- **Web** (`bun run web:dev`, headless Brave over CDP, real touch, mouse and key events, sample
+  cards with four answered Easy in Study, screenshots read): at 390 px light, Select all, More (Set
+  due date, Reset to new, Remove tags), the sheet with "On 15 cards" and "11 new cards are not
+  changed", 48 px options, In 5 days giving "Made 4 cards due in 5 days." and the rows "Due in 5
+  days", the selection kept, Undo ("Put back the schedule of 4 cards.") and the rows back; at 390 px
+  dark, Between 9 and 7 refused with its line, Back closing the sheet and keeping selection mode,
+  "Reset 4 cards to new?" with "11 cards are new already", the rows reading New, Undo; at 1100 px
+  light and dark, the row Move, Add tags, Remove tags, Suspend, Delete, More on one line, More with
+  Set due date and Reset to new, Today giving "Due today"; at 700 px nothing overflows.
+- **Desktop** (`bun run dev`, Linux X11, WebKitGTK, scratch `XDG_DATA_HOME`, sample cards with four
+  answered Easy in Study, `xdotool`, screenshots read): the Developer screen shows storage version
+  12; Ctrl+A, More (Set due date, Reset to new), Between 2 and 6 typed and sent with Enter ("Made 4
+  cards due in 2 to 6 days.", rows due in 6, 6, 4 and 6 days), Undo putting back 9, 7, 7 and 7,
+  Escape on the Reset question keeping the selection, Reset ("Reset 4 cards to new.", every row New)
+  and its Undo. Found and fixed: WebKitGTK drew the radios in its own colour; the options now use
+  the shared `.choice` style (the app's accent).
+- **More actions** (Anthony, in chat: its buttons were too close together; Cancel touched the last
+  action): 0.75 rem between the actions and 1.5 rem above Cancel, checked at 1100 px light and
+  390 px dark in headless Brave. It also spaces 3.2c's More, which only held Remove tags.
+
+### Not verified
+
+- **The phone (skipped while Anthony is away, STATUS):** the Set due date sheet with the keyboard
+  open (the day boxes and Set due date visible above it), Android back closing the sheet and then
+  More, the Reset question, a set due date on a real-sized selection with its time. The phone also
+  migrates to storage version 12 with the next debug APK.
+- Timings: nothing measured for a set due date or reset on thousands of cards. Each is one write
+  that reads one cached row and one event per card, like `answer` without the scheduler.
+- **Older builds after sync** (none exist yet; Phase 4): an app before this one applies a set due
+  date (it has every column that build reads), counts the next answer's days from the event's own
+  day because it does not know `last_day`, and ignores a reset, because that build only applies an
+  unknown kind that has a memory. Per-entity `requires` (before 4.3) covers this.
+- Windows, Firefox, Safari.
+
+### Deviations from the plan
+
+- **Set due date and Reset to new are in More from 600 px too**, not in the row: with them the row
+  did not fit at 1100 px and Delete wrapped onto a line of its own (seen in headless Brave), and 3.2e
+  adds Change note type. ADR decision 3 said "From 600 px they fit in one row"; the chat plan said two
+  more buttons in the row.
+- **Reading an older layout**: `card_event` reads, `changes(All)` and the merge now check which
+  columns the database has, so the tests that build an older version's collection keep working. Not
+  in the plan.
+- **A reset records `last_day`** (the card's last answer day), not "no last answer day" as decision
+  5's table says, so an app that does not know the kind ends on the same card (found by the
+  unknown-kind test). The cache keeps that day and `card_schedule` still reads `None` for a new card.
+- **The unknown-kind fold uses `last_day`** when an event has it.
+- **The Set due date sheet starts on Tomorrow**, with 7 for In N days and 3 to 7 for Between (the
+  plan did not say).
+- **`fc schedule` shows the counts of a reset card**, and **`fc history` counts only answers**
+  in its "N reviews" line. Not in the plan.
+- **Accepted ADRs**: 0014 and 0007 were read in full, and the relevant parts of 0006 and 0008; the
+  rest only through 0014's Context and the earlier build notes (said in the chat plan).
+- One more existing test changed than expected: the fold test that used `set_due` as the name of an
+  unknown kind now uses `move_due`.

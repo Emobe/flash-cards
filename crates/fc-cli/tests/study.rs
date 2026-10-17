@@ -386,3 +386,44 @@ fn explains_wrong_arguments_for_the_queue_commands() {
     let missing = "00000000-0000-7000-8000-000000000000";
     assert!(err(&fc(&["bury", file.path(), missing])).contains("no longer exists"));
 }
+
+#[test]
+fn sets_a_due_date_and_resets_to_new() {
+    let file = TempFile::new("set-due");
+    let card = with_a_card(&file);
+    let now = "2026-10-06T09:00:00+00:00";
+    // A new card is left as it is.
+    let skipped = out(&fc(&["set-due", file.path(), "3", &card, "--now", now]));
+    assert!(
+        skipped.contains("Set the due date of 0 cards. 1 card left as they are"),
+        "{skipped}"
+    );
+    out(&fc(&["answer", file.path(), &card, "easy", "--now", now]));
+    let set = out(&fc(&["set-due", file.path(), "3", &card, "--now", now]));
+    assert!(set.contains("Set the due date of 1 card."), "{set}");
+    let schedule = out(&fc(&["schedule", file.path(), &card, "--now", now]));
+    assert!(
+        schedule.contains("Due: on study day 20735 (2026-10-09), in 3 days"),
+        "{schedule}"
+    );
+    assert!(
+        schedule.contains("due date set: Review -> Review"),
+        "{schedule}"
+    );
+    let ranged = out(&fc(&["set-due", file.path(), "5-6", &card, "--now", now]));
+    assert!(ranged.contains("Set the due date of 1 card."), "{ranged}");
+
+    let reset = out(&fc(&["reset", file.path(), &card, "--now", now]));
+    assert!(reset.contains("Reset 1 card to new."), "{reset}");
+    let schedule = out(&fc(&["schedule", file.path(), &card, "--now", now]));
+    assert!(schedule.contains("State: New"), "{schedule}");
+    assert!(schedule.contains("Answers: 1, lapses: 0"), "{schedule}");
+    let history = out(&fc(&["history", file.path(), &card]));
+    assert!(history.contains("1 review"), "{history}");
+    assert!(history.contains("reset to new: Review -> New"), "{history}");
+
+    let wrong = fc(&["set-due", file.path(), "soon", &card]);
+    assert!(err(&wrong).contains("\"soon\" is not a number of days"));
+    let backwards = fc(&["set-due", file.path(), "7-3", &card]);
+    assert!(err(&backwards).contains("Choose a number of days from 0"));
+}

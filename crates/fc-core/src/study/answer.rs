@@ -128,10 +128,12 @@ impl Collection {
             state_before: Some(applied.state_before),
             state: Some(applied.state),
             step: Some(applied.step),
-            memory: Some(applied.memory),
+            memory: applied.memory,
             due_day: applied.due_day,
             due_ms: applied.due_ms,
             target: None,
+            source: None,
+            last_day: None,
         };
         let row = after(cached.as_ref(), id, day, Some(rating), &applied);
         self.write(|w| {

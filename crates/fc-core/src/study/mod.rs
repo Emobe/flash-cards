@@ -18,6 +18,9 @@ pub(crate) mod fold_tests;
 mod queue;
 #[cfg(test)]
 mod queue_tests;
+mod reschedule;
+#[cfg(test)]
+mod reschedule_tests;
 mod schedule;
 mod session;
 #[cfg(test)]
@@ -39,6 +42,7 @@ pub use answer::Answered;
 pub use error::StudyError;
 pub use event::{CardEvent, EventKind};
 pub use queue::{Counts, DeckCounts, LEARN_AHEAD_MS, Next};
+pub use reschedule::{Rescheduled, Voided};
 pub use schedule::CardSchedule;
 pub(crate) use session::OpenSession;
 pub use session::{EndReason, SessionSummary};
@@ -59,7 +63,7 @@ pub const SETTING: SyncedTable = SyncedTable {
 /// write the same entity.
 pub(crate) const SETTING_NAMESPACE: Id = Id::from_bytes(*b"fc-setting-ids-1");
 
-/// One answer, or a void of one. Columns a kind does not use are null. `day` is the study day the
+/// One answer, a void, a set due date or a reset. Columns a kind does not use are null. `day` is the study day the
 /// event belongs to, worked out when it was written from its time, its UTC offset and the start hour
 /// then, so recomputing it never depends on a setting that has changed since.
 pub const CARD_EVENT: AppendOnlyTable = AppendOnlyTable {
@@ -87,6 +91,8 @@ pub const CARD_EVENT: AppendOnlyTable = AppendOnlyTable {
         "due_day",
         "due_ms",
         "target",
+        "source",
+        "last_day",
     ],
 };
 
