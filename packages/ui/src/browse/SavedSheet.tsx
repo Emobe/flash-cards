@@ -157,7 +157,7 @@ export function SavedSheet({
         {searches === null && <p role="status">Loading saved searches…</p>}
         {searches?.length === 0 && deleted.length === 0 && (
           <p className="picker-none">
-            No saved searches yet. Save this search to come back to it in one tap.
+            No saved searches yet. Save this search to come back to it later.
           </p>
         )}
         {rows.length > 0 && (
