@@ -13,12 +13,7 @@ Kept current by every session. A new session reads this first.
 - 3.2d: More; the Set due date sheet with the keyboard open (day boxes and both buttons visible); back closing the sheet and keeping selection; back closing More; In N days on 4 studied and 8 new cards ("Made 4 cards due in … days.", 8 new not changed) and Undo ("Put back the schedule of 4 cards."); the Reset question ("Reset 4 cards to new?", 8 new already), back on it keeping selection, Reset and Undo.
 - 3.1c: the Saved sheet; Save this search opens the name field with the keyboard (field, Back and Save above it); Android back closes the whole sheet from the name form (the in-sheet Back is the way back to the list, as designed).
 
-Found (layout at about 384 px, not fixed yet, for Anthony to decide):
-
-- **"Unsuspend" is wider than its button** in the selection bar and touches both edges (Suspend only just fits).
-- **The notice's Dismiss wraps to its own line** ("Saved.", "Suspended 12 cards."), so the notice and the selection bar together take about half the screen.
-- **The Set due date sheet's buttons are cut at the bottom** with the keyboard open: the sheet reaches its full height and loses its bottom padding. They are visible and can be tapped.
-- The Browse search box's placeholder is cut ("Search your card").
+Found: four layout problems at about 384 px, listed under Open items ("Phone layout fixes from the 3.1 and 3.2 checks").
 
 Phone checks still waiting:
 
@@ -121,6 +116,12 @@ the phone. Anthony removes it, and the old `dev.placeholder.flashcards` app; ses
 - 0.3 UI-to-core bridge. 0.3a (call path, PR #3) and 0.3b (notices, progress, cancellation, events and attachments, PR #4) reviewed by Anthony and merged. Verified on desktop and the phone. Attachment round trip 1 MB: 40 ms desktop, 75 ms phone. 5 MB: 181 ms desktop, 250 ms phone.
 
 ## Open items
+
+- **Phone layout fixes from the 3.1 and 3.2 checks (2026-10-17, not fixed yet).** Found on the phone at about 384 px wide (720 × 1560 at density 300); each should be checked at 390 px in the web client too, where it likely shows the same way. Screenshots were in the session scratchpad only.
+  1. **"Unsuspend" is wider than its button** in the selection bar (`packages/ui/src/browse/SelectionBar.tsx`): the text touches both edges. "Suspend" only just fits, so any longer label or a larger font overflows too.
+  2. **The undo notice's Dismiss wraps onto its own line** (`packages/ui/src/components/UndoNotice.tsx`): with Undo on the first line and Dismiss on a second, the notice is two button rows high. Under the selection bar, the two together cover about half the screen ("Saved.", "Suspended 12 cards.", "Added french to 12 notes.").
+  3. **The Set due date sheet's buttons are cut off at the bottom** with the keyboard open (`packages/ui/src/browse/DueSheet.tsx`): the sheet reaches its full height and loses its bottom padding, so the keyboard covers the lower edge of Cancel and Set due date. They can still be tapped. The Tags, Find and Save search sheets are fine.
+  4. **The Browse search box's placeholder is cut off** ("Search your card…", `packages/ui/src/browse/BrowseScreen.tsx`), next to Sort and Select.
 
 - 2.6 checks left: the Settings screen in the real desktop app and on the phone (Back up now, the list, Restore, Export from the native webviews).
 
