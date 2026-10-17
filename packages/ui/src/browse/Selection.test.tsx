@@ -231,7 +231,7 @@ describe("selecting from 600 px", () => {
     expect(screen.queryByRole("searchbox", { name: "Search your cards" })).toBeNull();
     expect(within(bar()).getByRole("button", { name: "Add tags" })).not.toBeNull();
     expect(within(bar()).getByRole("button", { name: "Remove tags" })).not.toBeNull();
-    expect(within(bar()).queryByRole("button", { name: "More" })).toBeNull();
+    expect(within(bar()).getByRole("button", { name: "More" })).not.toBeNull();
     fireEvent.click(await row("pies"));
     await waitFor(() =>
       expect(edit.getNote).toHaveBeenCalledWith({ noteId: "n-pies" }, expect.anything()),
@@ -276,6 +276,14 @@ describe("the actions", () => {
   async function pick(...titles: string[]) {
     await row(titles[0] ?? "kot");
     for (const title of titles) fireEvent.click(checkbox(title));
+  }
+
+  /** Set due date is in More, from 600 px too, with Reset to new and without Remove tags. */
+  function openDue() {
+    fireEvent.click(within(bar()).getByRole("button", { name: "More" }));
+    const more = screen.getByRole("dialog", { name: "More actions" });
+    expect(within(more).queryByRole("button", { name: "Remove tags" })).toBeNull();
+    fireEvent.click(within(more).getByRole("button", { name: "Set due date" }));
   }
 
   test("Notes view counts the cards the notes have: 2 notes (3 cards)", async () => {
@@ -397,7 +405,7 @@ describe("the actions", () => {
     });
     await pick("kot", "pies");
     await within(bar()).findByText("2 notes (3 cards)");
-    fireEvent.click(within(bar()).getByRole("button", { name: "Set due date" }));
+    openDue();
     let sheet = await screen.findByRole("dialog", { name: "Set due date" });
     expect(within(sheet).getByText("On 3 cards")).not.toBeNull();
     expect(within(sheet).getByText(/^1 new card is not changed/)).not.toBeNull();
@@ -422,7 +430,7 @@ describe("the actions", () => {
     );
 
     // Typing a number chooses its option.
-    fireEvent.click(within(bar()).getByRole("button", { name: "Set due date" }));
+    openDue();
     sheet = await screen.findByRole("dialog", { name: "Set due date" });
     fireEvent.change(within(sheet).getByLabelText("Number of days"), { target: { value: "10" } });
     fireEvent.click(within(sheet).getByRole("button", { name: "Set due date" }));
@@ -430,7 +438,7 @@ describe("the actions", () => {
       expect(lastInput(handlers.setDueDate)).toMatchObject({ fromDays: 10, toDays: 10 }),
     );
 
-    fireEvent.click(within(bar()).getByRole("button", { name: "Set due date" }));
+    openDue();
     sheet = await screen.findByRole("dialog", { name: "Set due date" });
     fireEvent.change(within(sheet).getByLabelText("Fewest days"), { target: { value: "9" } });
     fireEvent.change(within(sheet).getByLabelText("Most days"), { target: { value: "2" } });
@@ -452,12 +460,16 @@ describe("the actions", () => {
     });
     await pick("kot", "pies");
     await within(bar()).findByText("2 notes (3 cards)");
-    fireEvent.click(within(bar()).getByRole("button", { name: "Reset to new" }));
+    fireEvent.click(within(bar()).getByRole("button", { name: "More" }));
+    fireEvent.click(
+      within(await screen.findByRole("dialog", { name: "More actions" })).getByRole("button", {
+        name: "Reset to new",
+      }),
+    );
     const question = await screen.findByRole("dialog", { name: "Reset 1 card to new?" });
-    expect(within(question).getByText(/Their review history is kept/)).not.toBeNull();
-    expect(
-      within(question).getByText("2 cards are new already and stay as they are."),
-    ).not.toBeNull();
+    expect(within(question).getByText(/Their review history is kept/).textContent).toContain(
+      "2 cards are new already and stay as they are.",
+    );
     expect(handlers.resetCards).not.toHaveBeenCalled();
     fireEvent.click(within(question).getByRole("button", { name: "Reset" }));
     expect(await screen.findByText("Reset 1 card to new.")).not.toBeNull();

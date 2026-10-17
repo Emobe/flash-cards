@@ -68,8 +68,9 @@ function deleteQuestion(size: number, mode: SearchMode, summary: TargetSummary |
 /**
  * The selection bar (ADR 0014 decisions 2 and 3): leave, the count, Select all, and the actions.
  * Under 600 px it sits in `BottomAction` in place of the search panel, with Move, Tag, Suspend,
- * Delete and More (Set due date, Reset to new, Remove tags); from 600 px it sits above the list with
- * every action in one row. Move, tags and suspend act at once (after their sheet); Delete, Set due
+ * Delete and More (Set due date, Reset to new, Remove tags); from 600 px it sits above the list
+ * with Move, Add tags, Remove tags, Suspend, Delete and More (Set due date, Reset to new), since
+ * every action does not fit in one row. Move, tags and suspend act at once (after their sheet); Delete, Set due
  * date and Reset ask first. `onDone` gets each change's undo
  * token, and whether it was a delete (the screen then clears the selection).
  */
@@ -193,14 +194,8 @@ export function SelectionBar({
           action("Tag", "add")
         )}
         {suspend}
-        {wide && (
-          <>
-            {action("Set due date", "due")}
-            {action("Reset to new", "reset")}
-          </>
-        )}
         {action("Delete", "delete", true)}
-        {!wide && action("More", "more")}
+        {action("More", "more")}
       </div>
       {problem && (
         <p className="browse-problem" role="alert">
@@ -279,14 +274,15 @@ export function SelectionBar({
           <p>
             They start again as new cards. Their review history is kept. You can undo it right
             after.
+            {summary && summary.newCards > 0 && (
+              <>
+                {" "}
+                {summary.newCards === 1
+                  ? "1 card is new already and stays as it is."
+                  : `${summary.newCards.toLocaleString()} cards are new already and stay as they are.`}
+              </>
+            )}
           </p>
-          {summary && summary.newCards > 0 && (
-            <p>
-              {summary.newCards === 1
-                ? "1 card is new already and stays as it is."
-                : `${summary.newCards.toLocaleString()} cards are new already and stay as they are.`}
-            </p>
-          )}
           <div className="dialog-actions">
             <button type="button" className="button" onClick={() => setSheet(null)}>
               Cancel
@@ -311,9 +307,11 @@ export function SelectionBar({
             <button type="button" className="button" onClick={() => setSheet("reset")}>
               Reset to new
             </button>
-            <button type="button" className="button" onClick={() => setSheet("remove")}>
-              Remove tags
-            </button>
+            {!wide && (
+              <button type="button" className="button" onClick={() => setSheet("remove")}>
+                Remove tags
+              </button>
+            )}
           </div>
           <div className="dialog-actions">
             <button type="button" className="button" onClick={() => setSheet(null)}>
