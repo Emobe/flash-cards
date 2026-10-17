@@ -471,3 +471,123 @@ Branch `step/3.1a-search-api`. No migration, no sync format change, no new depen
 - The "learning card due in an hour" test sets the Default preset's learning steps to 60 minutes
   through `setPresetOptions`; the review-card days are checked by moving the clock around the
   card's due day rather than making a card due in exactly 3 days.
+
+## Build notes (step 3.1b, the Browse screen)
+
+Branch `step/3.1b-browse-screen`, rebased on PR #50. No migration, no core change, no new
+dependency.
+
+- **Query (`packages/ui/src/browse/query.ts`).** `toQuery` writes the chips in the order of decision
+  4, values of one kind joined by `or` in brackets, every name quoted with `\`, `"` and `*` escaped,
+  and the box's text last in brackets. `fromQuery` reads that shape from the front. If anything
+  after the chips is not one bracketed group that runs to the end, the whole query is text, so a hand-typed
+  `deck:="x" a or b` keeps its meaning. `query-fixtures.json` holds a small collection (`notes`)
+  and 18 `cases`. `query.test.ts` checks both directions on each case, plus 500 seeded random
+  states for the round trip. `fc-api`'s `the_browse_screen_chip_queries_find_the_right_notes`
+  builds the notes and runs each query through the real search. Changing the star escape
+  makes it fail ("a star is not a wildcard": `litera` found too), so it does test something.
+- **`useBrowseSearch`.**
+  - Typing searches 300 ms after the last change. A chip, the sort, the mode, Enter and Escape
+    search at once.
+  - One search runs at a time. A change while one runs makes it run again with the newest state,
+    and a result for an older state is dropped.
+  - `checkQuery` runs on the box text first. A problem, or a search the core refuses, shows under
+    the box, and the old rows stay dimmed.
+  - Results come in pages of 100. A refresh of the same search (on `focus`, `visibilitychange` or
+    mount) asks for as many rows as are on screen, up to 1,000, so coming back to the window does
+    not drop what was scrolled into.
+  - The search is remembered in `fc.browse`. Each part falls back to its default on its own.
+- **Screen.**
+  - Under 600 px the panel (chips, box, Sort) sits in `BottomAction`. From 600 px the box and Sort
+    sit above the chips and the list. Rows are three lines, and columns from 1024 px.
+  - The count line is the status region ("120 notes", "Searching…").
+  - The next page loads through an `IntersectionObserver` 600 px before the end, with a Show more
+    button as well.
+  - With no match: "No cards match. Try fewer filters." and Clear filters. An empty collection
+    uses the Decks wording.
+- **Chips and pickers.**
+  - A chip with values is filled and shows a check mark, a short label ("Deck: Verbs", "Tag: 2"),
+    and a × to clear it. Its accessible name lists every value, decks by path.
+  - The deck and tag pickers have a Find box. Find ignores case and accents and matches a deck's
+    whole path.
+  - Pickers and Sort open as `Dialog variant="sheet"`, a sheet from the bottom under 600 px. The
+    sheet CSS is in `shell.css`, because it uses the safe-area and keyboard insets.
+  - A chosen name the collection no longer has is shown "(not found)" in the chip and in the
+    picker.
+- **Sort window.** The ten sorts with their direction text, a Notes | Cards switch, and Done.
+  Tapping the chosen sort again reverses it, and Shuffle takes a new seed each time.
+- **Shell.**
+  - `shell/useMediaQuery.ts`: `useWideLayout()` uses the same 600 px as `shell.css`.
+  - `useKeyShortcut` in `useShortcuts.ts` follows the same rules as the other shortcuts. `/` is in
+    the shortcuts list.
+  - `core-client` exports the search types.
+  - The Browse placeholder is deleted.
+
+### Verified
+
+- `cargo xtask check` passes (389 Vitest tests, among them 61 for Browse, plus the Rust fixture
+  test).
+- **Web** (`bun run web:dev`, headless Brave over CDP, real mouse and key events, screenshots read),
+  at 390 × 844 and 1100 × 800, light and dark. The collection was 9 runs of `debugAddSampleCards`
+  (117 notes), the decks Polish and Polish::Verbs made through the Decks screen, and 3 notes with
+  tags made through the Add screen. Checked at each width:
+  - typing (`kot`: 9 notes), Escape, a box mistake (`"kot`: the core's sentence, rows dimmed);
+  - the deck picker (Find "verbs" shows only Polish::Verbs, which gives 2 notes and "Deck: Verbs");
+  - tag plus deck with no match (the empty state), the ×, State New, Due now (0);
+  - Alphabetical and its reverse, Cards (138 cards), Shuffle;
+  - scrolling to the end (100 rows, then 120);
+  - `/` (1100 px);
+  - no sideways scroll at any step.
+- **Desktop** (`bun run dev`, Linux X11, a scratch `XDG_DATA_HOME` with 113 notes made by `fc`,
+  driven with `xdotool`, screenshots read):
+  - the wide layout; `g` `b`, then `/`, then typing `być` (1 note);
+  - the tag picker in WebKitGTK;
+  - wheel-scrolling loads all 113 rows;
+  - Escape in the Find box (found broken, fixed, then checked again).
+
+### Not verified
+
+- **The phone (skipped while Anthony is away, STATUS):**
+  - the bottom panel in his hand, and landscape;
+  - typing with the keyboard open (the panel above it, rows visible);
+  - a picker sheet with the Find box and the keyboard open;
+  - Android back closing a picker;
+  - timings of a one-word search and a chip search on his collection.
+- Firefox, Safari, Windows, 200% text size, a screen reader.
+- Speed with a large collection in wasm.
+
+### Deviations from the plan
+
+- **Rebased on PR #50**, a separate PR that moves `zip` to 9.0.4. `cargo deny` started failing on
+  RUSTSEC-2026-0369. Anthony chose a separate PR in chat and let me merge it.
+- **No Saved chip yet.** It comes with 3.1c, so the row starts at Deck.
+- **The fixture is an object:** `notes` (the collection the Rust test builds) and `cases`, each
+  with an `about`. The plan described a plain list of cases.
+- **Picker details the plan did not specify:**
+  - **Cancel button:** pickers have Cancel next to Apply and Clear.
+  - **Focus on phones:** under 600 px a picker opens with its first option focused, not the Find
+    box. Otherwise the keyboard covers the list (found in the 390 px screenshots).
+  - **Escape in the Find box:** it clears the text, then a second Escape closes the window.
+    WebKitGTK's search field keeps Escape even when empty (found on desktop).
+- **No long press to clear a chip:** only the ×. A long press competes with the Android context
+  menu.
+- **No 🖼 in rows:** the core leaves no text for a picture (3.1a notes). Only `[sound:…]`
+  becomes ♪.
+- **`formatDue` choices the plan left open:**
+  - a learning card due now or overdue reads "Learning";
+  - from 60 minutes the label is in hours ("In 3 hours");
+  - "1 day" is singular.
+- **Clear filters also empties the box,** so the button always gives results back.
+- **"Searching…" shows at once on the first load,** when there are no rows yet. After that it waits
+  300 ms.
+- **Extras:**
+  - a Show more button next to the observer;
+  - refreshes keep as many rows as are on screen;
+  - `useKeyShortcut` as a sibling of `useShortcuts`, not an option on it;
+  - `/` added to the shortcuts window;
+  - the search types exported from `core-client`;
+  - `packages/ui/tsconfig.json` includes `src/**/*.json`;
+  - a `testRows.ts` test helper.
+- **Edge fade colour:** it uses `mask-image` with the keyword `black`. It is an alpha mask, not a
+  colour anyone sees, so the tokens rule is not broken.
+- **Desktop test data:** the scratch collection was made with the `fc` CLI rather than the UI.

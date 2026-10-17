@@ -6,9 +6,10 @@ Kept current by every session. A new session reads this first.
 
 **No phone checks until Anthony says so (from 2026-10-16).** Anthony is away for a few days and cannot check the phone app. Sessions test on his PC only (desktop app and web client) and do not build for, install on or use the phone. Phone behaviour is assumed to work for now, so it does not block a step. Every skipped phone check still goes under "Not verified" in the build notes and in the list below, for Anthony to run when he is back. Phone checks waiting (each added as it comes up):
 
-- **3.1a search on the phone** (next debug APK): the app starts and opens the real collection as before (3.1a changed the search grammar, not storage). No UI to try yet; search speed through the Browse screen is timed in 3.1b.
+- **3.1a search on the phone** (next debug APK): the app starts and opens the real collection as before (3.1a changed the search grammar, not storage).
+- **3.1b Browse on the phone** (next debug APK, taps allowed, never unlock): the bottom panel in the hand and in landscape; typing with the keyboard open (panel above it, rows visible); a picker sheet with the Find box and the keyboard open; Android back closing a picker; time a one-word text search and a chip search on the real collection and write the numbers in the ADR 0013 3.1b notes. Also the first APK with `zip` 9 (PR #50 adds `nix` for Android).
 
-**3.1a Browser core and API is done and merged (PR #49).** **3.1b (the Browse screen) is in progress** on `step/3.1b-browse-screen` (plan: `docs/plans/3.1-browser.md`, §3.1b; approved in chat 2026-10-17). Done: `browse/query.ts` (`toQuery`, `fromQuery`, `quote`), the shared `query-fixtures.json` with its Vitest and `fc-api` Rust tests; `useBrowseSearch` (debounce, one search at a time, paging, `fc.browse`) and `formatDue`, with tests. The Browse screen (`browse/BrowseScreen.tsx`, `ChipRow`, `PickerDialog`, `SortDialog`, `chips.ts`, `browse.css`), `shell/useMediaQuery.ts`, `Dialog` `variant="sheet"`, `useKeyShortcut` for `/`, the placeholder removed. Left: web and desktop checks; build notes in ADR 0013; PR. Then 3.1c (saved searches). `cargo deny` failed on a new `zip` 8.6.0 advisory (RUSTSEC-2026-0369): fixed by PR #50 (`zip` 9.0.4, merged with Anthony's go-ahead), and this branch is rebased on it. A field with only a picture leaves no text, so `detail` skips it and there is no 🖼 to show (ADR 0013 build notes).
+**3.1b The Browse screen is done** (PR open from `step/3.1b-browse-screen`; build notes: ADR 0013, step 3.1b). **Next: `/step 3.1c`** (saved searches: the Saved chip and sheet), on a new branch from `master` once 3.1b is merged. Plan: `docs/plans/3.1-browser.md`. 3.1a is merged (PR #49). The `zip` 9.0.4 upgrade for RUSTSEC-2026-0369 is merged (PR #50, Anthony's go-ahead in chat).
 
 2.6 Settings and local backups is **done and merged (PR #44)**; 2.5 Deck management is done (PR #42, #43). Build notes: ADR 0006, step 2.6. Folder choosing is out (agreed): Export is how a copy leaves the device.
 
@@ -23,10 +24,12 @@ the phone. Anthony removes it, and the old `dev.placeholder.flashcards` app; ses
 
 ## Branch
 
-`step/3.1b-browse-screen`: 3.1b, in progress. 3.1a is merged (PR #49), the design session too (PR #48). `tool/prune-target` (the `cargo xtask prune` PR) is separate and still open; its STATUS line is on that branch.
+`step/3.1b-browse-screen`: 3.1b, PR open. 3.1a (PR #49), the design session (PR #48) and `deps/zip-9` (PR #50) are merged. `tool/prune-target` (the `cargo xtask prune` PR) is separate and still open; its STATUS line is on that branch.
 
 ## Done
 
+- 3.1b The Browse screen (ADR 0013 build notes, step 3.1b): `browse/` (`query.ts` with a fixture shared with an `fc-api` Rust test, `useBrowseSearch`, `formatDue`, `BrowseScreen`, `ChipRow`, `PickerDialog`, `SortDialog`), `useWideLayout`, `Dialog variant="sheet"`, `/` to search. No dependency. Verified: web at 390 and 1100 px light and dark, the desktop app. Not verified: the phone (list above), Windows, Firefox, Safari. Seen once in nine runs: `AddScreen.test.tsx` "a file that cannot be used is refused…" timed out at 1 s (a test this PR does not touch).
+- `zip` 9.0.4 for RUSTSEC-2026-0369 (PR #50, merged): an unreadable entry name is a damaged backup; new transitive `nix`, `cfg_aliases`.
 - 3.1a Browser core and API (ADR 0013 build notes, step 3.1a), merged (PR #49): `=` whole-name form for `deck:`, `deckonly:`, `tag:` (`fc_tag_is`), `note:` and `card:`; `\\` inside quotes; `SearchRow::detail`; `fc-api` `search`, `checkQuery`, `getSavedSearches`, `saveSearch`, `updateSavedSearch`, `deleteSavedSearch` and bindings. No migration, no dependency. Not verified: the phone (next APK), speed of `fc_tag_is`.
 
 - 3.1 design session: ADR 0013 (Accepted 2026-10-16) and `docs/plans/3.1-browser.md`. Verified with the repo's `fc` CLI on a scratch collection: today's `deck:`, `deckonly:` and `tag:` match any part of a name, so chips need a whole-name form. Looked up: bottom-placed search on Android (Chrome 135), filter chip guidance. Not verified: search speed on the phone and in wasm, typing in a `Dialog` with the phone's keyboard open. No code, no dependency.
