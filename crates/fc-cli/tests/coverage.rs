@@ -76,6 +76,7 @@ const OPERATIONS: &[(&str, Covered)] = &[
     ("set_sort_field", By("notetype")), ("set_template_text", By("template")),
     ("start_study_session", Not("see end_study_session")), ("store_unknown_register", Not(SYNC_PLUMBING)),
     ("suspended_among", Not("tells Browse whether a selection is all suspended; `search is:suspended` finds them")),
+    ("new_among", Not("tells Browse how many of a selection a set due date or a reset leaves alone; `search is:new` finds them")),
     ("set_due", By("set-due")), ("reset_cards", By("reset")),
     ("void_events", Not("undoes a set due date or a reset for fc-api's undoChange; `undo` takes back answers")),
     ("study_counts", By("due")), ("study_today", By("stats")), ("suspend_cards", By("suspend")),

@@ -81,7 +81,7 @@ function renderBrowse({
   search = () => threeRows,
   summary = (target: Target) => {
     const n = "notes" in target ? target.notes.length : target.cards.length;
-    return { notes: n, cards: n, suspended: 0, noteCards: n };
+    return { notes: n, cards: n, suspended: 0, noteCards: n, newCards: 0 };
   },
 }: {
   search?: (input: SearchInput) => SearchResults;
@@ -273,7 +273,7 @@ describe("the actions", () => {
   }
 
   test("Notes view counts the cards the notes have: 2 notes (3 cards)", async () => {
-    renderBrowse({ summary: () => ({ notes: 2, cards: 3, suspended: 0, noteCards: 3 }) });
+    renderBrowse({ summary: () => ({ notes: 2, cards: 3, suspended: 0, noteCards: 3, newCards: 0 }) });
     await pick("kot", "pies");
     expect(await within(bar()).findByText("2 notes (3 cards)")).not.toBeNull();
   });
@@ -324,7 +324,7 @@ describe("the actions", () => {
   test("Suspend reads Unsuspend when every selected card is suspended", async () => {
     let suspended = 0;
     const { handlers } = renderBrowse({
-      summary: () => ({ notes: 2, cards: 2, suspended, noteCards: 2 }),
+      summary: () => ({ notes: 2, cards: 2, suspended, noteCards: 2, newCards: 0 }),
     });
     await pick("kot", "pies");
     fireEvent.click(await within(bar()).findByRole("button", { name: "Suspend" }));
@@ -342,7 +342,7 @@ describe("the actions", () => {
 
   test("Delete asks with the counts, then clears the selection; Undo calls undoChange", async () => {
     const { handlers, edit } = renderBrowse({
-      summary: () => ({ notes: 2, cards: 3, suspended: 0, noteCards: 3 }),
+      summary: () => ({ notes: 2, cards: 3, suspended: 0, noteCards: 3, newCards: 0 }),
     });
     await pick("kot", "pies");
     await within(bar()).findByText("2 notes (3 cards)");
@@ -368,7 +368,7 @@ describe("the actions", () => {
   test("in Cards view the target is cards and a delete counts every card of the notes", async () => {
     localStorage.setItem("fc.browse", JSON.stringify({ mode: "cards" }));
     const { handlers } = renderBrowse({
-      summary: () => ({ notes: 1, cards: 1, suspended: 0, noteCards: 2 }),
+      summary: () => ({ notes: 1, cards: 1, suspended: 0, noteCards: 2, newCards: 0 }),
     });
     await pick("kot");
     expect(within(bar()).getByText("1 card")).not.toBeNull();

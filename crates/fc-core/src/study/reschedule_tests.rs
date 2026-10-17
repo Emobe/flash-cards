@@ -238,10 +238,12 @@ fn reset_skips_cards_that_are_already_new() {
     let (c, _) = setup();
     let new = basic_card(&c, "new");
     let card = review_card(&c, "a");
+    assert_eq!(c.new_among(&[card, new, new]).unwrap(), vec![new]);
     let done = c.reset_cards(&[new, card]).unwrap();
     assert_eq!((done.events.len(), done.skipped_new), (1, 1));
     let again = c.reset_cards(&[card]).unwrap();
     assert_eq!((again.events.len(), again.skipped_new), (0, 1));
+    assert_eq!(c.new_among(&[new, card]).unwrap(), vec![new, card]);
 }
 
 // ---- Undo ----

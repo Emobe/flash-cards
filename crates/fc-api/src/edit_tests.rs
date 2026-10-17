@@ -1,4 +1,4 @@
-//! The editing and bulk methods through `dispatch`, as every host calls them (step 3.2a).
+//! The editing and bulk methods through `dispatch`, as every host calls them (steps 3.2a and 3.2d).
 
 use std::sync::Arc;
 
@@ -461,7 +461,7 @@ fn describe_target_counts_notes_cards_suspended_and_what_a_delete_takes() {
     let describe = |target: Value| ok(&core, "describeTarget", json!({ "target": target }));
     assert_eq!(
         describe(json!({ "notes": [one, two, one] })),
-        json!({ "notes": 2, "cards": 3, "suspended": 0, "noteCards": 3 })
+        json!({ "notes": 2, "cards": 3, "suspended": 0, "noteCards": 3, "newCards": 3 })
     );
     ok(
         &core,
@@ -471,11 +471,11 @@ fn describe_target_counts_notes_cards_suspended_and_what_a_delete_takes() {
     // One card of a two-card note: a delete still takes both.
     assert_eq!(
         describe(json!({ "cards": [one_cards[0], two_cards[0]] })),
-        json!({ "notes": 2, "cards": 2, "suspended": 2, "noteCards": 3 })
+        json!({ "notes": 2, "cards": 2, "suspended": 2, "noteCards": 3, "newCards": 2 })
     );
     assert_eq!(
         describe(json!({ "notes": [one] })),
-        json!({ "notes": 1, "cards": 2, "suspended": 1, "noteCards": 2 })
+        json!({ "notes": 1, "cards": 2, "suspended": 1, "noteCards": 2, "newCards": 2 })
     );
     assert_eq!(describe(json!({ "notes": [] }))["cards"], 0);
     ok(
@@ -490,6 +490,141 @@ fn describe_target_counts_notes_cards_suspended_and_what_a_delete_takes() {
     )
     .unwrap_err();
     assert_eq!(error.kind, ErrorKind::NotFound);
+}
+
+// ---- setDueDate and resetCards --------------------------------------------------------------------
+
+/// Answers a card Easy, so it is a review card.
+fn study(core: &Core, card: &str) {
+    core.with_collection(|c| {
+        c.answer(
+            card.parse().unwrap(),
+            fc_core::scheduling::Rating::Easy,
+            1_000,
+        )
+        .unwrap()
+    })
+    .unwrap();
+}
+
+fn schedule(core: &Core, card: &str) -> fc_core::study::CardSchedule {
+    core.with_collection(|c| c.card_schedule(card.parse().unwrap()).unwrap())
+        .unwrap()
+}
+
+#[test]
+fn set_due_date_on_notes_skips_new_cards_and_its_undo_puts_the_schedule_back() {
+    let (core, _) = core();
+    let (one, one_cards) = add(&core, "one", &[], true);
+    let (two, two_cards) = add(&core, "two", &[], false);
+    study(&core, &one_cards[0]);
+    study(&core, &two_cards[0]);
+    let before = schedule(&core, &one_cards[0]);
+    assert_eq!(
+        ok(
+            &core,
+            "describeTarget",
+            json!({ "target": { "notes": [one, two] } })
+        )["newCards"],
+        1
+    );
+    let out = ok(
+        &core,
+        "setDueDate",
+        json!({ "target": { "notes": [one, two] }, "fromDays": 3, "toDays": 3 }),
+    );
+    assert_eq!(out["count"], 2);
+    assert_eq!(out["skippedNew"], 1);
+    assert_eq!(out["undo"]["message"], "Made 2 cards due in 3 days.");
+    let today = core.with_collection(|c| c.study_today().unwrap()).unwrap();
+    assert_eq!(schedule(&core, &one_cards[0]).due_day, Some(today + 3));
+    assert_eq!(schedule(&core, &two_cards[0]).due_day, Some(today + 3));
+    assert_eq!(
+        undo(&core, &out["undo"]).unwrap()["message"],
+        "Put back the schedule of 2 cards."
+    );
+    assert_eq!(schedule(&core, &one_cards[0]), before);
+    gone(undo(&core, &out["undo"]));
+
+    let messages: Vec<Value> = [(0, 0), (1, 1), (2, 9)]
+        .into_iter()
+        .map(|(from, to)| {
+            ok(
+                &core,
+                "setDueDate",
+                json!({ "target": { "cards": [one_cards[0]] }, "fromDays": from, "toDays": to }),
+            )["undo"]["message"]
+                .clone()
+        })
+        .collect();
+    assert_eq!(
+        messages,
+        [
+            json!("Made 1 card due today."),
+            json!("Made 1 card due tomorrow."),
+            json!("Made 1 card due in 2 to 9 days.")
+        ]
+    );
+}
+
+#[test]
+fn set_due_date_on_new_cards_only_changes_nothing_and_a_bad_range_is_refused() {
+    let (core, _) = core();
+    let (_, cards) = add(&core, "one", &[], false);
+    let out = ok(
+        &core,
+        "setDueDate",
+        json!({ "target": { "cards": cards }, "fromDays": 1, "toDays": 1 }),
+    );
+    assert_eq!(out, json!({ "count": 0, "skippedNew": 1, "undo": null }));
+    let error = call(
+        &core,
+        "setDueDate",
+        json!({ "target": { "cards": cards }, "fromDays": 5, "toDays": 2 }),
+    )
+    .unwrap_err();
+    assert_eq!(error.kind, ErrorKind::InvalidInput);
+    assert!(
+        error.message.starts_with("Choose a number of days"),
+        "{error:?}"
+    );
+}
+
+#[test]
+fn reset_cards_and_its_undo_says_what_was_studied_since() {
+    let (core, clock) = core();
+    let (_, one) = add(&core, "one", &[], false);
+    let (_, two) = add(&core, "two", &[], false);
+    let (_, fresh) = add(&core, "fresh", &[], false);
+    study(&core, &one[0]);
+    study(&core, &two[0]);
+    let before = schedule(&core, &two[0]);
+    let out = ok(
+        &core,
+        "resetCards",
+        json!({ "target": { "cards": [one[0], two[0], fresh[0]] } }),
+    );
+    assert_eq!(out["count"], 2);
+    assert_eq!(out["undo"]["message"], "Reset 2 cards to new.");
+    assert_eq!(
+        schedule(&core, &one[0]).state,
+        fc_core::scheduling::CardState::New
+    );
+    // One of them is studied again before the undo.
+    clock.advance(60_000);
+    study(&core, &one[0]);
+    assert_eq!(
+        undo(&core, &out["undo"]).unwrap()["message"],
+        "Put back the schedule of 1 card. 1 card could not be put back, because it was studied since."
+    );
+    assert_eq!(schedule(&core, &two[0]), before);
+    // Nothing to reset: no undo, and the kept change stays.
+    let none = ok(
+        &core,
+        "resetCards",
+        json!({ "target": { "cards": [fresh[0]] } }),
+    );
+    assert_eq!(none, json!({ "count": 0, "undo": null }));
 }
 
 #[test]
@@ -574,6 +709,11 @@ fn every_method_needs_an_open_collection() {
         ("suspendCards", json!({ "target": target })),
         ("unsuspendCards", json!({ "target": target })),
         ("deleteNotes", json!({ "target": target })),
+        (
+            "setDueDate",
+            json!({ "target": target, "fromDays": 0, "toDays": 0 }),
+        ),
+        ("resetCards", json!({ "target": target })),
         ("describeTarget", json!({ "target": target })),
     ] {
         let error = call(&core, method, input).unwrap_err();

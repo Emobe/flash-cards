@@ -192,6 +192,8 @@ methods! {
         edit::SuspendCards,
         edit::UnsuspendCards,
         edit::DeleteNotes,
+        edit::SetDueDate,
+        edit::ResetCards,
         edit::DescribeTarget,
         edit::UndoChange,
     ],

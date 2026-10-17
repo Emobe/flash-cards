@@ -1,6 +1,7 @@
-//! Editing a note and the bulk actions of Browse (step 3.2a, ADR 0014 decisions 3, 4 and 7): one
-//! note's fields, tags and deck, every ID a search matches, moving, tagging, suspending and
-//! deleting a selection, and undoing the last change.
+//! Editing a note and the bulk actions of Browse (steps 3.2a and 3.2d, ADR 0014 decisions 3 to 5
+//! and 7): one note's fields, tags and deck, every ID a search matches, moving, tagging,
+//! suspending, deleting, setting the due date of and resetting a selection, and undoing the last
+//! change.
 //!
 //! A selection is a `Target`: notes or cards. A card action on notes acts on every live card of
 //! those notes, a note action on cards on their notes. Each change answers an undo token, and the
@@ -74,6 +75,7 @@ fn tag_error(what: &str, error: TagError) -> ApiError {
 fn study_error(what: &str, error: StudyError) -> ApiError {
     match error {
         StudyError::NotFound => note_error(what, NoteError::NotFound),
+        StudyError::DueRange => ApiError::invalid_input(error.to_string()),
         StudyError::Collection(inner) => collection_error(what, inner),
         other => internal(what, other),
     }
@@ -656,6 +658,119 @@ impl Method for DeleteNotes {
     }
 }
 
+// ---- setDueDate, resetCards -----------------------------------------------------------------------
+
+#[derive(Debug, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct SetDueDateInput {
+    pub target: Target,
+    /// Study days from today, 0 for today. With `toDays` greater, each card gets a day in the range.
+    pub from_days: u32,
+    pub to_days: u32,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct SetDueDateOutput {
+    /// How many cards are now due on the chosen day.
+    pub count: u32,
+    /// New cards left as they are: they have no memory for a review to build on.
+    pub skipped_new: u32,
+    /// Null when nothing changed.
+    pub undo: Option<UndoToken>,
+}
+
+/// "today", "tomorrow", "in 5 days", "in 3 to 7 days".
+fn when_text(from: u32, to: u32) -> String {
+    match (from, to) {
+        (0, 0) => "today".to_owned(),
+        (1, 1) => "tomorrow".to_owned(),
+        (f, t) if f == t => format!("in {f} days"),
+        (f, t) => format!("in {f} to {t} days"),
+    }
+}
+
+/// Makes cards review cards due on a chosen study day, keeping what they remember. New cards are
+/// left as they are.
+pub struct SetDueDate;
+
+impl Method for SetDueDate {
+    const NAME: &'static str = "setDueDate";
+    type Input = SetDueDateInput;
+    type Output = SetDueDateOutput;
+
+    fn call(
+        core: &Core,
+        input: SetDueDateInput,
+        _: &OpContext,
+    ) -> Result<SetDueDateOutput, ApiError> {
+        let target = input.target.parse()?;
+        let what = "set a due date";
+        with(core, |c| {
+            let cards = target.cards(c, what)?;
+            let done = c
+                .set_due(&cards, input.from_days, input.to_days)
+                .map_err(|e| study_error(what, e))?;
+            let skipped_new = count(done.skipped_new);
+            if done.events.is_empty() {
+                return Ok(SetDueDateOutput {
+                    count: 0,
+                    skipped_new,
+                    undo: None,
+                });
+            }
+            let message = format!(
+                "Made {} due {}.",
+                plural(done.events.len(), "card", "cards"),
+                when_text(input.from_days, input.to_days)
+            );
+            let n = count(done.events.len());
+            let undo = keep(core, c, message, Reverse::Events(done.events))?;
+            Ok(SetDueDateOutput {
+                count: n,
+                skipped_new,
+                undo: Some(undo),
+            })
+        })
+    }
+}
+
+/// Makes cards new again. Their history and counts stay. Cards that are new already are skipped.
+pub struct ResetCards;
+
+impl Method for ResetCards {
+    const NAME: &'static str = "resetCards";
+    type Input = TargetInput;
+    type Output = ChangeOutput;
+
+    fn call(core: &Core, input: TargetInput, _: &OpContext) -> Result<ChangeOutput, ApiError> {
+        let target = input.target.parse()?;
+        let what = "reset cards";
+        with(core, |c| {
+            let cards = target.cards(c, what)?;
+            let done = c.reset_cards(&cards).map_err(|e| study_error(what, e))?;
+            if done.events.is_empty() {
+                return Ok(ChangeOutput {
+                    count: 0,
+                    undo: None,
+                });
+            }
+            let message = format!(
+                "Reset {} to new.",
+                plural(done.events.len(), "card", "cards")
+            );
+            let n = count(done.events.len());
+            let undo = keep(core, c, message, Reverse::Events(done.events))?;
+            Ok(ChangeOutput {
+                count: n,
+                undo: Some(undo),
+            })
+        })
+    }
+}
+
 // ---- describeTarget -------------------------------------------------------------------------------
 
 #[derive(Debug, Serialize, TS)]
@@ -671,10 +786,13 @@ pub struct TargetSummary {
     /// Every live card of the notes: what a delete takes with them. More than `cards` when only
     /// some cards of a note were chosen.
     pub note_cards: u32,
+    /// How many of `cards` are new: a set due date leaves them alone and a reset skips them.
+    pub new_cards: u32,
 }
 
 /// What a selection comes to before acting on it: "12 notes (18 cards)", whether Suspend should
-/// read Unsuspend, and the counts of a delete's question.
+/// read Unsuspend, the counts of a delete's question, and how many cards are new (for Set due date
+/// and Reset).
 pub struct DescribeTarget;
 
 impl Method for DescribeTarget {
@@ -698,11 +816,13 @@ impl Method for DescribeTarget {
             let suspended = c
                 .suspended_among(&cards)
                 .map_err(|e| study_error(what, e))?;
+            let new = c.new_among(&cards).map_err(|e| study_error(what, e))?;
             Ok(TargetSummary {
                 notes: count(notes.iter().collect::<HashSet<_>>().len()),
                 cards: count(cards.iter().collect::<HashSet<_>>().len()),
                 suspended: count(suspended.len()),
                 note_cards: count(note_cards),
+                new_cards: count(new.len()),
             })
         })
     }
@@ -861,6 +981,29 @@ fn reverse(c: &Collection, reverse: Reverse) -> Result<Option<String>, ApiError>
                 "Restored {} and {}.",
                 plural(done.notes.len(), "note", "notes"),
                 plural(done.cards.len(), "card", "cards")
+            )))
+        }
+        Reverse::Events(events) => {
+            let done = c.void_events(&events).map_err(|e| study_error(what, e))?;
+            if done.voided.is_empty() {
+                return Ok(None);
+            }
+            let refused = if done.refused == 0 {
+                String::new()
+            } else {
+                format!(
+                    " {} could not be put back, because {} studied since.",
+                    plural(done.refused, "card", "cards"),
+                    if done.refused == 1 {
+                        "it was"
+                    } else {
+                        "they were"
+                    }
+                )
+            };
+            Ok(Some(format!(
+                "Put back the schedule of {}.{refused}",
+                plural(done.voided.len(), "card", "cards")
             )))
         }
         Reverse::Edit {

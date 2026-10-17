@@ -77,6 +77,24 @@ impl Collection {
         })
     }
 
+    /// The cards among `cards` that are new (never answered, every answer undone, or reset), each
+    /// once, in the order given: those a set due date leaves alone and a reset skips. Browse reads
+    /// it before either. It does not check that the cards exist.
+    pub fn new_among(&self, cards: &[Id]) -> Result<Vec<Id>, StudyError> {
+        let mut statement = self
+            .conn
+            .prepare("SELECT card FROM card_schedule WHERE state <> 0")?;
+        let studied: HashSet<Id> = statement
+            .query_map([], |row| row.get(0))?
+            .collect::<Result<_, _>>()?;
+        let mut seen = HashSet::new();
+        Ok(cards
+            .iter()
+            .copied()
+            .filter(|c| !studied.contains(c) && seen.insert(*c))
+            .collect())
+    }
+
     /// Makes each card new again: no memory, the first learning step. Its history stays, and so do
     /// its counts of answers and lapses. The event records the day of the last answer as a set due
     /// date does, so an app that does not know the kind keeps the same day. Cards that are already new are skipped. Refused with
