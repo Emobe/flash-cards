@@ -7,11 +7,17 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   return target.closest('[contenteditable=""], [contenteditable="true"]') !== null;
 }
 
+/** True while a modal window is open: keys belong to it, not to the screen behind it. */
+export function isModalOpen(): boolean {
+  return document.querySelector("dialog[open]") !== null;
+}
+
 const CHORD_MS = 1500;
 
 /**
  * One key for one screen (`/` focuses Browse's search box), with the same rules as the shell's
- * shortcuts: ignored in a text field and with Ctrl, Alt or Meta held.
+ * shortcuts: ignored in a text field, while a modal window is open, and with Ctrl, Alt or Meta
+ * held.
  */
 export function useKeyShortcut(key: string, onKey: () => void) {
   const onKeyRef = useRef(onKey);
@@ -19,7 +25,7 @@ export function useKeyShortcut(key: string, onKey: () => void) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return;
-      if (event.key !== key || isTypingTarget(event.target)) return;
+      if (event.key !== key || isTypingTarget(event.target) || isModalOpen()) return;
       event.preventDefault();
       onKeyRef.current();
     };
@@ -30,7 +36,7 @@ export function useKeyShortcut(key: string, onKey: () => void) {
 
 /**
  * `g` then a letter goes to a destination, `?` opens the list (ADR 0010 decision 2). Keys typed
- * into a text field, or with Ctrl, Alt or Meta held, are ignored. Keys pressed inside a card frame
+ * into a text field, while a modal window is open, or with Ctrl, Alt or Meta held, are ignored. Keys pressed inside a card frame
  * never get here (ADR 0005).
  */
 export function useShortcuts({
@@ -53,7 +59,7 @@ export function useShortcuts({
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return;
-      if (isTypingTarget(event.target)) return;
+      if (isTypingTarget(event.target) || isModalOpen()) return;
       if (pending.current !== undefined) {
         clear();
         if (goTo(event.key.toLowerCase())) event.preventDefault();

@@ -17,7 +17,15 @@ const previews = [
 ] as const;
 
 function card(id: string, state: "new" | "learning" | "review" = "new"): StudyNext {
-  return { kind: "card", cardId: id, noteId: `n-${id}`, deckId: "d1", state, previews: [...previews], counts };
+  return {
+    kind: "card",
+    cardId: id,
+    noteId: `n-${id}`,
+    deckId: "d1",
+    state,
+    previews: [...previews],
+    counts,
+  };
 }
 
 beforeEach(() => {
