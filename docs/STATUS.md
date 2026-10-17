@@ -4,15 +4,22 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-**No phone checks until Anthony says so (from 2026-10-16).** Anthony is away for a few days and cannot check the phone app. Sessions test on his PC only (desktop app and web client) and do not build for, install on or use the phone. Phone behaviour is assumed to work for now, so it does not block a step. Every skipped phone check still goes under "Not verified" in the build notes and in the list below, for Anthony to run when he is back. Phone checks waiting (each added as it comes up):
+**Phone checks for 3.1 and 3.2 run on 2026-10-17** (Anthony back home; debug APK from `master` at `e94586c`, Galaxy S24 Ultra, 720 × 1560 at density 300, about 384 px wide, taps and `adb` key events only). The dev app (`io.github.emobe.flashcards.dev`, installed 2026-10-07) opened and migrated v11 to v12 (it wrote `backups/before-update-v11-to-v12-…db`), but its collection had no cards. Anthony chose to add test cards through the UI, so 12 Basic notes were added in Add and four answered Easy in Study. Passed:
 
-- **3.1a search on the phone** (next debug APK): the app starts and opens the real collection as before (3.1a changed the search grammar, not storage).
-- **3.1b Browse on the phone** (next debug APK, taps allowed, never unlock): the bottom panel in the hand and in landscape; typing with the keyboard open (panel above it, rows visible); a picker sheet with the Find box and the keyboard open; Android back closing a picker; time a one-word text search and a chip search on the real collection and write the numbers in the ADR 0013 3.1b notes. Also the first APK with `zip` 9 (PR #50 adds `nix` for Android).
-- **3.2a on the phone** (next debug APK): the app starts and opens the real collection as before (3.2a has no UI).
-- **3.2b the note editor on the phone** (next debug APK, taps allowed, never unlock): open a note from a Browse row and from Study's Edit; the layer with the keyboard open (field and toolbar visible above it); Android back with unsaved changes asks, Keep editing stays; Save, then "Saved." and Undo; a picture added while editing.
-- **3.2c selection on the phone** (next debug APK, taps allowed, never unlock): long press on a row in the WebView (selects, no text selection or menu); the selection bar with the keyboard closed and open (the Tags sheet); Android back closing a sheet, then leaving selection mode; a bulk action (Suspend, Move) on a real-sized selection, with its time.
-- **3.2d on the phone** (next debug APK, taps allowed, never unlock): the app opens the real collection and migrates it to storage version 12; Select, More, the Set due date sheet with the keyboard open (day boxes and Set due date visible), Android back closing the sheet and then More, the Reset question, a set due date on a real-sized selection with its time.
-- **3.1c Saved searches on the phone** (next debug APK, taps allowed, never unlock): the Saved sheet with the name field and the keyboard open (field and buttons visible), Android back closing the sheet and the name form.
+- 3.1a, 3.2a, 3.2d start: the app starts and opens its collection; the migration to 12 ran. The APK is the first with `zip` 9 and builds and runs.
+- 3.1b Browse: the bottom panel in portrait; typing a search with the keyboard open (panel above it, the row visible); the Deck picker's Find box with the keyboard open (sheet and buttons above it); Android back closing the picker.
+- 3.2b the note editor: opened from a Browse row and from Study's Edit; Back field and toolbar above the keyboard; Android back with unsaved changes asks, Keep editing keeps the edit; Save, "Saved." and Undo (the edit reverted); back from Study's Edit with no change returns to Study.
+- 3.2c selection: long press selects the row with no text selection or menu; Select all; the Tags sheet with the keyboard open (field, Cancel, Add tags above it); Add tags on 12 notes; Android back closing the Move sheet and keeping selection, then leaving selection on Browse; Suspend on 12 and its Undo.
+- 3.2d: More; the Set due date sheet with the keyboard open (day boxes and both buttons visible); back closing the sheet and keeping selection; back closing More; In N days on 4 studied and 8 new cards ("Made 4 cards due in … days.", 8 new not changed) and Undo ("Put back the schedule of 4 cards."); the Reset question ("Reset 4 cards to new?", 8 new already), back on it keeping selection, Reset and Undo.
+- 3.1c: the Saved sheet; Save this search opens the name field with the keyboard (field, Back and Save above it); Android back closes the whole sheet from the name form (the in-sheet Back is the way back to the list, as designed).
+
+Found: four layout problems at about 384 px, listed under Open items ("Phone layout fixes from the 3.1 and 3.2 checks").
+
+Phone checks still waiting:
+
+- **Landscape** (3.1b): the bottom panel with the phone turned. Not done because turning the screen needs a system setting change; Anthony can turn the phone by hand.
+- **A picture added while editing** (3.2b): not done because the picker shows Anthony's own photos.
+- **Timings on a real-sized collection** (3.1b text and chip search, 3.2c bulk action, 3.2d set due date): the dev app has 12 test notes, so the times mean nothing. Needs a real collection in the dev app (or the timings taken on the desktop with a copy).
 
 **3.2 design session done: ADR 0014 Accepted (2026-10-17, every question as proposed) and `docs/plans/3.2-edit-and-bulk.md`, merged (PR #53).** **3.2a (core and API for editing and the simple bulk actions) is reviewed by Anthony and merged (PR #54, 2026-10-17)** (build notes: ADR 0014, step 3.2a). Choices made at the plan (Anthony said "go" with its four questions open, so the proposed answers were taken; listed as deviations in the build notes): `updateNote` takes an optional `deckId` with one undo for the edit and the move; the undo slot is on `fc_core::Core`; `delete-note` and `restore-note` take several IDs instead of new commands; undo of a move from several decks or of several tags is one write per deck or tag. **3.2b (the note editor) is reviewed and verified by Anthony and merged (PR #55, 2026-10-17)** (build notes: ADR 0014, step 3.2b). **3.2c (multi-select and the simple bulk actions) is reviewed by Anthony and merged (PR #56, 2026-10-17)** (build notes: ADR 0014, step 3.2c). **3.2d (set due date and reset) is reviewed by Anthony and merged (PR #57, 2026-10-17)** (build notes: ADR 0014, step 3.2d). **Next: 3.2e (change note type)** on `step/3.2e-change-notetype`, branched from `master` once 3.2d is merged.
 
@@ -109,6 +116,12 @@ the phone. Anthony removes it, and the old `dev.placeholder.flashcards` app; ses
 - 0.3 UI-to-core bridge. 0.3a (call path, PR #3) and 0.3b (notices, progress, cancellation, events and attachments, PR #4) reviewed by Anthony and merged. Verified on desktop and the phone. Attachment round trip 1 MB: 40 ms desktop, 75 ms phone. 5 MB: 181 ms desktop, 250 ms phone.
 
 ## Open items
+
+- **Phone layout fixes from the 3.1 and 3.2 checks (2026-10-17, not fixed yet).** Found on the phone at about 384 px wide (720 × 1560 at density 300); each should be checked at 390 px in the web client too, where it likely shows the same way. Screenshots were in the session scratchpad only.
+  1. **"Unsuspend" is wider than its button** in the selection bar (`packages/ui/src/browse/SelectionBar.tsx`): the text touches both edges. "Suspend" only just fits, so any longer label or a larger font overflows too.
+  2. **The undo notice's Dismiss wraps onto its own line** (`packages/ui/src/components/UndoNotice.tsx`): with Undo on the first line and Dismiss on a second, the notice is two button rows high. Under the selection bar, the two together cover about half the screen ("Saved.", "Suspended 12 cards.", "Added french to 12 notes.").
+  3. **The Set due date sheet's buttons are cut off at the bottom** with the keyboard open (`packages/ui/src/browse/DueSheet.tsx`): the sheet reaches its full height and loses its bottom padding, so the keyboard covers the lower edge of Cancel and Set due date. They can still be tapped. The Tags, Find and Save search sheets are fine.
+  4. **The Browse search box's placeholder is cut off** ("Search your card…", `packages/ui/src/browse/BrowseScreen.tsx`), next to Sort and Select.
 
 - 2.6 checks left: the Settings screen in the real desktop app and on the phone (Back up now, the list, Restore, Export from the native webviews).
 
