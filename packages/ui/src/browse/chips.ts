@@ -1,7 +1,7 @@
 import type { DeckSummary } from "core-client";
 import type { AddedChoice, AnsweredChoice, DueChoice, Filters, StateChoice } from "./query";
 
-/** The chip row, in order (ADR 0013 decision 4). Saved comes first in 3.1c. */
+/** The filter chips, in order (ADR 0013 decision 4). The Saved chip comes before them. */
 export const chipKinds = [
   "decks",
   "tags",

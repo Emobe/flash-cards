@@ -595,3 +595,75 @@ dependency.
 - **Edge fade colour:** it uses `mask-image` with the keyword `black`. It is an alpha mask, not a
   colour anyone sees, so the tokens rule is not broken.
 - **Desktop test data:** the scratch collection was made with the `fc` CLI rather than the UI.
+
+## Build notes (step 3.1c, saved searches)
+
+Branch `step/3.1c-saved-searches`. No core or API change, no migration, no new dependency.
+
+- **State (`useBrowseSearch.ts`).** `BrowseState` gains `savedId`, remembered in `fc.browse`. A value
+  that is not a string reads as none. `openSaved` reads a saved query back through `fromQuery`,
+  takes its sort and mode, and searches at once; Shuffle gets a new seed. `setSavedId` marks one
+  open without searching. `differsFrom` compares the screen with a saved search as the chips would
+  write both (`toQuery(fromQuery(saved.query))`), plus sort key, direction and mode. So a query typed
+  by hand (`kot`) is not "changed" for gaining brackets, and the Shuffle seed does not count.
+- **The Saved chip** comes first in `ChipRow`. It is a plain button that opens the sheet, with no
+  pressed state or ×, because it is not a filter. `chips.ts` is unchanged.
+- **`SavedSheet.tsx`**, a `Dialog variant="sheet"`:
+  - the saved searches by name; tapping one opens it and closes the sheet. The open one is marked
+    "open", or "open, changed";
+  - **Save this search** when none is open or the open one is unchanged. **Update "name"** and
+    **Save as new** when the open one has changed. Update writes the query in chip shape;
+  - **Rename** and **Delete** on each row;
+  - Save and Rename turn the same sheet into a name field, not a second window. The core's refusal
+    shows under it and the sheet stays open. Back returns to the list;
+  - Delete has no confirm. The row becomes `Deleted "name".` with Undo, which calls `saveSearch` with
+    the same name, query, sort and mode (a new ID). If it was the open one, the copy becomes the open
+    one. A refused Undo shows the core's sentence on that line. The line goes when the sheet closes.
+- **Screen.** "Saved: name" sits under the heading, with "· changed" and a × that closes the saved
+  search (the chips and text stay). The list is read on open and after each write. A remembered ID
+  the list lacks is dropped quietly. After a save or an Undo the list is read before the new ID is
+  marked open, so the screen never drops an ID it has just made.
+- `core-client` exports `SavedSearchSummary`, `NewSavedSearchInput` and `UpdateSavedSearchInput`.
+
+### Verified
+
+- `cargo xtask check` passes. New tests: `SavedSheet.test.tsx` (10, through the Browse screen
+  with a fake core that keeps saved searches and refuses taken names): the Saved chip first, load,
+  a hand-typed query opening in the box, Save, a taken name, Update and Save as new, Rename with a
+  taken name, Delete and Undo, a stale remembered ID, the ×. `useBrowseSearch.test.tsx` (5 more):
+  `openSaved` both ways, `differsFrom`, the remembered ID.
+- **Web** (`bun run web:dev`, headless Brave over CDP, real mouse and key events, screenshots read),
+  at 390 × 844 and 1100 × 800, light and dark, on a collection of sample cards and two decks: the
+  empty sheet, State New plus `kot` saved as "Nowe koty" (7 notes, the name under the heading), the
+  same name in other case refused in the window, a second saved search, opening the first again
+  (box `kot`, chip State: New), changing the text ("· changed", Update and Save as new), Update,
+  Rename, Delete and Undo (the name comes back under the heading), back closing the sheet, and no
+  sideways scroll of the page or the sheet at any step.
+- **Desktop** (`bun run dev`, Linux X11, scratch `XDG_DATA_HOME`, 113 notes, `xdotool`,
+  screenshots read): the sheet in WebKitGTK, typing a Polish name (`Słowa 10`), Enter saving,
+  Escape closing the sheet with focus back on the chip, Delete and Undo, and the open saved search
+  remembered after the app restarts.
+
+### Not verified
+
+- **The phone (skipped while Anthony is away, STATUS):** the sheet with the name field and the
+  keyboard open (whether the keyboard covers the field or the buttons), Android back closing the
+  sheet and the name form.
+- Firefox, Safari, Windows, a screen reader.
+
+### Deviations from the plan
+
+- **Plan details decided in the chat plan** (approved with "go"): "changed" compared after reading
+  back through `fromQuery`; the name field inside the same sheet; Delete without a confirm and an
+  inline Undo that goes when the sheet closes; Save, Save as new and Undo of the open one make it the
+  open one; a × under the heading to close the saved search.
+- **Not in the chat plan:**
+  - the open row in the sheet says "open" or "open, changed";
+  - Save and Update close the sheet; Rename returns to the list;
+  - the empty sheet says "No saved searches yet. Save this search to come back to it later." (the
+    chat plan had "in one tap", which reads wrong on a desktop);
+  - Escape in the name form closes the whole sheet, as Escape does in any window; Back returns to
+    the list;
+  - `core-client` exports three more generated types (used by the sheet and its tests).
+- **Rows in the sheet:** Rename and Delete sit on the name's line; a long name wraps. Changed after
+  the 390 px screenshots showed them on a second line.

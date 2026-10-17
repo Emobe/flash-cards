@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { CoreProvider } from "../core";
 import { noFilters } from "./query";
 import { resultRow } from "./testRows";
-import { DELAY_MS, defaultState, readState, useBrowseSearch } from "./useBrowseSearch";
+import { DELAY_MS, defaultState, differsFrom, readState, useBrowseSearch } from "./useBrowseSearch";
 
 function results(total: number, from = 0, count = Math.min(total - from, 100)): SearchResults {
   return { total, rows: Array.from({ length: count }, (_, i) => resultRow(`r${from + i}`)) };
@@ -178,6 +178,72 @@ describe("useBrowseSearch", () => {
       mode: "cards",
     });
   });
+
+  test("opening a saved search loads its chips, text, sort and mode and searches at once", async () => {
+    const { hook, searchFn } = setup(() => results(1));
+    await waitFor(() => expect(searchFn).toHaveBeenCalledTimes(1));
+    act(() => hook.result.current.setText("old"));
+    act(() =>
+      hook.result.current.openSaved({
+        id: "s1",
+        name: "Verbs",
+        query: 'deck:="Polish" is:new (kot)',
+        sort: { key: "field", descending: false },
+        mode: "cards",
+      }),
+    );
+    await waitFor(() => expect(searchFn).toHaveBeenCalledTimes(2));
+    expect(searchFn.mock.calls[1]?.[0]).toMatchObject({
+      query: 'deck:="Polish" is:new (kot)',
+      sort: { key: "field", descending: false },
+      mode: "cards",
+    });
+    expect(hook.result.current.state).toMatchObject({
+      filters: { ...noFilters, decks: ["Polish"], states: ["new"] },
+      text: "kot",
+      savedId: "s1",
+    });
+  });
+
+  test("a saved query typed by hand opens with everything in the box", async () => {
+    const { hook, searchFn } = setup(() => results(1));
+    await waitFor(() => expect(searchFn).toHaveBeenCalledTimes(1));
+    act(() =>
+      hook.result.current.openSaved({
+        id: "s2",
+        name: "Typed",
+        query: "deck:Polish kot or pies",
+        sort: defaultState.sort,
+        mode: "notes",
+      }),
+    );
+    await waitFor(() => expect(searchFn).toHaveBeenCalledTimes(2));
+    expect(hook.result.current.state.filters).toEqual(noFilters);
+    expect(hook.result.current.state.text).toBe("deck:Polish kot or pies");
+    expect(searchFn.mock.calls[1]?.[0].query).toBe("(deck:Polish kot or pies)");
+  });
+});
+
+describe("differsFrom", () => {
+  const saved = {
+    id: "s1",
+    name: "Typed",
+    query: "kot",
+    sort: { key: "random" as const, descending: false },
+    mode: "notes" as const,
+  };
+  const state = { ...defaultState, text: "kot", sort: saved.sort, seed: 99 };
+
+  test("a hand-typed query is the same once in brackets, and the seed does not count", () => {
+    expect(differsFrom(state, saved)).toBe(false);
+  });
+
+  test("a chip, the text, the sort or the mode makes it changed", () => {
+    expect(differsFrom({ ...state, filters: { ...noFilters, due: "now" } }, saved)).toBe(true);
+    expect(differsFrom({ ...state, text: "pies" }, saved)).toBe(true);
+    expect(differsFrom({ ...state, sort: { key: "random", descending: true } }, saved)).toBe(true);
+    expect(differsFrom({ ...state, mode: "cards" }, saved)).toBe(true);
+  });
 });
 
 describe("readState", () => {
@@ -197,6 +263,7 @@ describe("readState", () => {
         sort: { key: "nope", descending: true },
         mode: "cards",
         seed: -1,
+        savedId: 5,
       }),
     );
     expect(readState()).toEqual({
@@ -204,5 +271,10 @@ describe("readState", () => {
       filters: { ...noFilters, tags: ["x"], states: ["new"] },
       mode: "cards",
     });
+  });
+
+  test("the open saved search is remembered by its ID", () => {
+    localStorage.setItem("fc.browse", JSON.stringify({ savedId: "s1" }));
+    expect(readState().savedId).toBe("s1");
   });
 });

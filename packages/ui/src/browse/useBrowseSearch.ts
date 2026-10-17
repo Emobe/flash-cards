@@ -1,5 +1,6 @@
 import {
   CoreError,
+  type SavedSearchSummary,
   type SearchMode,
   type SearchResultRow,
   type SearchSort,
@@ -15,6 +16,7 @@ import {
   type DueChoice,
   dueTerms,
   type Filters,
+  fromQuery,
   hasText,
   noFilters,
   type StateChoice,
@@ -50,6 +52,8 @@ export type BrowseState = {
   mode: SearchMode;
   /** For the Shuffle sort: one order while paging, a new one each time Shuffle is chosen. */
   seed: number;
+  /** The saved search that is open, if any (ADR 0013 decision 7). */
+  savedId: string | null;
 };
 
 export const defaultState: BrowseState = {
@@ -58,7 +62,23 @@ export const defaultState: BrowseState = {
   sort: { key: "created", descending: true },
   mode: "notes",
   seed: 0,
+  savedId: null,
 };
+
+/**
+ * Whether the screen no longer shows `saved`. Both sides are compared as the chips would write
+ * them, so a query typed by hand is not "changed" just for gaining brackets. The seed is not
+ * compared: Shuffle is the same saved search in any order.
+ */
+export function differsFrom(state: BrowseState, saved: SavedSearchSummary): boolean {
+  const opened = fromQuery(saved.query);
+  return (
+    toQuery(state.filters, state.text) !== toQuery(opened.filters, opened.text) ||
+    state.sort.key !== saved.sort.key ||
+    state.sort.descending !== saved.sort.descending ||
+    state.mode !== saved.mode
+  );
+}
 
 const isString = (v: unknown): v is string => typeof v === "string";
 const strings = (v: unknown): string[] | null => (Array.isArray(v) && v.every(isString) ? v : null);
@@ -106,6 +126,7 @@ export function readState(): BrowseState {
       typeof stored.seed === "number" && Number.isInteger(stored.seed) && stored.seed >= 0
         ? stored.seed % 2 ** 32
         : 0,
+    savedId: isString(stored.savedId) ? stored.savedId : null,
   };
 }
 
@@ -229,6 +250,13 @@ export function useBrowseSearch() {
     [searchNow],
   );
 
+  const setSavedId = useCallback((savedId: string | null) => {
+    const next = { ...stateRef.current, savedId };
+    stateRef.current = next;
+    setState(next);
+    writeState(next);
+  }, []);
+
   const loadMore = useCallback(async () => {
     const before = shownRef.current;
     if (!before || before.rows.length >= before.total || running.current) return;
@@ -293,5 +321,16 @@ export function useBrowseSearch() {
     setMode: (mode: SearchMode) => update((s) => ({ ...s, mode })),
     /** The empty result's button: no chips and no text. */
     clearSearch: () => update((s) => ({ ...s, filters: noFilters, text: "" })),
+    /** Shows a saved search: its query read back into chips and text, its sort and its mode. */
+    openSaved: (saved: SavedSearchSummary) =>
+      update((s) => ({
+        ...fromQuery(saved.query),
+        sort: saved.sort,
+        mode: saved.mode,
+        seed: saved.sort.key === "random" ? newSeed() : s.seed,
+        savedId: saved.id,
+      })),
+    /** Which saved search is open, without changing the search (after a save or delete). */
+    setSavedId,
   };
 }
