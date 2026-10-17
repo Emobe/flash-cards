@@ -301,7 +301,8 @@
 }
 
 .dialog-layer-body {
-  flex: 1;
+  /* Not `flex: 1`: a zero basis collapses the body in WebKitGTK, where the window has no height. */
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;

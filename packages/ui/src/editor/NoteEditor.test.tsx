@@ -176,6 +176,17 @@ describe("closing", () => {
     expect(updateNote).not.toHaveBeenCalled();
   });
 
+  test("Escape on the question answers it, even where the browser bubbles cancel", async () => {
+    const { onClose } = setup();
+    fireEvent.change(await field("Front"), { target: { value: "pies" } });
+    pressEscape();
+    const ask = screen.getByRole("dialog", { name: "Discard your changes?" });
+    fireEvent(ask, new Event("cancel", { cancelable: true, bubbles: true }));
+    expect(screen.queryByRole("dialog", { name: "Discard your changes?" })).toBeNull();
+    expect(screen.getByRole("dialog", { name: "Edit note" })).not.toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   test("Back with changes asks, and the editor keeps a history entry for the next Back", async () => {
     const { onClose } = setup();
     fireEvent.change(await field("Front"), { target: { value: "pies" } });

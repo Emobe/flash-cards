@@ -79,7 +79,8 @@ export function Dialog({
       onCancel={(event) => {
         // Escape asks the parent, so the window does not close by itself.
         event.preventDefault();
-        onCloseRef.current();
+        // WebKitGTK bubbles a window's cancel to the window it was opened over.
+        if (event.target === event.currentTarget) onCloseRef.current();
       }}
       onClose={() => {
         onCloseRef.current();
