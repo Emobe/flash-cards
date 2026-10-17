@@ -396,6 +396,38 @@ describe("the actions", () => {
   });
 });
 
+test("an undone notice stays undone when the layout changes", async () => {
+  let wide = false;
+  const listeners = new Set<() => void>();
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn((query: string) => ({
+      get matches() {
+        return query.includes("min-width: 600px") ? wide : false;
+      },
+      media: query,
+      addEventListener: (_: string, f: () => void) => listeners.add(f),
+      removeEventListener: (_: string, f: () => void) => listeners.delete(f),
+    })),
+  );
+  const { edit } = renderBrowse();
+  await row("kot");
+  fireEvent.click(screen.getByRole("button", { name: "Select" }));
+  fireEvent.click(await row("kot"));
+  fireEvent.click(within(bar()).getByRole("button", { name: "Suspend" }));
+  const notice = (await screen.findByText(/^Suspended/)).closest(".undo-notice") as HTMLElement;
+  fireEvent.click(within(notice).getByRole("button", { name: "Undo" }));
+  expect(await screen.findByText("Undone.")).not.toBeNull();
+
+  wide = true;
+  act(() => {
+    for (const f of listeners) f();
+  });
+  const moved = screen.getByText("Undone.").closest(".undo-notice") as HTMLElement;
+  expect(within(moved).queryByRole("button", { name: "Undo" })).toBeNull();
+  expect(edit.undoChange).toHaveBeenCalledTimes(1);
+});
+
 describe("useSelection", () => {
   test("a new scope clears the selection; leaving clears the mode too", () => {
     const { result, rerender } = renderHook(({ scope }) => useSelection(scope), {

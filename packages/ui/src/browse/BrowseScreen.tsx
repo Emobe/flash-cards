@@ -219,6 +219,12 @@ export function BrowseScreen() {
   const [open, setOpen] = useState<ChipKind | "sort" | "saved" | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [notice, setNotice] = useState<UndoToken | null>(null);
+  /** What Undo on the notice did, kept here since the notice moves when the layout changes. */
+  const [undone, setUndone] = useState<string | undefined>(undefined);
+  const showNotice = useCallback((token: UndoToken) => {
+    setNotice(token);
+    setUndone(undefined);
+  }, []);
   const box = useRef<HTMLInputElement>(null);
   useKeyShortcut("/", () => box.current?.focus());
 
@@ -334,7 +340,11 @@ export function BrowseScreen() {
     <UndoNotice
       key={notice.id}
       token={notice}
-      onUndone={afterChange}
+      undone={undone}
+      onUndone={(message) => {
+        setUndone(message);
+        afterChange();
+      }}
       onDismiss={() => setNotice(null)}
     />
   );
@@ -348,7 +358,7 @@ export function BrowseScreen() {
       names={names}
       summary={summary}
       onDone={(undo, deleted) => {
-        if (undo) setNotice(undo);
+        if (undo) showNotice(undo);
         if (deleted) leave();
         afterChange();
       }}
@@ -476,7 +486,7 @@ export function BrowseScreen() {
           onClose={() => setEditing(null)}
           onDone={(result) => {
             setEditing(null);
-            if (result.undo) setNotice(result.undo);
+            if (result.undo) showNotice(result.undo);
             afterChange();
           }}
         />

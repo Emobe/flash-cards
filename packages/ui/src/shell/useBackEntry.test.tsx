@@ -67,6 +67,33 @@ describe("useBackEntry", () => {
     expect(window.history.length).toBe(before);
   });
 
+  test("two holders closing together go back once, by both entries", async () => {
+    function Both() {
+      const [open, setOpen] = useState(true);
+      return (
+        <>
+          {open && <Holder name="mode" onBack={() => {}} />}
+          {open && <Holder name="window" onBack={() => {}} />}
+          <button type="button" onClick={() => setOpen(false)}>
+            close both
+          </button>
+        </>
+      );
+    }
+    for (const page of ["a", "b", "c", "decks", "browse"]) {
+      window.history.pushState(null, "", `/#/${page}`);
+    }
+    const view = render(<Both />);
+    expect(held()).toBe(2);
+    act(() => view.getByText("close both").click());
+    await tick(50);
+    expect(held()).toBeUndefined();
+    expect(window.location.hash).toBe("#/browse");
+    await act(async () => window.history.back());
+    await tick();
+    expect(window.location.hash).toBe("#/decks");
+  });
+
   test("an entry left with no holder is skipped by Back", async () => {
     const onBack = vi.fn();
     const view = render(<Holder name="one" onBack={onBack} />);

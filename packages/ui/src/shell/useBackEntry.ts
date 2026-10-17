@@ -19,6 +19,8 @@ type Holder = { onBack: () => void };
 
 const stack: Holder[] = [];
 let listening = false;
+/** True from our own `history.go` until its `popstate`: the depth read meanwhile is stale. */
+let going = false;
 
 function depth(): number {
   const held = window.history.state?.fcDialog;
@@ -27,15 +29,20 @@ function depth(): number {
 
 /** Pushes entries for holders that have none, and with `trim`, takes back entries no holder has. */
 function sync(trim: boolean) {
+  if (going) return;
   let at = depth();
   while (at < stack.length) {
     at += 1;
     window.history.pushState({ fcDialog: at }, "");
   }
-  if (trim && at > stack.length) window.history.go(stack.length - at);
+  if (trim && at > stack.length) {
+    going = true;
+    window.history.go(stack.length - at);
+  }
 }
 
 function onPop() {
+  going = false;
   const at = depth();
   // Rendered at once, so a holder that closes is gone before the entries are counted again.
   flushSync(() => {
