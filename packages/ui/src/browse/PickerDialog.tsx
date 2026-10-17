@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Dialog } from "../components/Dialog";
 import { useWideLayout } from "../shell/useMediaQuery";
 
@@ -17,6 +17,7 @@ const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCas
  * A chip's picker: checkboxes when several values can be chosen, radios when one, with Apply and
  * Clear (ADR 0013 decision 4). A sheet from the bottom on a phone. Back, Escape or Cancel close it
  * with nothing changed. A chosen value the collection no longer has is kept, marked "(not found)".
+ * The selection bar's Move uses it too, with its own button and no Clear (step 3.2c).
  */
 export function PickerDialog({
   title,
@@ -26,6 +27,11 @@ export function PickerDialog({
   filterable,
   onApply,
   onClose,
+  applyLabel = "Apply",
+  clearable = true,
+  findLabel = `Find a ${title.toLowerCase()}`,
+  note,
+  busy = false,
 }: {
   title: string;
   multiple: boolean;
@@ -34,6 +40,13 @@ export function PickerDialog({
   filterable: boolean;
   onApply: (values: string[]) => void;
   onClose: () => void;
+  applyLabel?: string;
+  clearable?: boolean;
+  findLabel?: string;
+  /** A line above the list (what Move acts on). */
+  note?: ReactNode;
+  /** Apply is off while the action runs. */
+  busy?: boolean;
 }) {
   const [picked, setPicked] = useState(() => new Set(selected));
   const [filter, setFilter] = useState("");
@@ -78,11 +91,12 @@ export function PickerDialog({
           onApply(all.map((o) => o.value).filter((v) => picked.has(v)));
         }}
       >
+        {note && <p className="picker-note">{note}</p>}
         {filterable && (
           <input
             type="search"
             className="picker-filter"
-            aria-label={`Find a ${title.toLowerCase()}`}
+            aria-label={findLabel}
             placeholder="Find"
             value={filter}
             autoCapitalize="off"
@@ -123,14 +137,20 @@ export function PickerDialog({
           ))}
         </fieldset>
         <div className="dialog-actions">
-          <button type="button" className="button" onClick={() => onApply([])}>
-            Clear
-          </button>
+          {clearable && (
+            <button type="button" className="button" onClick={() => onApply([])}>
+              Clear
+            </button>
+          )}
           <button type="button" className="button" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="button button-primary">
-            Apply
+          <button
+            type="submit"
+            className="button button-primary"
+            disabled={busy || (!clearable && picked.size === 0)}
+          >
+            {applyLabel}
           </button>
         </div>
       </form>

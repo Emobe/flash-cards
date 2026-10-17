@@ -418,3 +418,145 @@
 .saved-actions {
   flex-wrap: wrap;
 }
+
+/* Selection (step 3.2c, ADR 0014 decision 2). A row is a checkbox and the row's button. */
+.browse-item {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-1);
+}
+
+.browse-item > .browse-row {
+  flex: 1;
+  min-width: 0;
+}
+
+.browse-check {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--target);
+  cursor: pointer;
+}
+
+.browse-check input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.browse-item[data-selected="true"] > .browse-row {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* The checkbox: hidden on a phone until selection mode; from 600 px on hover and focus until one is
+   chosen, then on every row (`data-checks`). */
+.browse-list[data-checks="hidden"] .browse-check {
+  display: none;
+}
+
+.browse-list[data-checks="hover"] .browse-check {
+  opacity: 0;
+  transition: opacity var(--motion);
+}
+
+.browse-list[data-checks="hover"] .browse-item:hover .browse-check,
+.browse-list[data-checks="hover"] .browse-item:focus-within .browse-check {
+  opacity: 1;
+}
+
+/* On a phone a long press selects a row, so it must not select text. */
+.browse-list[data-wide="false"] .browse-row {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.browse-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.browse-bottom .undo-notice {
+  margin-bottom: 0;
+}
+
+.selection-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.selection-bar[data-wide="true"] {
+  flex-flow: row wrap;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.selection-head,
+.selection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.selection-count {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.selection-bar[data-wide="false"] .selection-actions {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.selection-bar[data-wide="false"] .selection-actions .button {
+  padding-inline: var(--space-1);
+}
+
+.selection-leave {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--target);
+  height: var(--target);
+  padding: 0;
+  background: none;
+  color: var(--text);
+  border: 0;
+  border-radius: 999px;
+}
+
+.selection-bar .browse-problem {
+  flex-basis: 100%;
+}
+
+.selection-more {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.picker-note {
+  margin: 0;
+  color: var(--muted);
+}
+
+.tag-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+}

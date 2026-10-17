@@ -7,8 +7,9 @@ import { NoteEditor } from "../editor/NoteEditor";
 import { PageHeading, useRouter } from "../router";
 import { CloseIcon, SortIcon } from "../shell/icons";
 import { BottomAction } from "../shell/slot";
+import { useBackEntry } from "../shell/useBackEntry";
 import { useWideLayout } from "../shell/useMediaQuery";
-import { useKeyShortcut } from "../shell/useShortcuts";
+import { isModalOpen, isTypingTarget, useKeyShortcut } from "../shell/useShortcuts";
 import { ChipRow } from "./ChipRow";
 import {
   addedLabels,
@@ -24,9 +25,13 @@ import {
 } from "./chips";
 import { formatDue, rowText } from "./format";
 import { PickerDialog, type PickerOption } from "./PickerDialog";
+import { toQuery } from "./query";
 import { SavedSheet } from "./SavedSheet";
+import { SelectionBar } from "./SelectionBar";
 import { SortDialog, sortLabel } from "./SortDialog";
 import { differsFrom, useBrowseSearch } from "./useBrowseSearch";
+import { useLongPress } from "./useLongPress";
+import { useSelection, useTargetSummary } from "./useSelection";
 import "./browse.css";
 
 /**
@@ -153,10 +158,57 @@ function useLoadMore(hasMore: boolean, rows: number, loadMore: () => Promise<voi
 }
 
 /**
+ * The selection's keys from 600 px (ADR 0014 decision 2), and on a phone with a keyboard: Escape
+ * clears, Ctrl+A chooses every match. A checkbox having focus does not count as typing.
+ */
+function useSelectionKeys(active: boolean, onEscape: () => void, onSelectAll: () => void) {
+  const ref = useRef({ active, onEscape, onSelectAll });
+  ref.current = { active, onEscape, onSelectAll };
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.isComposing || event.altKey || isModalOpen()) return;
+      const target = event.target;
+      const checkbox = target instanceof HTMLInputElement && target.type === "checkbox";
+      if (isTypingTarget(target) && !checkbox) return;
+      const { active, onEscape, onSelectAll } = ref.current;
+      if (event.key === "Escape" && active && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+        onEscape();
+      } else if (event.key.toLowerCase() === "a" && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        onSelectAll();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+}
+
+/** On a phone a long press on a row selects it, so the browser must not start selecting text. */
+function useNoTextSelectionOnRows(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    const onSelectStart = (event: Event) => {
+      const node = event.target;
+      const element =
+        node instanceof Element ? node : node instanceof Node ? node.parentElement : null;
+      if (element?.closest(".browse-row")) event.preventDefault();
+    };
+    document.addEventListener("selectstart", onSelectStart);
+    return () => document.removeEventListener("selectstart", onSelectStart);
+  }, [enabled]);
+}
+
+/**
  * Browse (step 3.1, ADR 0013): a search box and filter chips, sorting, notes or cards, and the
  * results as a list. On a phone the search panel sits at the bottom in thumb reach and above the
  * keyboard; from 600 px it sits above the list. A row opens its note in the editor (step 3.2b), and
  * what a save or delete did stays in a notice with Undo.
+ *
+ * Rows can be selected (step 3.2c, ADR 0014 decisions 2 to 4): on a phone with Select or a long
+ * press, then a tap toggles; from 600 px with a checkbox, Shift for a range and Ctrl+A for every
+ * match. While something is selected the selection bar takes the search panel's place, and the
+ * notice sits under it.
  */
 export function BrowseScreen() {
   const search = useBrowseSearch();
@@ -172,6 +224,12 @@ export function BrowseScreen() {
 
   const { state, results, problem } = search;
   const rows = results?.rows ?? [];
+  const query = toQuery(state.filters, state.text);
+  const selection = useSelection(JSON.stringify([query, state.mode]));
+  /** Counts the writes made here, so the selection's counts are read again after each. */
+  const [changes, setChanges] = useState(0);
+  const summary = useTargetSummary(selection.ids, state.mode, changes);
+  const idOf = (row: SearchResultRow) => (state.mode === "notes" ? row.noteId : row.cardId);
   const end = useLoadMore(search.hasMore, rows.length, search.loadMore);
   const deckPaths = new Map(names?.decks.map((d) => [d.id, d.path]));
   const openSaved = saved.searches?.find((s) => s.id === state.savedId) ?? null;
@@ -187,7 +245,23 @@ export function BrowseScreen() {
   const afterChange = useCallback(() => {
     searchNow();
     reload();
+    setChanges((n) => n + 1);
   }, [searchNow, reload]);
+
+  const core = useCore();
+  const { replace, enter, leave } = selection;
+  const selectAll = useCallback(async () => {
+    const out = await core.call("searchIds", { query, mode: state.mode });
+    replace(out.ids);
+    if (!wide) enter();
+  }, [core, query, state.mode, replace, enter, wide]);
+  useBackEntry(!wide && selection.active, leave);
+  useSelectionKeys(selection.active, leave, () => {
+    selectAll().catch(() => {
+      // Ctrl+A has nowhere to say it failed; the bar's own Select all does.
+    });
+  });
+  useNoTextSelectionOnRows(!wide);
 
   function openPicker(kind: ChipKind) {
     if (kind === "decks" || kind === "tags" || kind === "noteTypes") reload();
@@ -244,6 +318,11 @@ export function BrowseScreen() {
         <SortIcon />
         <span>Sort</span>
       </button>
+      {!wide && (
+        <button type="button" className="button browse-sort" onClick={() => enter()}>
+          Select
+        </button>
+      )}
     </form>
   );
   const problemText = problem && (
@@ -251,18 +330,58 @@ export function BrowseScreen() {
       {problem}
     </p>
   );
-  const panel = wide ? (
-    <div className="browse-panel" data-place="top">
-      {searchBox}
-      {problemText}
-      {chips}
+  const noticeView = notice && (
+    <UndoNotice
+      key={notice.id}
+      token={notice}
+      onUndone={afterChange}
+      onDismiss={() => setNotice(null)}
+    />
+  );
+  const top = selection.active ? (
+    <SelectionBar
+      selection={selection}
+      mode={state.mode}
+      onSelectAll={selectAll}
+      total={results?.total ?? 0}
+      wide={wide}
+      names={names}
+      summary={summary}
+      onDone={(undo, deleted) => {
+        if (undo) setNotice(undo);
+        if (deleted) leave();
+        afterChange();
+      }}
+    />
+  ) : (
+    <div className="browse-panel" data-place={wide ? "top" : "bottom"}>
+      {wide ? (
+        <>
+          {searchBox}
+          {problemText}
+          {chips}
+        </>
+      ) : (
+        <>
+          {chips}
+          {searchBox}
+          {problemText}
+        </>
+      )}
     </div>
+  );
+  // The notice sits under the search panel or the selection bar: above the list from 600 px, in
+  // the bottom slot on a phone.
+  const panel = wide ? (
+    <>
+      {top}
+      {noticeView}
+    </>
   ) : (
     <BottomAction>
-      <div className="browse-panel" data-place="bottom">
-        {chips}
-        {searchBox}
-        {problemText}
+      <div className="browse-bottom">
+        {top}
+        {noticeView}
       </div>
     </BottomAction>
   );
@@ -293,14 +412,6 @@ export function BrowseScreen() {
           </p>
         )}
       </div>
-      {notice && (
-        <UndoNotice
-          key={notice.id}
-          token={notice}
-          onUndone={afterChange}
-          onDismiss={() => setNotice(null)}
-        />
-      )}
       {panel}
       {results &&
         results.total === 0 &&
@@ -315,15 +426,36 @@ export function BrowseScreen() {
           </EmptyState>
         ))}
       {rows.length > 0 && (
-        <ul className="browse-list" aria-label="Results" data-stale={problem !== null}>
-          {rows.map((row) => (
-            <ResultRow
-              key={row.cardId}
-              row={row}
-              deck={deckPaths.get(row.deckId) ?? ""}
-              onOpen={() => setEditing(row.noteId)}
-            />
-          ))}
+        <ul
+          className="browse-list"
+          aria-label="Results"
+          data-stale={problem !== null}
+          data-wide={wide}
+          data-checks={selection.active ? "shown" : wide ? "hover" : "hidden"}
+        >
+          {rows.map((row) => {
+            const id = idOf(row);
+            return (
+              <ResultRow
+                key={row.cardId}
+                row={row}
+                deck={deckPaths.get(row.deckId) ?? ""}
+                compact={!wide}
+                selecting={selection.active}
+                selected={selection.ids.has(id)}
+                onOpen={(shift) => {
+                  if (!wide && selection.active) selection.toggle(id);
+                  else if (shift && selection.size > 0) selection.range(id, rows.map(idOf));
+                  else setEditing(row.noteId);
+                }}
+                onCheck={(shift) => {
+                  if (shift) selection.range(id, rows.map(idOf));
+                  else selection.toggle(id);
+                }}
+                onLongPress={() => selection.enter(id)}
+              />
+            );
+          })}
         </ul>
       )}
       {search.hasMore && (
@@ -389,21 +521,50 @@ export function BrowseScreen() {
 
 /**
  * One result: the sort field, the next field with text, then the deck and the state or due. A tap
- * opens its note (in Cards view, the card's note).
+ * opens its note (in Cards view, the card's note), or in the phone's selection mode toggles it. A
+ * checkbox before it selects it: shown on a phone only in selection mode, and from 600 px on hover
+ * and focus, and on every row once one is chosen.
  */
 function ResultRow({
   row,
   deck,
+  compact,
+  selecting,
+  selected,
   onOpen,
+  onCheck,
+  onLongPress,
 }: {
   row: SearchResultRow;
   deck: string;
-  onOpen: () => void;
+  compact: boolean;
+  selecting: boolean;
+  selected: boolean;
+  /** A tap or click on the row; `shift` when Shift was held. */
+  onOpen: (shift: boolean) => void;
+  onCheck: (shift: boolean) => void;
+  onLongPress: () => void;
 }) {
   const title = rowText(row.title);
+  const press = useLongPress(compact && !selecting, onLongPress);
   return (
-    <li>
-      <button type="button" className="browse-row" onClick={onOpen}>
+    <li className="browse-item" data-selected={selected}>
+      <label className="browse-check">
+        <input
+          type="checkbox"
+          aria-label={`Select ${title || "(empty)"}`}
+          checked={selected}
+          onChange={(event) => onCheck((event.nativeEvent as MouseEvent).shiftKey === true)}
+        />
+      </label>
+      <button
+        type="button"
+        className="browse-row"
+        onClick={(event) => onOpen(event.shiftKey)}
+        // A long press on a phone selects; it must not open the browser's menu.
+        onContextMenu={compact ? (event) => event.preventDefault() : undefined}
+        {...press}
+      >
         <span className="browse-title" data-empty={title === ""}>
           {title || "(empty)"}
         </span>
