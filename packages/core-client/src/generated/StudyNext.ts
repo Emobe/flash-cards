@@ -7,6 +7,10 @@ export type StudyNext =
   | {
       kind: "card";
       cardId: string;
+      /**
+       * The card's note, for the editor.
+       */
+      noteId: string;
       deckId: string;
       state: StudyCardState;
       previews: Array<IntervalPreview>;
