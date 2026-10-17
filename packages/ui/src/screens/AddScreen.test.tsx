@@ -93,6 +93,7 @@ const noteTypes: NoteTypeSummary[] = [
       { id: "f-front", name: "Front" },
       { id: "f-back", name: "Back" },
     ],
+    templates: [],
   },
   {
     id: "t-cloze",
@@ -102,6 +103,7 @@ const noteTypes: NoteTypeSummary[] = [
       { id: "f-text", name: "Text" },
       { id: "f-extra", name: "Extra" },
     ],
+    templates: [],
   },
   {
     id: "t-word",
@@ -111,6 +113,7 @@ const noteTypes: NoteTypeSummary[] = [
       { id: "f-w-front", name: "Front" },
       { id: "f-w-notes", name: "Notes" },
     ],
+    templates: [],
   },
 ];
 

@@ -427,3 +427,60 @@ fn sets_a_due_date_and_resets_to_new() {
     let backwards = fc(&["set-due", file.path(), "7-3", &card]);
     assert!(err(&backwards).contains("Choose a number of days from 0"));
 }
+
+#[test]
+fn changes_the_note_type_and_keeps_the_schedule() {
+    let file = TempFile::new("change-notetype");
+    let card = with_a_card(&file);
+    let now = "2026-10-06T09:00:00+00:00";
+    out(&fc(&["answer", file.path(), &card, "easy", "--now", now]));
+    let notes = out(&fc(&["notes", file.path()]));
+    let note = notes
+        .lines()
+        .find_map(|line| line.strip_prefix("Basic "))
+        .unwrap()
+        .to_owned();
+
+    let changed = out(&fc(&[
+        "change-notetype",
+        file.path(),
+        "Basic and reversed",
+        &note,
+        "--now",
+        now,
+    ]));
+    assert!(
+        changed.contains("Changed 1 note from Basic to Basic and reversed.")
+            && changed.contains("Cards removed: 1")
+            && changed.contains("Schedules carried: 1"),
+        "{changed}"
+    );
+    let notes = out(&fc(&["notes", file.path()]));
+    let ids = notes
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("Card IDs: "))
+        .unwrap()
+        .to_owned();
+    let new_card = ids.split(", ").next().unwrap();
+    let schedule = out(&fc(&["schedule", file.path(), new_card, "--now", now]));
+    assert!(schedule.contains("State: Review"), "{schedule}");
+    assert!(schedule.contains("schedule taken from card"), "{schedule}");
+    let history = out(&fc(&["history", file.path(), new_card]));
+    assert!(
+        history.contains("1 review") && history.contains("schedule taken from another card"),
+        "{history}"
+    );
+
+    // The same type again, and an unknown field name, are explained.
+    let same = fc(&["change-notetype", file.path(), "Basic and reversed", &note]);
+    assert!(err(&same).contains("already have that note type"));
+    let wrong = fc(&[
+        "change-notetype",
+        file.path(),
+        "Basic",
+        "--field",
+        "Nope=Front",
+        &note,
+    ]);
+    assert!(err(&wrong).contains("No new field"));
+}

@@ -6,6 +6,7 @@ import {
   type UndoToken,
 } from "core-client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ChangeTypeWindow } from "../browse/ChangeTypeWindow";
 import { Dialog } from "../components/Dialog";
 import { useCore } from "../core";
 import { TagInput, withTyped } from "../screens/add/TagInput";
@@ -24,7 +25,9 @@ const DUPLICATE_DELAY_MS = 400;
 /** What the editor did, for the screen under it to say so and offer Undo. */
 export type EditorResult =
   | { kind: "saved"; undo: UndoToken | null; cardsRemoved: string[] }
-  | { kind: "deleted"; undo: UndoToken | null };
+  | { kind: "deleted"; undo: UndoToken | null }
+  /** Its note type changed, so its cards were replaced. */
+  | { kind: "changed"; undo: UndoToken | null };
 
 type Loaded =
   | { status: "loading" }
@@ -81,7 +84,7 @@ export function NoteEditor({
   const [status, setStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [duplicate, setDuplicate] = useState(false);
-  const [asking, setAsking] = useState<"discard" | "delete" | null>(null);
+  const [asking, setAsking] = useState<"discard" | "delete" | "type" | null>(null);
   const editing = useFieldEditing({ status: setStatus, error: setError });
   const saving = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -265,7 +268,23 @@ export function NoteEditor({
           <div className="add-choices">
             <div className="add-choice">
               <span className="add-label">Type</span>
-              <span className="note-editor-type">{noteType.name}</span>
+              <span className="note-editor-type">
+                {noteType.name}
+                <button
+                  type="button"
+                  className="button note-editor-change"
+                  disabled={pending || dirty}
+                  aria-describedby={dirty ? "note-editor-change-hint" : undefined}
+                  onClick={() => setAsking("type")}
+                >
+                  Change
+                </button>
+              </span>
+              {dirty && (
+                <span id="note-editor-change-hint" className="note-editor-html-note">
+                  Save your changes first to change the note type.
+                </span>
+              )}
             </div>
             <div className="add-choice">
               <label htmlFor="note-editor-deck" className="add-label">
@@ -402,6 +421,15 @@ export function NoteEditor({
             </button>
           </div>
         </Dialog>
+      )}
+      {asking === "type" && ready && (
+        <ChangeTypeWindow
+          target={{ notes: [noteId] }}
+          notes={1}
+          noteTypeId={ready.note.noteTypeId}
+          onDone={(out) => onDone({ kind: "changed", undo: out.undo })}
+          onClose={() => setAsking(null)}
+        />
       )}
       {asking === "delete" && ready && (
         <Dialog

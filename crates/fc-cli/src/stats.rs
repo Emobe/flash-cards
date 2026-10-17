@@ -77,6 +77,7 @@ pub fn history(file: &str, card: &str) -> Result<String, Failure> {
         let what = match (e.kind, e.rating) {
             (HistoryKind::SetDue, _) => "due date set",
             (HistoryKind::Reset, _) => "reset to new",
+            (HistoryKind::Transfer, _) => "schedule taken from another card",
             (HistoryKind::Answer, Some(rating)) => rating_name(rating),
             (HistoryKind::Answer, None) => "?",
         };

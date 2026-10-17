@@ -4,13 +4,14 @@ import { Dialog } from "../components/Dialog";
 import { useCore } from "../core";
 import { TagInput, withTyped } from "../screens/add/TagInput";
 import { CloseIcon } from "../shell/icons";
+import { ChangeTypeWindow } from "./ChangeTypeWindow";
 import type { Names } from "./chips";
 import { DueSheet } from "./DueSheet";
 import { PickerDialog } from "./PickerDialog";
 import { targetOf, type useSelection } from "./useSelection";
 
 type Selection = ReturnType<typeof useSelection>;
-type Sheet = "move" | "add" | "remove" | "delete" | "due" | "reset" | "more";
+type Sheet = "move" | "add" | "remove" | "delete" | "due" | "reset" | "change" | "more";
 
 /** `1 card`, `18 cards`. */
 function plural(n: number, one: string, many: string): string {
@@ -68,11 +69,12 @@ function deleteQuestion(size: number, mode: SearchMode, summary: TargetSummary |
 /**
  * The selection bar (ADR 0014 decisions 2 and 3): leave, the count, Select all, and the actions.
  * Under 600 px it sits in `BottomAction` in place of the search panel, with Move, Tag, Suspend,
- * Delete and More (Set due date, Reset to new, Remove tags); from 600 px it sits above the list
- * with Move, Add tags, Remove tags, Suspend, Delete and More (Set due date, Reset to new), since
- * every action does not fit in one row. Move, tags and suspend act at once (after their sheet); Delete, Set due
+ * Delete and More (Set due date, Reset to new, Change note type, Remove tags); from 600 px it sits
+ * above the list with Move, Add tags, Remove tags, Suspend, Delete and More (Set due date, Reset to
+ * new, Change note type), since every action does not fit in one row. Move, tags and suspend act at once (after their sheet); Delete, Set due
  * date and Reset ask first. `onDone` gets each change's undo
- * token, and whether it was a delete (the screen then clears the selection).
+ * token, and whether the selected rows are gone (a delete, or a type change in Cards view, which
+ * replaces the cards): the screen then clears the selection.
  */
 export function SelectionBar({
   selection,
@@ -298,6 +300,18 @@ export function SelectionBar({
           </div>
         </Dialog>
       )}
+      {sheet === "change" && summary && (
+        <ChangeTypeWindow
+          target={target}
+          notes={summary.notes}
+          noteTypeId={summary.noteTypeId}
+          onDone={(out) => {
+            setSheet(null);
+            onDone(out.undo, mode === "cards");
+          }}
+          onClose={() => setSheet(null)}
+        />
+      )}
       {sheet === "more" && (
         <Dialog title="More actions" variant="sheet" onClose={() => setSheet(null)}>
           <div className="selection-more">
@@ -306,6 +320,14 @@ export function SelectionBar({
             </button>
             <button type="button" className="button" onClick={() => setSheet("reset")}>
               Reset to new
+            </button>
+            <button
+              type="button"
+              className="button"
+              disabled={summary === null}
+              onClick={() => setSheet("change")}
+            >
+              Change note type
             </button>
             {!wide && (
               <button type="button" className="button" onClick={() => setSheet("remove")}>

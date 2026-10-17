@@ -194,6 +194,7 @@ methods! {
         edit::DeleteNotes,
         edit::SetDueDate,
         edit::ResetCards,
+        edit::ChangeNoteType,
         edit::DescribeTarget,
         edit::UndoChange,
     ],

@@ -14,6 +14,17 @@ pub enum NoteError {
     NoCards {
         cloze: bool,
     },
+    /// Changing the note type: the notes are not all of one note type.
+    MixedTypes,
+    /// Changing the note type: the notes already have that note type.
+    SameType,
+    /// Changing the note type: this many notes would be left with no cards.
+    LeavesNoCards {
+        notes: usize,
+    },
+    /// Changing the note type: an old card was given to two new cards, which would count its
+    /// history twice.
+    DuplicateSource,
     /// A tag is not valid. Nothing was written.
     Tag(crate::tag::TagError),
     Collection(CollectionError),
@@ -34,6 +45,23 @@ impl fmt::Display for NoteError {
             Self::NoCards { cloze: false } => f.write_str(
                 "This note would make no cards. Fill in a field that the front of a card template \
                  uses.",
+            ),
+            Self::MixedTypes => f.write_str("Select notes of one note type to change it."),
+            Self::SameType => {
+                f.write_str("Those notes already have that note type. Choose another.")
+            }
+            Self::LeavesNoCards { notes: 1 } => f.write_str(
+                "1 note would be left with no cards. Choose a field for what the front of the new \
+                 cards shows.",
+            ),
+            Self::LeavesNoCards { notes } => write!(
+                f,
+                "{notes} notes would be left with no cards. Choose a field for what the front of \
+                 the new cards shows."
+            ),
+            Self::DuplicateSource => f.write_str(
+                "An old card can give its schedule to only one new card. Choose a different card \
+                 for one of them.",
             ),
             Self::Tag(error) => error.fmt(f),
             Self::Collection(error) => error.fmt(f),

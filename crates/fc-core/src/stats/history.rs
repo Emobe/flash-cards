@@ -6,7 +6,7 @@ use super::StudyError;
 use crate::collection::Collection;
 use crate::id::Id;
 use crate::scheduling::{CardState, Due, Memory, Rating, elapsed_days};
-use crate::study::EventKind;
+use crate::study::{EventKind, events_with_sources};
 
 /// What an entry of a card's history is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -17,9 +17,12 @@ pub enum HistoryKind {
     SetDue,
     /// The card was reset to new. Not an answer.
     Reset,
+    /// The card took the schedule of the card it replaced when its note changed type (ADR 0014,
+    /// decision 6). The entries before it are that card's. Not an answer.
+    Transfer,
 }
 
-/// One answer, or a set due date or reset, as a history screen shows it.
+/// One answer, or a set due date, reset or transfer, as a history screen shows it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReviewEntry {
     pub event: Id,
@@ -48,8 +51,9 @@ pub struct ReviewEntry {
 
 impl Collection {
     /// A card's answers, set due dates and resets, oldest first, in the order the schedule folds
-    /// them. Those that were undone are left out (`card_events` has them). A deleted card keeps its
-    /// history, and restoring the card shows it again.
+    /// them, with those of the cards it took its schedule from when its note changed type. Those
+    /// that were undone are left out (`card_events` has them). A deleted card keeps its history,
+    /// and restoring the card shows it again.
     pub fn card_history(&self, card: Id) -> Result<Vec<ReviewEntry>, StudyError> {
         let found: bool = self.conn.query_row(
             "SELECT EXISTS (SELECT 1 FROM card WHERE id = ?1)",
@@ -59,7 +63,7 @@ impl Collection {
         if !found {
             return Err(StudyError::NotFound);
         }
-        let events = self.card_events(card)?;
+        let events = events_with_sources(&self.conn, card)?;
         let voided: HashSet<Id> = events
             .iter()
             .filter(|e| e.kind == EventKind::Void)
@@ -75,6 +79,7 @@ impl Collection {
                 (EventKind::Review, Some(rating)) => (HistoryKind::Answer, Some(rating)),
                 (EventKind::SetDue, _) => (HistoryKind::SetDue, None),
                 (EventKind::Reset, _) => (HistoryKind::Reset, None),
+                (EventKind::Transfer, _) => (HistoryKind::Transfer, None),
                 _ => continue,
             };
             let due = match (e.due_day, e.due_ms) {

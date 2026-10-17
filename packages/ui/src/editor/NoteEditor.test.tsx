@@ -5,7 +5,7 @@ import { CoreClient, createFakeTransport } from "core-client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { CoreProvider } from "../core";
 import { type EditorResult, NoteEditor } from "./NoteEditor";
-import { editorHandlers } from "./testEditor";
+import { basic, editorHandlers } from "./testEditor";
 
 vi.mock("./FieldEditor", () => import("./testEditor"));
 
@@ -246,5 +246,68 @@ describe("the rest", () => {
       kind: "deleted",
       undo: { id: "u2", message: "Deleted 1 note and its 1 card." },
     });
+  });
+});
+
+describe("changing the note type", () => {
+  function setupWithTypes() {
+    const ready = setup();
+    return ready;
+  }
+
+  test("Change opens the window for this note and closes the editor with an undo", async () => {
+    const handlers = editorHandlers();
+    const changeNoteType = vi.fn((_input: unknown) => ({
+      notes: 1,
+      carried: 1,
+      undo: { id: "u-type", message: "Changed 1 note to Basic and reversed." },
+    }));
+    const onDone = vi.fn((_result: EditorResult) => {});
+    const reversed = {
+      id: "nt-rev",
+      name: "Basic and reversed",
+      kind: "standard" as const,
+      fields: [
+        { id: "f2-front", name: "Front" },
+        { id: "f2-back", name: "Back" },
+      ],
+      templates: [
+        { id: "t2-1", name: "Card 1" },
+        { id: "t2-2", name: "Card 2" },
+      ],
+    };
+    const client = new CoreClient(
+      createFakeTransport({
+        ...handlers,
+        getNoteTypes: () => ({ noteTypes: [basic, reversed] }),
+        changeNoteType,
+      }),
+    );
+    render(
+      <CoreProvider client={client}>
+        <NoteEditor noteId="n1" onClose={vi.fn()} onDone={onDone} />
+      </CoreProvider>,
+    );
+    await field("Front");
+    fireEvent.click(screen.getByRole("button", { name: "Change" }));
+    const window = await screen.findByRole("dialog", { name: "Change note type" });
+    fireEvent.click(await within(window).findByRole("button", { name: "Change" }));
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(changeNoteType.mock.calls[0]?.[0]).toMatchObject({
+      target: { notes: ["n1"] },
+      noteTypeId: "nt-rev",
+    });
+    expect(onDone.mock.calls[0]?.[0]).toEqual({
+      kind: "changed",
+      undo: { id: "u-type", message: "Changed 1 note to Basic and reversed." },
+    });
+  });
+
+  test("unsaved changes switch Change off, with the reason", async () => {
+    setupWithTypes();
+    fireEvent.change(await field("Front"), { target: { value: "pies" } });
+    const button = screen.getByRole("button", { name: "Change" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(screen.getByText("Save your changes first to change the note type.")).not.toBeNull();
   });
 });

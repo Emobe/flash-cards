@@ -44,6 +44,7 @@ started that are not undone, whatever their deck.
   adds or removes no card, a merge that applies and keeps nothing, ending a session that is not open.
 - A bulk delete or restore of notes (`delete_notes`, `restore_notes`) sends one `noteDeleted` or
   `noteRestored` per note, in one batch.
+- Changing the note type of notes (`change_note_type`) sends one `noteEdited` per note, in one batch: `fields` are the fields of the new note type that were written, `cardsAdded` and `cardsRemoved` the cards that came and went.
 - A merge, a restore or an import sends one `mergeApplied`, not an event per note. `registersApplied` of a restore counts what it moved to the trash too.
 
 ### What has no event yet

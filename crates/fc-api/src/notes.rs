@@ -24,7 +24,12 @@ fn note_error(what: &str, error: NoteError) -> ApiError {
         NoteError::NoCards { cloze: false } => {
             ApiError::invalid_input("This note would make no cards. Fill in the front.")
         }
-        NoteError::UnknownField | NoteError::Tag(_) => ApiError::invalid_input(error.to_string()),
+        NoteError::UnknownField
+        | NoteError::MixedTypes
+        | NoteError::SameType
+        | NoteError::LeavesNoCards { .. }
+        | NoteError::DuplicateSource
+        | NoteError::Tag(_) => ApiError::invalid_input(error.to_string()),
         NoteError::Collection(inner) => match ApiError::from(inner) {
             api if api == ApiError::internal() => internal(what, &api),
             api => api,
@@ -61,6 +66,17 @@ pub struct NoteTypeSummary {
     pub kind: NoteTypeKind,
     /// In the order to show them.
     pub fields: Vec<FieldSummary>,
+    /// The card templates, in order. A cloze type has one.
+    pub templates: Vec<TemplateSummary>,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct TemplateSummary {
+    /// A UUID string.
+    pub id: String,
+    pub name: String,
 }
 
 #[derive(Debug, Serialize, TS)]
@@ -98,6 +114,14 @@ impl Method for GetNoteTypes {
                     .map(|f| FieldSummary {
                         id: f.id.to_string(),
                         name: f.name,
+                    })
+                    .collect(),
+                templates: t
+                    .templates
+                    .into_iter()
+                    .map(|t| TemplateSummary {
+                        id: t.id.to_string(),
+                        name: t.name,
                     })
                     .collect(),
             })

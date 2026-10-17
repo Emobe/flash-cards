@@ -31,6 +31,9 @@ mod simulation_tests;
 mod suspend;
 #[cfg(test)]
 mod tests;
+mod transfer;
+#[cfg(test)]
+mod transfer_tests;
 mod undo;
 #[cfg(test)]
 mod undo_tests;
@@ -48,8 +51,10 @@ pub(crate) use session::OpenSession;
 pub use session::{EndReason, SessionSummary};
 pub use undo::Undone;
 
+pub(crate) use event::events_with_sources;
 pub(crate) use fold::{ParameterSets, check_cache, rebuild_card};
 pub use settings::DEFAULT_DAY_START_HOUR;
+pub(crate) use transfer::{Carry, Stamp, write_carries};
 
 /// The sync entity types and register and column names are part of the sync format and never change
 /// (ADR 0006, section 10).

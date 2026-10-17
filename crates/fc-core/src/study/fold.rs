@@ -168,6 +168,14 @@ pub(crate) fn fold(events: &[CardEvent], sets: &ParameterSets) -> Option<Cached>
                     cached = Some(after_change(cached.as_ref(), event.id, last_day, &applied));
                 }
             }
+            // A card takes the schedule of the card it replaces, whatever it was before (ADR 0014,
+            // decision 6): the recorded result, always, with the source's day of last answer.
+            EventKind::Transfer => {
+                if let Some(applied) = event.applied() {
+                    let last_day = event.last_day.unwrap_or(event.day);
+                    cached = Some(after_change(cached.as_ref(), event.id, last_day, &applied));
+                }
+            }
             // A kind from a newer app counts only where it builds on the last event: its recorded
             // result is all we can know of it.
             EventKind::Unknown(_) => {

@@ -80,6 +80,11 @@ Usage:
                    Change fields of a note. Fields left out stay as they are. Cards are made or
                    removed to match, and a duplicate of the first field is warned about. With
                    --tag, the note's tags become exactly those, in the same write
+  fc change-notetype <file> <note type> [--field New=Old]... [--card New=Old]... <note ID>...
+                   Change the note type of notes of one note type, in one write. A new field or
+                   card is matched to the old one with the same name, then the same position,
+                   unless given: New= leaves a field empty or starts a card as new. A card keeps
+                   the schedule, deck and suspension of the old card it is matched to
   fc delete-note <file> <note ID>...
                    Move notes and their cards to the trash, in one write
   fc restore-note <file> <note ID>...
@@ -264,6 +269,7 @@ const COMMANDS: &[&str] = &[
     "preset",
     "move-cards",
     "edit-note",
+    "change-notetype",
     "delete-note",
     "restore-note",
     "find-duplicates",
@@ -886,6 +892,9 @@ fn run(args: &[String]) -> Result<String, Failure> {
         }
         [command, file, note, values @ ..] if command == "edit-note" => {
             edit::edit_note(file, note, values)
+        }
+        [command, file, rest @ ..] if command == "change-notetype" => {
+            edit::change_note_type(file, rest)
         }
         [command, file, notes @ ..] if command == "delete-note" => edit::delete_notes(file, notes),
         [command, file, notes @ ..] if command == "restore-note" => {

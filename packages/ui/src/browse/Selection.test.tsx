@@ -24,6 +24,7 @@ import { RouterProvider } from "../router";
 import { AppShell } from "../shell/AppShell";
 import { BrowseScreen } from "./BrowseScreen";
 import { resultRow } from "./testRows";
+import { typeBasic, typeCloze, typeReversed } from "./testTypes";
 import { LONG_PRESS_MS } from "./useLongPress";
 import { useSelection } from "./useSelection";
 
@@ -81,7 +82,7 @@ function renderBrowse({
   search = () => threeRows,
   summary = (target: Target) => {
     const n = "notes" in target ? target.notes.length : target.cards.length;
-    return { notes: n, cards: n, suspended: 0, noteCards: n, newCards: 0 };
+    return { notes: n, cards: n, suspended: 0, noteCards: n, newCards: 0, noteTypeId: "nt-1" };
   },
 }: {
   search?: (input: SearchInput) => SearchResults;
@@ -114,6 +115,11 @@ function renderBrowse({
       undo: { id: "u-due", message: "Made 2 cards due tomorrow." },
     })),
     resetCards: vi.fn(change("Reset 1 card to new.")),
+    changeNoteType: vi.fn(() => ({
+      notes: 2,
+      carried: 2,
+      undo: { id: "u-type", message: "Changed 2 notes to Basic and reversed." },
+    })),
   };
   const edit = editorHandlers({ noteTypeId: "nt-1", fields: [] });
   const client = new CoreClient(
@@ -124,7 +130,7 @@ function renderBrowse({
       checkQuery: () => ({ problem: null }),
       getDeckList: () => decks,
       getTags: () => ({ tags: ["verbs"] }),
-      getNoteTypes: () => ({ noteTypes: [] }),
+      getNoteTypes: () => ({ noteTypes: [typeBasic, typeReversed, typeCloze] }),
     }),
   );
   render(
@@ -288,7 +294,14 @@ describe("the actions", () => {
 
   test("Notes view counts the cards the notes have: 2 notes (3 cards)", async () => {
     renderBrowse({
-      summary: () => ({ notes: 2, cards: 3, suspended: 0, noteCards: 3, newCards: 0 }),
+      summary: () => ({
+        notes: 2,
+        cards: 3,
+        suspended: 0,
+        noteCards: 3,
+        newCards: 0,
+        noteTypeId: "nt-1",
+      }),
     });
     await pick("kot", "pies");
     expect(await within(bar()).findByText("2 notes (3 cards)")).not.toBeNull();
@@ -340,7 +353,14 @@ describe("the actions", () => {
   test("Suspend reads Unsuspend when every selected card is suspended", async () => {
     let suspended = 0;
     const { handlers } = renderBrowse({
-      summary: () => ({ notes: 2, cards: 2, suspended, noteCards: 2, newCards: 0 }),
+      summary: () => ({
+        notes: 2,
+        cards: 2,
+        suspended,
+        noteCards: 2,
+        newCards: 0,
+        noteTypeId: "nt-1",
+      }),
     });
     await pick("kot", "pies");
     fireEvent.click(await within(bar()).findByRole("button", { name: "Suspend" }));
@@ -358,7 +378,14 @@ describe("the actions", () => {
 
   test("Delete asks with the counts, then clears the selection; Undo calls undoChange", async () => {
     const { handlers, edit } = renderBrowse({
-      summary: () => ({ notes: 2, cards: 3, suspended: 0, noteCards: 3, newCards: 0 }),
+      summary: () => ({
+        notes: 2,
+        cards: 3,
+        suspended: 0,
+        noteCards: 3,
+        newCards: 0,
+        noteTypeId: "nt-1",
+      }),
     });
     await pick("kot", "pies");
     await within(bar()).findByText("2 notes (3 cards)");
@@ -384,7 +411,14 @@ describe("the actions", () => {
   test("in Cards view the target is cards and a delete counts every card of the notes", async () => {
     localStorage.setItem("fc.browse", JSON.stringify({ mode: "cards" }));
     const { handlers } = renderBrowse({
-      summary: () => ({ notes: 1, cards: 1, suspended: 0, noteCards: 2, newCards: 0 }),
+      summary: () => ({
+        notes: 1,
+        cards: 1,
+        suspended: 0,
+        noteCards: 2,
+        newCards: 0,
+        noteTypeId: "nt-1",
+      }),
     });
     await pick("kot");
     expect(within(bar()).getByText("1 card")).not.toBeNull();
@@ -401,7 +435,14 @@ describe("the actions", () => {
 
   test("Set due date sends the chosen days, and says how many new cards it leaves", async () => {
     const { handlers, edit } = renderBrowse({
-      summary: () => ({ notes: 2, cards: 3, suspended: 0, noteCards: 3, newCards: 1 }),
+      summary: () => ({
+        notes: 2,
+        cards: 3,
+        suspended: 0,
+        noteCards: 3,
+        newCards: 1,
+        noteTypeId: "nt-1",
+      }),
     });
     await pick("kot", "pies");
     await within(bar()).findByText("2 notes (3 cards)");
@@ -454,9 +495,76 @@ describe("the actions", () => {
     );
   });
 
+  /** Change note type waits for the selection's summary, which says if the notes share a type. */
+  async function openChangeType() {
+    fireEvent.click(within(bar()).getByRole("button", { name: "More" }));
+    const more = screen.getByRole("dialog", { name: "More actions" });
+    const button = within(more).getByRole("button", { name: "Change note type" });
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(button);
+  }
+
+  test("Change note type sends the maps, keeps the selection and offers Undo", async () => {
+    const { handlers, edit } = renderBrowse();
+    await pick("kot", "pies");
+    await within(bar()).findByText("2 notes");
+    await openChangeType();
+    const window = await screen.findByRole("dialog", { name: "Change note type" });
+    fireEvent.click(await within(window).findByRole("button", { name: "Change" }));
+
+    const notice = await screen.findByText("Changed 2 notes to Basic and reversed.");
+    expect(lastInput(handlers.changeNoteType)).toMatchObject({
+      target: { notes: ["n-kot", "n-pies"] },
+      noteTypeId: "nt-2",
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(checkbox("kot").checked).toBe(true);
+    fireEvent.click(
+      within(notice.closest(".undo-notice") as HTMLElement).getByRole("button", { name: "Undo" }),
+    );
+    await waitFor(() =>
+      expect(edit.undoChange).toHaveBeenCalledWith({ undoId: "u-type" }, expect.anything()),
+    );
+  });
+
+  test("in Cards view the type change clears the selection, since the cards are replaced", async () => {
+    localStorage.setItem("fc.browse", JSON.stringify({ mode: "cards" }));
+    const { handlers } = renderBrowse();
+    await pick("kot");
+    await openChangeType();
+    fireEvent.click(await screen.findByRole("button", { name: "Change" }));
+    await waitFor(() => expect(handlers.changeNoteType).toHaveBeenCalled());
+    expect(lastInput(handlers.changeNoteType)).toMatchObject({ target: { cards: ["c-kot"] } });
+    await waitFor(() => expect(screen.queryByRole("toolbar", { name: "Selection" })).toBeNull());
+  });
+
+  test("a mixed selection is told to select one note type", async () => {
+    renderBrowse({
+      summary: () => ({
+        notes: 2,
+        cards: 3,
+        suspended: 0,
+        noteCards: 3,
+        newCards: 0,
+        noteTypeId: null,
+      }),
+    });
+    await pick("kot", "pies");
+    await within(bar()).findByText("2 notes (3 cards)");
+    await openChangeType();
+    expect(await screen.findByText("Select notes of one note type to change it.")).not.toBeNull();
+  });
+
   test("Reset to new asks with the cards that are not new yet, then resets them", async () => {
     const { handlers } = renderBrowse({
-      summary: () => ({ notes: 2, cards: 3, suspended: 0, noteCards: 3, newCards: 2 }),
+      summary: () => ({
+        notes: 2,
+        cards: 3,
+        suspended: 0,
+        noteCards: 3,
+        newCards: 2,
+        noteTypeId: "nt-1",
+      }),
     });
     await pick("kot", "pies");
     await within(bar()).findByText("2 notes (3 cards)");
@@ -546,7 +654,7 @@ describe("useSelection", () => {
   });
 });
 
-test("under 600 px More has Set due date, Reset to new and Remove tags", async () => {
+test("under 600 px More has Set due date, Reset to new, Change note type and Remove tags", async () => {
   const { handlers } = renderBrowse();
   fireEvent.click(await screen.findByRole("button", { name: "Select" }));
   fireEvent.click(await row("kot"));
@@ -555,7 +663,13 @@ test("under 600 px More has Set due date, Reset to new and Remove tags", async (
   const items = within(more)
     .getAllByRole("button")
     .map((b) => b.textContent);
-  expect(items).toEqual(["Set due date", "Reset to new", "Remove tags", "Cancel"]);
+  expect(items).toEqual([
+    "Set due date",
+    "Reset to new",
+    "Change note type",
+    "Remove tags",
+    "Cancel",
+  ]);
   const actions = bar().querySelector(".selection-actions") as HTMLElement;
   expect(within(actions).queryByRole("button", { name: "Set due date" })).toBeNull();
   fireEvent.click(within(more).getByRole("button", { name: "Set due date" }));

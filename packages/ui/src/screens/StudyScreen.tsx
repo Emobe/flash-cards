@@ -108,7 +108,7 @@ export function StudyScreen({ deckId }: { deckId: string }) {
             setNotice(result.undo);
             const current = view.kind === "card" ? view.card.cardId : null;
             void refresh(
-              result.kind === "deleted" ||
+              result.kind !== "saved" ||
                 (current !== null && result.cardsRemoved.includes(current)),
             );
           }}

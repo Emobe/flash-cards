@@ -9,6 +9,8 @@ import type { AnswerCardOutput } from "./AnswerCardOutput";
 import type { BackupEntry } from "./BackupEntry";
 import type { BackupInfo } from "./BackupInfo";
 import type { BackupSettingsOutput } from "./BackupSettingsOutput";
+import type { ChangeNoteTypeInput } from "./ChangeNoteTypeInput";
+import type { ChangeNoteTypeOutput } from "./ChangeNoteTypeOutput";
 import type { ChangeOutput } from "./ChangeOutput";
 import type { CheckQueryInput } from "./CheckQueryInput";
 import type { CollectionInfo } from "./CollectionInfo";
@@ -174,6 +176,12 @@ export type Methods = {
   deleteNotes: { input: TargetInput; output: DeletedNotes; bytesIn: false; bytesOut: false };
   setDueDate: { input: SetDueDateInput; output: SetDueDateOutput; bytesIn: false; bytesOut: false };
   resetCards: { input: TargetInput; output: ChangeOutput; bytesIn: false; bytesOut: false };
+  changeNoteType: {
+    input: ChangeNoteTypeInput;
+    output: ChangeNoteTypeOutput;
+    bytesIn: false;
+    bytesOut: false;
+  };
   describeTarget: { input: TargetInput; output: TargetSummary; bytesIn: false; bytesOut: false };
   undoChange: { input: UndoChangeInput; output: UndoChangeOutput; bytesIn: false; bytesOut: false };
   exportBackupToFile: {

@@ -29,6 +29,16 @@ pub enum Reverse {
     RestoreNotes(Vec<Id>),
     /// Void these card events (a set due date or a reset), which puts each card's schedule back.
     Events(Vec<Id>),
+    /// Change these notes back to the note type they had, with the maps reversed: `fields` is
+    /// `(field of `from`, field of `to` that filled it)` and `templates` likewise. Notes that are
+    /// not of type `to` any more are left alone.
+    NoteType {
+        notes: Vec<Id>,
+        from: Id,
+        to: Id,
+        fields: Vec<(Id, Option<Id>)>,
+        templates: Vec<(Id, Option<Id>)>,
+    },
     /// Write a note's old values back, its old tags if they changed, and move its cards back.
     Edit {
         note: Id,
