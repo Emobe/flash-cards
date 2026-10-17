@@ -11,7 +11,7 @@ Kept current by every session. A new session reads this first.
 - **3.2a on the phone** (next debug APK): the app starts and opens the real collection as before (3.2a has no UI).
 - **3.1c Saved searches on the phone** (next debug APK, taps allowed, never unlock): the Saved sheet with the name field and the keyboard open (field and buttons visible), Android back closing the sheet and the name form.
 
-**3.2 design session done: ADR 0014 Accepted (2026-10-17, every question as proposed) and `docs/plans/3.2-edit-and-bulk.md`, merged (PR #53).** **3.2a (core and API for editing and the simple bulk actions) is built**, PR open from `step/3.2a-edit-api` (build notes: ADR 0014, step 3.2a). Choices made at the plan (Anthony said "go" with its four questions open, so the proposed answers were taken; listed as deviations in the build notes): `updateNote` takes an optional `deckId` with one undo for the edit and the move; the undo slot is on `fc_core::Core`; `delete-note` and `restore-note` take several IDs instead of new commands; undo of a move from several decks or of several tags is one write per deck or tag. **Next: 3.2b (the note editor)** on `step/3.2b-note-editor`, stacked on 3.2a; then 3.2c, 3.2d, 3.2e.
+**3.2 design session done: ADR 0014 Accepted (2026-10-17, every question as proposed) and `docs/plans/3.2-edit-and-bulk.md`, merged (PR #53).** **3.2a (core and API for editing and the simple bulk actions) is built**, PR #54 from `step/3.2a-edit-api` (build notes: ADR 0014, step 3.2a). Choices made at the plan (Anthony said "go" with its four questions open, so the proposed answers were taken; listed as deviations in the build notes): `updateNote` takes an optional `deckId` with one undo for the edit and the move; the undo slot is on `fc_core::Core`; `delete-note` and `restore-note` take several IDs instead of new commands; undo of a move from several decks or of several tags is one write per deck or tag. **Next: 3.2b (the note editor)** on `step/3.2b-note-editor`, stacked on 3.2a; then 3.2c, 3.2d, 3.2e.
 
 **Step 3.1 is done**: 3.1c (PR #52), 3.1b (PR #51), 3.1a (PR #49) and `zip` 9.0.4 (PR #50) are merged.
 
@@ -28,7 +28,7 @@ the phone. Anthony removes it, and the old `dev.placeholder.flashcards` app; ses
 
 ## Branch
 
-`master`: the 3.2 design session (PR #53) and all of 3.1 (PRs #48 to #52) are merged. 3.2a is on `step/3.2a-edit-api` (PR open); 3.2b goes on `step/3.2b-note-editor`, branched from it. `tool/prune-target` (the `cargo xtask prune` PR) is separate and still open; its STATUS line is on that branch.
+`master`: the 3.2 design session (PR #53) and all of 3.1 (PRs #48 to #52) are merged. 3.2a is on `step/3.2a-edit-api` (PR #54); 3.2b goes on `step/3.2b-note-editor`, branched from it. `tool/prune-target` (the `cargo xtask prune` PR) is separate and still open; its STATUS line is on that branch.
 
 ## Done
 
