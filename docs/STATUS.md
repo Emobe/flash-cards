@@ -10,7 +10,9 @@ Kept current by every session. A new session reads this first.
 - **3.1b Browse on the phone** (next debug APK, taps allowed, never unlock): the bottom panel in the hand and in landscape; typing with the keyboard open (panel above it, rows visible); a picker sheet with the Find box and the keyboard open; Android back closing a picker; time a one-word text search and a chip search on the real collection and write the numbers in the ADR 0013 3.1b notes. Also the first APK with `zip` 9 (PR #50 adds `nix` for Android).
 - **3.1c Saved searches on the phone** (next debug APK, taps allowed, never unlock): the Saved sheet with the name field and the keyboard open (field and buttons visible), Android back closing the sheet and the name form.
 
-**3.1c Saved searches is done** (PR #52 open from `step/3.1c-saved-searches`; build notes: ADR 0013, step 3.1c). That finishes step 3.1 once it is merged. **Next: `/next`** to find the next step (3.2 per the phase file). 3.1b (PR #51), 3.1a (PR #49) and `zip` 9.0.4 (PR #50) are merged.
+**3.2 design session done: ADR 0014 (Proposed) and `docs/plans/3.2-edit-and-bulk.md`, on `step/3.2-edit-bulk`, waiting for Anthony's review.** Nothing of 3.2 is built until ADR 0014 is Accepted. Then `/step 3.2` builds it as five PRs (3.2a to 3.2e, in the plan).
+
+**Step 3.1 is done**: 3.1c (PR #52), 3.1b (PR #51), 3.1a (PR #49) and `zip` 9.0.4 (PR #50) are merged.
 
 2.6 Settings and local backups is **done and merged (PR #44)**; 2.5 Deck management is done (PR #42, #43). Build notes: ADR 0006, step 2.6. Folder choosing is out (agreed): Export is how a copy leaves the device.
 
@@ -25,10 +27,11 @@ the phone. Anthony removes it, and the old `dev.placeholder.flashcards` app; ses
 
 ## Branch
 
-`step/3.1c-saved-searches`: 3.1c, PR #52 open. 3.1b (PR #51), 3.1a (PR #49), the design session (PR #48) and `deps/zip-9` (PR #50) are merged. `tool/prune-target` (the `cargo xtask prune` PR) is separate and still open; its STATUS line is on that branch.
+`step/3.2-edit-bulk`: the 3.2 design session (ADR 0014 and its plan). All of 3.1 is merged (PRs #48 to #52). `tool/prune-target` (the `cargo xtask prune` PR) is separate and still open; its STATUS line is on that branch.
 
 ## Done
 
+- 3.2 design session: ADR 0014 (Proposed) and `docs/plans/3.2-edit-and-bulk.md`. Verified with a scratch crate on `fc-core`: changing a note's type in place starts every card as New, and changing it back restores the old cards with their schedule (so the ADR adds a `transfer` event). Looked up: selection on touch screens (Material 2), long press in Android web pages, undo notices and WCAG 2.2.1. Not verified: long press in the phone's WebView, the editor layer with the phone's keyboard, bulk timings on the phone and in wasm, a 50,000-ID list over the bridge. No code, no dependency.
 - 3.1c Saved searches (ADR 0013 build notes, step 3.1c): `SavedSheet.tsx`, the Saved chip, "Saved: name" under the heading, `savedId` in `fc.browse`, `openSaved`, `differsFrom`. No core or API change, no dependency. Verified: web at 390 and 1100 px light and dark, the desktop app. Not verified: the phone (list above), Windows, Firefox, Safari.
 - 3.1b The Browse screen (ADR 0013 build notes, step 3.1b), merged (PR #51): `browse/` (`query.ts` with a fixture shared with an `fc-api` Rust test, `useBrowseSearch`, `formatDue`, `BrowseScreen`, `ChipRow`, `PickerDialog`, `SortDialog`), `useWideLayout`, `Dialog variant="sheet"`, `/` to search. No dependency. Verified: web at 390 and 1100 px light and dark, the desktop app. Not verified: the phone (list above), Windows, Firefox, Safari. Seen once in nine runs: `AddScreen.test.tsx` "a file that cannot be used is refused…" timed out at 1 s (a test this PR does not touch).
 - `zip` 9.0.4 for RUSTSEC-2026-0369 (PR #50, merged): an unreadable entry name is a damaged backup; new transitive `nix`, `cfg_aliases`.
