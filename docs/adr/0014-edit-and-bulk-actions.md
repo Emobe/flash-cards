@@ -514,3 +514,100 @@ IDs). Not measured: the same list through the bridge to the webview (ADR 0014 "N
 - `searchIds` was timed at about 50,000 cards on a separate `fc fake` collection of 37,000 notes
   (made in the background), since `fc fake` takes about 75 s for 10,000 notes and grows with the
   square.
+
+## Build notes (step 3.2b, the note editor)
+
+Branch `step/3.2b-note-editor`. No migration, no core change, no new dependency, no bridge or CSP
+change. One `fc-api` field.
+
+- **`noteId` on `nextCard`'s card** (`fc-api` `study.rs`, through `notes_of_cards`). Study only knew
+  the card it shows, and no method maps a card to its note.
+- **The layer: `Dialog variant="layer"`** (`components/Dialog.tsx`, styles in `shell/shell.css`
+  next to the sheet, since only that file uses the safe-area insets). Under 600 px it fills the
+  screen less the keyboard inset; from 600 px it is a window of at most 46 rem. A Back control and
+  the title at the top, the body scrolls, and its own `BottomActionSlot` at the bottom, because a
+  modal `dialog` makes the shell's slot inert. Two changes for every `Dialog`: Escape (the native
+  `cancel`) and Back call `onClose` and leave closing to the parent, and a dialog the parent keeps
+  open after Back pushes its history entry again; a dialog acts only on its own `cancel`.
+- **`editor/useFieldEditing.ts`**: the Add screen's active editor, toolbar refresh, caret above the
+  keyboard, media cache and `attach`, now shared by Add and the note editor.
+- **`editor/NoteEditor.tsx`**: loads `getNote`, `getNoteTypes`, `getDeckList` and `getTags`. The
+  type read only; one `FieldEditor` per field, or a `<textarea>` with the field's HTML as text and
+  "This field has formatting the editor cannot show." when `roundTrips` fails; tags; the deck
+  (`Several decks` until changed); the duplicate warning without the note itself; Delete note
+  ("Delete this note and its 2 cards?"). A field counts as changed against what the editor would
+  save untouched, so opening and closing is not a change. Save, Ctrl+S or Ctrl+Enter send one
+  `updateNote` with only the changed fields, every tag (and a tag still being typed), and `deckId`
+  when the deck changed; with nothing changed Save just closes. Back, Escape or the Back control
+  with changes ask "Discard your changes?" (Keep editing, Discard; Escape or Back on the question
+  keeps editing).
+- **`components/UndoNotice.tsx`**: `role="status"`, the message, Undo (once) and Dismiss, no timer.
+  After Undo it shows `undoChange`'s message. 3.2c reuses it.
+- **Browse**: a row is a button that opens its note (in Cards view, the card's note). After a save
+  or a delete, the notice under the heading and the same rows read again (`searchNow` keeps as many
+  rows as were loaded), and again after Undo. Nothing changed: no notice.
+- **Study**: Edit (with `E`) next to Undo, and `e`. The answer's time stops while the editor is
+  open (`pause`, `resume` in `useStudy`). After a save the card is rendered again on the side it was
+  on, or the next card comes when the save removed it, the note was deleted, or the card can no
+  longer be rendered. The notice sits under the counts and goes when the card is answered. Undo from
+  the end screen (a delete of the last card undone) starts a new session.
+- **Keys under a modal**: the shell's shortcuts, `/` in Browse and the study keys do nothing while a
+  `dialog` is open (`isModalOpen`), so `1` in the editor does not rate the card behind it.
+- **`FieldEditor` leaves Escape to the page.** ProseMirror's view prevents Escape's default, so the
+  window around it never got it (found in headless Brave).
+- **Tests**: 18 for `NoteEditor` (loading, Several decks, the HTML box shown as text, no
+  `innerHTML` in the editor's files, only changed fields sent, the deck in the same call, a typed
+  tag, a no-op Save, Ctrl+S and Ctrl+Enter, a refused save, Escape and Back with and without
+  changes, a bubbled `cancel`, the duplicate warning, Delete), 3 for Browse (a row opens its note,
+  Saved. and Undo with the rows read again, Cards view, closing writes nothing), 6 for Study (Edit
+  and `e`, keys off under the editor, the timer, re-render on the same side and Undo, the next card
+  when removed, the notice going on an answer), 1 for `FieldEditor` (Escape not prevented, Enter
+  still is), and the `nextCard` `fc-api` test checks `noteId`. `editor/testEditor.tsx` holds a
+  text area in place of `FieldEditor` and the fake note methods for screen tests.
+
+### Verified
+
+- `cargo xtask check` passes (433 UI tests).
+- **Web** (`bun run web:dev`, headless Brave over CDP, real mouse and key events, sample cards from
+  the Developer screen, screenshots read): at 390 px light and dark the layer fills the screen
+  (390 × 844) with Save and the toolbar in its bar at the bottom; typing, Escape asks, Keep
+  editing, history Back asks, Ctrl+S saves and closes with no dialog history entry left, "Saved."
+  with Undo, Undo answers "The note is back as it was.", Escape with nothing changed closes. At
+  1100 px light and dark: a window at most 46 rem, the Back control, a deck change saved with
+  Ctrl+Enter (the row then shows the new deck). Study: Space, `e` opens the editor, `1` does not
+  rate, a save keeps the answer side and the counts, the notice shows at 1100 and 390 px dark.
+- **Desktop** (`bun run dev`, Linux X11, scratch `XDG_DATA_HOME`, sample cards, `xdotool`,
+  screenshots read): the window in WebKitGTK (found collapsed, fixed, checked again); Escape asks,
+  Escape on the question keeps editing (found asking again, fixed, checked again); Ctrl+S saves and
+  the row changes; Undo; in Study `e` on the answer side, `1` ignored, Ctrl+Enter saves and the
+  card shows the new back.
+
+### Not verified
+
+- **The phone (skipped while Anthony is away, STATUS):** the layer with the keyboard open (the
+  field and the toolbar visible above it), Android back with unsaved changes (asks, then Keep
+  editing), a picture added while editing, the Edit button in Study.
+- A field that does not round-trip in a real browser (covered by Vitest only; the sample cards have
+  none).
+- Windows, Firefox, Safari.
+
+### Deviations from the plan
+
+- **`noteId` on `nextCard`**: an `fc-api` change the plan's 3.2b section did not list (proposed in
+  the chat plan and approved with "go").
+- **Changes to every `Dialog`**, not only the new variant: Escape and Back go through `onClose` and
+  the parent can keep the window open; a bubbled `cancel` is ignored (a WebKitGTK difference found on
+  desktop).
+- **Screen keys are off while any modal window is open** (`isModalOpen` in `useShortcuts.ts`), for
+  the shell's shortcuts too, not only Study's.
+- **`FieldEditor` leaves Escape to the page**, a change to 2.4's editor found while checking the
+  web.
+- **The Study notice goes when the card is answered**; ADR decision 4 says "until the next change,
+  leaving the screen, or Dismiss". In Study it would otherwise stay through the whole session. Undo
+  of that change stays possible until the next change, from Browse.
+- **Nothing changed: Save closes without a call** and no notice is shown.
+- **An edit that moves the studied card to another deck keeps it on screen** (it can still be
+  answered); the ADR only covers a removed card. Stated in the chat plan.
+- `components/UndoNotice.tsx` and `editor/testEditor.tsx` are new files the plan did not name;
+  `DecksScreen`'s own notice is unchanged.
+- "Change note type" in the editor is not there yet: it comes with 3.2e.
