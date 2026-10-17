@@ -362,7 +362,6 @@
 
 .saved-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1) var(--space-2);
   padding: var(--space-1) 0;
@@ -371,7 +370,7 @@
 
 .saved-open {
   display: flex;
-  flex: 1 1 10rem;
+  flex: 1 1 0;
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
@@ -402,7 +401,7 @@
 }
 
 .saved-gone {
-  flex: 1 1 10rem;
+  flex: 1 1 0;
   padding: 0 var(--space-2);
   color: var(--muted);
 }
