@@ -31,6 +31,7 @@ export type { PresetSummary } from "./generated/PresetSummary";
 export type { Progress } from "./generated/Progress";
 export type { RenderedCardOutput } from "./generated/RenderedCardOutput";
 export type { RestoreOutput } from "./generated/RestoreOutput";
+export type { SavedSearchSummary } from "./generated/SavedSearchSummary";
 export type { SearchDue } from "./generated/SearchDue";
 export type { SearchInput } from "./generated/SearchInput";
 export type { SearchMode } from "./generated/SearchMode";
