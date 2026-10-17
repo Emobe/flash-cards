@@ -31,6 +31,12 @@ export function ShortcutsDialog({ open, onClose }: { open: boolean; onClose: () 
         ))}
         <div>
           <dt>
+            <kbd>/</kbd>
+          </dt>
+          <dd>Search (in Browse)</dd>
+        </div>
+        <div>
+          <dt>
             <kbd>?</kbd>
           </dt>
           <dd>Show this list</dd>

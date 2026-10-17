@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { BrowseScreen } from "./browse/BrowseScreen";
 import "./components/components.css";
 import { isDeveloperBuild } from "./developer";
 import { RouterProvider, useRouter } from "./router";
@@ -7,7 +8,6 @@ import { CollectionProblem } from "./screens/CollectionProblem";
 import { DecksScreen } from "./screens/DecksScreen";
 import { DeveloperScreen } from "./screens/DeveloperScreen";
 import { OptionsScreen } from "./screens/OptionsScreen";
-import { BrowseScreen } from "./screens/placeholders";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { StudyScreen } from "./screens/StudyScreen";
 import { AppShell } from "./shell/AppShell";

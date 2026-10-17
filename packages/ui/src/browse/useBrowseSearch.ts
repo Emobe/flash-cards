@@ -291,6 +291,7 @@ export function useBrowseSearch() {
     setSort: (sort: SearchSort) =>
       update((s) => ({ ...s, sort, seed: sort.key === "random" ? newSeed() : s.seed })),
     setMode: (mode: SearchMode) => update((s) => ({ ...s, mode })),
-    clearFilters: () => update((s) => ({ ...s, filters: noFilters })),
+    /** The empty result's button: no chips and no text. */
+    clearSearch: () => update((s) => ({ ...s, filters: noFilters, text: "" })),
   };
 }

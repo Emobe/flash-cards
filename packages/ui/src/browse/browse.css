@@ -1,0 +1,311 @@
+/* The Browse screen (step 3.1, ADR 0013). Tokens only. */
+
+.browse-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.browse-count {
+  margin: 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The search box, Sort and the chips: in the bottom slot on a phone, above the list when wide. */
+.browse-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.browse-box {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.browse-box input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--target);
+  padding: 0 var(--space-3);
+  background: var(--surface);
+  color: var(--text);
+  border: var(--border-control);
+  border-radius: var(--radius);
+}
+
+.browse-box input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.browse-sort {
+  flex: none;
+  padding: 0 var(--space-3);
+}
+
+.browse-problem {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+
+/* Chips: one row that scrolls sideways, faded at an edge that has more. */
+.chip-row {
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  padding-inline: 0;
+  border: 0;
+  gap: var(--space-2);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  padding-block: var(--space-1);
+}
+
+.chip-row::-webkit-scrollbar {
+  display: none;
+}
+
+.chip-row[data-fade-end="true"] {
+  mask-image: linear-gradient(to left, transparent, black var(--space-6));
+}
+
+.chip-row[data-fade-start="true"] {
+  mask-image: linear-gradient(to right, transparent, black var(--space-6));
+}
+
+.chip-row[data-fade-start="true"][data-fade-end="true"] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black var(--space-6),
+    black calc(100% - var(--space-6)),
+    transparent
+  );
+}
+
+.chip {
+  display: inline-flex;
+  flex: none;
+  align-items: stretch;
+  background: var(--surface);
+  color: var(--text);
+  border: var(--border-control);
+  border-radius: 999px;
+}
+
+.chip[data-on="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+.chip button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--target);
+  background: none;
+  color: inherit;
+  border: 0;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.chip-main {
+  padding: 0 var(--space-4);
+}
+
+.chip[data-on="true"] .chip-main {
+  padding-right: var(--space-1);
+  padding-left: var(--space-3);
+  font-weight: 600;
+}
+
+.chip-clear {
+  justify-content: center;
+  min-width: var(--target);
+  padding: 0;
+}
+
+.chip .icon {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* The results. */
+.browse-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  transition: opacity var(--motion);
+}
+
+.browse-list[data-stale="true"] {
+  opacity: 0.55;
+}
+
+.browse-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+.browse-row > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.browse-title {
+  font-weight: 600;
+}
+
+.browse-title[data-empty="true"],
+.browse-detail,
+.browse-meta {
+  color: var(--muted);
+}
+
+.browse-detail:empty {
+  display: none;
+}
+
+.browse-meta {
+  font-size: var(--text-sm);
+}
+
+.browse-deck + span::before {
+  content: " · ";
+}
+
+.browse-more {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2) 0;
+}
+
+/* Wide: the row's three lines as columns. */
+@media (min-width: 1024px) {
+  .browse-row {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 3fr);
+    align-items: baseline;
+    gap: var(--space-3);
+  }
+
+  .browse-detail:empty {
+    display: block;
+  }
+
+  .browse-meta {
+    text-align: right;
+  }
+}
+
+/* Pickers and the Sort window. */
+.dialog-sheet[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.picker,
+.sort-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+.picker-filter {
+  min-height: var(--target);
+  padding: 0 var(--space-3);
+  background: var(--bg);
+  color: var(--text);
+  border: var(--border-control);
+  border-radius: var(--radius);
+}
+
+.picker-list {
+  min-height: 0;
+  max-height: 50vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 0;
+}
+
+.picker-list .choice {
+  padding-left: calc(var(--depth, 0) * var(--space-4));
+}
+
+.picker-list .choice span {
+  overflow-wrap: anywhere;
+}
+
+.picker-none {
+  color: var(--muted);
+}
+
+.segmented {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.segmented-label {
+  margin-right: auto;
+  color: var(--muted);
+}
+
+.sort-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.sort-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--target);
+  padding: 0 var(--space-2);
+  background: none;
+  color: var(--text);
+  border: 0;
+  border-top: var(--border);
+  text-align: left;
+}
+
+.sort-option[aria-pressed="true"] {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.sort-direction {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  text-align: right;
+}

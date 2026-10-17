@@ -1,32 +1,11 @@
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
-import {
-  CoreClient,
-  createFakeTransport,
-  type SearchInput,
-  type SearchResultRow,
-  type SearchResults,
-} from "core-client";
+import { CoreClient, createFakeTransport, type SearchInput, type SearchResults } from "core-client";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { CoreProvider } from "../core";
 import { noFilters } from "./query";
+import { resultRow } from "./testRows";
 import { DELAY_MS, defaultState, readState, useBrowseSearch } from "./useBrowseSearch";
-
-export function resultRow(title: string, extra: Partial<SearchResultRow> = {}): SearchResultRow {
-  return {
-    cardId: `c-${title}`,
-    noteId: `n-${title}`,
-    noteTypeId: "nt-basic",
-    deckId: "d-default",
-    title,
-    detail: "",
-    state: "new",
-    due: null,
-    suspended: false,
-    buried: false,
-    ...extra,
-  };
-}
 
 function results(total: number, from = 0, count = Math.min(total - from, 100)): SearchResults {
   return { total, rows: Array.from({ length: count }, (_, i) => resultRow(`r${from + i}`)) };

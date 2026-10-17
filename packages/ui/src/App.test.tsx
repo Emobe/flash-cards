@@ -27,6 +27,10 @@ function renderApp(path: string, getCollectionInfo: () => unknown = () => collec
       getCoreInfo: () => ({ coreVersion: "9.9.9" }),
       getCollectionInfo: getCollectionInfo as () => typeof collectionInfo,
       getDeckList: () => ({ decks: [], totalCards: 0 }),
+      getTags: () => ({ tags: [] }),
+      getNoteTypes: () => ({ noteTypes: [] }),
+      search: () => ({ total: 0, rows: [] }),
+      checkQuery: () => ({ problem: null }),
       spikeSchedule: ({ ratings }) => ({
         reviews: ratings.map((_, i) => ({ intervalDays: 2 + i, stability: 1, difficulty: 1 })),
       }),
@@ -66,12 +70,16 @@ describe("screens", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Decks" })).toBeDefined();
   });
 
-  test("Add and Browse say what is coming", async () => {
+  test("Add and Browse open from the navigation", async () => {
     renderApp("/decks");
     fireEvent.click(await screen.findByRole("link", { name: "Add" }));
     expect(screen.getByRole("heading", { level: 1, name: "Add" })).toBeDefined();
     fireEvent.click(screen.getByRole("link", { name: "Browse" }));
     expect(screen.getByRole("heading", { level: 1, name: "Browse" })).toBeDefined();
+    expect(await screen.findByRole("searchbox", { name: "Search your cards" })).toBeDefined();
+    expect(
+      await screen.findByText("You have no cards yet. Add your first card to start studying."),
+    ).toBeDefined();
   });
 
   test("study is full screen with a back control", async () => {
