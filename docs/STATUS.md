@@ -9,7 +9,7 @@ Kept current by every session. A new session reads this first.
 - **3.1a search on the phone** (next debug APK): the app starts and opens the real collection as before (3.1a changed the search grammar, not storage).
 - **3.1b Browse on the phone** (next debug APK, taps allowed, never unlock): the bottom panel in the hand and in landscape; typing with the keyboard open (panel above it, rows visible); a picker sheet with the Find box and the keyboard open; Android back closing a picker; time a one-word text search and a chip search on the real collection and write the numbers in the ADR 0013 3.1b notes. Also the first APK with `zip` 9 (PR #50 adds `nix` for Android).
 
-**3.1b The Browse screen is done** (PR open from `step/3.1b-browse-screen`; build notes: ADR 0013, step 3.1b). **Next: `/step 3.1c`** (saved searches: the Saved chip and sheet), on a new branch from `master` once 3.1b is merged. Plan: `docs/plans/3.1-browser.md`. 3.1a is merged (PR #49). The `zip` 9.0.4 upgrade for RUSTSEC-2026-0369 is merged (PR #50, Anthony's go-ahead in chat).
+**3.1b The Browse screen is done** (PR #51 open from `step/3.1b-browse-screen`; build notes: ADR 0013, step 3.1b). **Next: `/step 3.1c`** (saved searches: the Saved chip and sheet), on a new branch from `master` once 3.1b is merged. Plan: `docs/plans/3.1-browser.md`. 3.1a is merged (PR #49). The `zip` 9.0.4 upgrade for RUSTSEC-2026-0369 is merged (PR #50, Anthony's go-ahead in chat).
 
 2.6 Settings and local backups is **done and merged (PR #44)**; 2.5 Deck management is done (PR #42, #43). Build notes: ADR 0006, step 2.6. Folder choosing is out (agreed): Export is how a copy leaves the device.
 
@@ -24,7 +24,7 @@ the phone. Anthony removes it, and the old `dev.placeholder.flashcards` app; ses
 
 ## Branch
 
-`step/3.1b-browse-screen`: 3.1b, PR open. 3.1a (PR #49), the design session (PR #48) and `deps/zip-9` (PR #50) are merged. `tool/prune-target` (the `cargo xtask prune` PR) is separate and still open; its STATUS line is on that branch.
+`step/3.1b-browse-screen`: 3.1b, PR #51 open. 3.1a (PR #49), the design session (PR #48) and `deps/zip-9` (PR #50) are merged. `tool/prune-target` (the `cargo xtask prune` PR) is separate and still open; its STATUS line is on that branch.
 
 ## Done
 
