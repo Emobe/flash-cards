@@ -554,9 +554,49 @@
   color: var(--muted);
 }
 
-.tag-sheet {
+.tag-sheet,
+.due-sheet {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   min-height: 0;
+}
+
+.due-choices {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.due-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--target);
+}
+
+.due-option input[type="radio"] {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+}
+
+.due-option-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.due-days {
+  width: 5.5ch;
+  min-height: var(--target);
+  padding: 0 var(--space-2);
+  text-align: end;
+  background: var(--bg);
+  border: var(--border-control);
+  border-radius: var(--radius);
 }

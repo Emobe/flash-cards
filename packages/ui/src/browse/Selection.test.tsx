@@ -108,6 +108,12 @@ function renderBrowse({
       cards: 3,
       undo: { id: "u-delete", message: "Deleted 2 notes and their 3 cards." },
     })),
+    setDueDate: vi.fn(() => ({
+      count: 2,
+      skippedNew: 1,
+      undo: { id: "u-due", message: "Made 2 cards due tomorrow." },
+    })),
+    resetCards: vi.fn(change("Reset 1 card to new.")),
   };
   const edit = editorHandlers({ noteTypeId: "nt-1", fields: [] });
   const client = new CoreClient(
@@ -273,7 +279,9 @@ describe("the actions", () => {
   }
 
   test("Notes view counts the cards the notes have: 2 notes (3 cards)", async () => {
-    renderBrowse({ summary: () => ({ notes: 2, cards: 3, suspended: 0, noteCards: 3, newCards: 0 }) });
+    renderBrowse({
+      summary: () => ({ notes: 2, cards: 3, suspended: 0, noteCards: 3, newCards: 0 }),
+    });
     await pick("kot", "pies");
     expect(await within(bar()).findByText("2 notes (3 cards)")).not.toBeNull();
   });
@@ -383,6 +391,80 @@ describe("the actions", () => {
     );
   });
 
+  test("Set due date sends the chosen days, and says how many new cards it leaves", async () => {
+    const { handlers, edit } = renderBrowse({
+      summary: () => ({ notes: 2, cards: 3, suspended: 0, noteCards: 3, newCards: 1 }),
+    });
+    await pick("kot", "pies");
+    await within(bar()).findByText("2 notes (3 cards)");
+    fireEvent.click(within(bar()).getByRole("button", { name: "Set due date" }));
+    let sheet = await screen.findByRole("dialog", { name: "Set due date" });
+    expect(within(sheet).getByText("On 3 cards")).not.toBeNull();
+    expect(within(sheet).getByText(/^1 new card is not changed/)).not.toBeNull();
+    expect((within(sheet).getByLabelText("Tomorrow") as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(within(sheet).getByRole("button", { name: "Set due date" }));
+
+    const notice = await screen.findByText("Made 2 cards due tomorrow.");
+    expect(lastInput(handlers.setDueDate)).toEqual({
+      target: { notes: ["n-kot", "n-pies"] },
+      fromDays: 1,
+      toDays: 1,
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(checkbox("kot").checked).toBe(true);
+    fireEvent.click(
+      within(notice.closest(".undo-notice") as HTMLElement).getByRole("button", {
+        name: "Undo",
+      }),
+    );
+    await waitFor(() =>
+      expect(edit.undoChange).toHaveBeenCalledWith({ undoId: "u-due" }, expect.anything()),
+    );
+
+    // Typing a number chooses its option.
+    fireEvent.click(within(bar()).getByRole("button", { name: "Set due date" }));
+    sheet = await screen.findByRole("dialog", { name: "Set due date" });
+    fireEvent.change(within(sheet).getByLabelText("Number of days"), { target: { value: "10" } });
+    fireEvent.click(within(sheet).getByRole("button", { name: "Set due date" }));
+    await waitFor(() =>
+      expect(lastInput(handlers.setDueDate)).toMatchObject({ fromDays: 10, toDays: 10 }),
+    );
+
+    fireEvent.click(within(bar()).getByRole("button", { name: "Set due date" }));
+    sheet = await screen.findByRole("dialog", { name: "Set due date" });
+    fireEvent.change(within(sheet).getByLabelText("Fewest days"), { target: { value: "9" } });
+    fireEvent.change(within(sheet).getByLabelText("Most days"), { target: { value: "2" } });
+    fireEvent.click(within(sheet).getByRole("button", { name: "Set due date" }));
+    expect(within(sheet).getByRole("alert").textContent).toBe(
+      "The first number of days cannot be more than the second.",
+    );
+    expect(handlers.setDueDate).toHaveBeenCalledTimes(2);
+    fireEvent.change(within(sheet).getByLabelText("Most days"), { target: { value: "14" } });
+    fireEvent.click(within(sheet).getByRole("button", { name: "Set due date" }));
+    await waitFor(() =>
+      expect(lastInput(handlers.setDueDate)).toMatchObject({ fromDays: 9, toDays: 14 }),
+    );
+  });
+
+  test("Reset to new asks with the cards that are not new yet, then resets them", async () => {
+    const { handlers } = renderBrowse({
+      summary: () => ({ notes: 2, cards: 3, suspended: 0, noteCards: 3, newCards: 2 }),
+    });
+    await pick("kot", "pies");
+    await within(bar()).findByText("2 notes (3 cards)");
+    fireEvent.click(within(bar()).getByRole("button", { name: "Reset to new" }));
+    const question = await screen.findByRole("dialog", { name: "Reset 1 card to new?" });
+    expect(within(question).getByText(/Their review history is kept/)).not.toBeNull();
+    expect(
+      within(question).getByText("2 cards are new already and stay as they are."),
+    ).not.toBeNull();
+    expect(handlers.resetCards).not.toHaveBeenCalled();
+    fireEvent.click(within(question).getByRole("button", { name: "Reset" }));
+    expect(await screen.findByText("Reset 1 card to new.")).not.toBeNull();
+    expect(lastInput(handlers.resetCards)).toEqual({ target: { notes: ["n-kot", "n-pies"] } });
+    expect(checkbox("kot").checked).toBe(true);
+  });
+
   test("a refused action says why in the bar", async () => {
     const { handlers } = renderBrowse();
     handlers.suspendCards.mockImplementation(() => {
@@ -450,4 +532,29 @@ describe("useSelection", () => {
     act(() => result.current.range("b", loaded));
     expect([...result.current.ids].sort()).toEqual(["b", "c", "d"]);
   });
+});
+
+test("under 600 px More has Set due date, Reset to new and Remove tags", async () => {
+  const { handlers } = renderBrowse();
+  fireEvent.click(await screen.findByRole("button", { name: "Select" }));
+  fireEvent.click(await row("kot"));
+  fireEvent.click(within(bar()).getByRole("button", { name: "More" }));
+  const more = await screen.findByRole("dialog", { name: "More actions" });
+  const items = within(more)
+    .getAllByRole("button")
+    .map((b) => b.textContent);
+  expect(items).toEqual(["Set due date", "Reset to new", "Remove tags", "Cancel"]);
+  const actions = bar().querySelector(".selection-actions") as HTMLElement;
+  expect(within(actions).queryByRole("button", { name: "Set due date" })).toBeNull();
+  fireEvent.click(within(more).getByRole("button", { name: "Set due date" }));
+  const sheet = await screen.findByRole("dialog", { name: "Set due date" });
+  fireEvent.click(within(sheet).getByLabelText("Today"));
+  fireEvent.click(within(sheet).getByRole("button", { name: "Set due date" }));
+  await waitFor(() =>
+    expect(lastInput(handlers.setDueDate)).toEqual({
+      target: { notes: ["n-kot"] },
+      fromDays: 0,
+      toDays: 0,
+    }),
+  );
 });

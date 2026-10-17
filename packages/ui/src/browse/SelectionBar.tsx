@@ -5,11 +5,12 @@ import { useCore } from "../core";
 import { TagInput, withTyped } from "../screens/add/TagInput";
 import { CloseIcon } from "../shell/icons";
 import type { Names } from "./chips";
+import { DueSheet } from "./DueSheet";
 import { PickerDialog } from "./PickerDialog";
 import { targetOf, type useSelection } from "./useSelection";
 
 type Selection = ReturnType<typeof useSelection>;
-type Sheet = "move" | "add" | "remove" | "delete" | "more";
+type Sheet = "move" | "add" | "remove" | "delete" | "due" | "reset" | "more";
 
 /** `1 card`, `18 cards`. */
 function plural(n: number, one: string, many: string): string {
@@ -41,6 +42,19 @@ function notesReached(size: number, mode: SearchMode, summary: TargetSummary | n
   return summary ? notesText(summary.notes) : `the notes of ${cardsText(size)}`;
 }
 
+/** The cards a card action reaches: "On 18 cards". */
+function cardsReached(size: number, mode: SearchMode, summary: TargetSummary | null): string {
+  if (summary) return `On ${cardsText(summary.cards)}`;
+  return mode === "cards" ? `On ${cardsText(size)}` : `On the cards of ${notesText(size)}`;
+}
+
+/** "Reset 15 cards to new?", leaving out the cards that are new already. */
+function resetQuestion(size: number, mode: SearchMode, summary: TargetSummary | null): string {
+  if (!summary)
+    return mode === "cards" ? `Reset ${cardsText(size)} to new?` : "Reset the cards to new?";
+  return `Reset ${cardsText(Math.max(0, summary.cards - summary.newCards))} to new?`;
+}
+
 function deleteQuestion(size: number, mode: SearchMode, summary: TargetSummary | null): string {
   if (!summary) {
     return mode === "notes"
@@ -54,8 +68,9 @@ function deleteQuestion(size: number, mode: SearchMode, summary: TargetSummary |
 /**
  * The selection bar (ADR 0014 decisions 2 and 3): leave, the count, Select all, and the actions.
  * Under 600 px it sits in `BottomAction` in place of the search panel, with Move, Tag, Suspend,
- * Delete and More; from 600 px it sits above the list with every action in one row. Move, tags and
- * suspend act at once (after their sheet); Delete asks first. `onDone` gets each change's undo
+ * Delete and More (Set due date, Reset to new, Remove tags); from 600 px it sits above the list with
+ * every action in one row. Move, tags and suspend act at once (after their sheet); Delete, Set due
+ * date and Reset ask first. `onDone` gets each change's undo
  * token, and whether it was a delete (the screen then clears the selection).
  */
 export function SelectionBar({
@@ -178,6 +193,12 @@ export function SelectionBar({
           action("Tag", "add")
         )}
         {suspend}
+        {wide && (
+          <>
+            {action("Set due date", "due")}
+            {action("Reset to new", "reset")}
+          </>
+        )}
         {action("Delete", "delete", true)}
         {!wide && action("More", "more")}
       </div>
@@ -242,9 +263,54 @@ export function SelectionBar({
           </div>
         </Dialog>
       )}
+      {sheet === "due" && (
+        <DueSheet
+          note={cardsReached(size, mode, summary)}
+          newCards={summary?.newCards ?? 0}
+          busy={busy}
+          onApply={(fromDays, toDays) =>
+            void run(() => core.call("setDueDate", { target, fromDays, toDays }))
+          }
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {sheet === "reset" && (
+        <Dialog title={resetQuestion(size, mode, summary)} onClose={() => setSheet(null)}>
+          <p>
+            They start again as new cards. Their review history is kept. You can undo it right
+            after.
+          </p>
+          {summary && summary.newCards > 0 && (
+            <p>
+              {summary.newCards === 1
+                ? "1 card is new already and stays as it is."
+                : `${summary.newCards.toLocaleString()} cards are new already and stay as they are.`}
+            </p>
+          )}
+          <div className="dialog-actions">
+            <button type="button" className="button" onClick={() => setSheet(null)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="button button-danger"
+              disabled={busy}
+              onClick={() => void run(() => core.call("resetCards", { target }))}
+            >
+              Reset
+            </button>
+          </div>
+        </Dialog>
+      )}
       {sheet === "more" && (
         <Dialog title="More actions" variant="sheet" onClose={() => setSheet(null)}>
           <div className="selection-more">
+            <button type="button" className="button" onClick={() => setSheet("due")}>
+              Set due date
+            </button>
+            <button type="button" className="button" onClick={() => setSheet("reset")}>
+              Reset to new
+            </button>
             <button type="button" className="button" onClick={() => setSheet("remove")}>
               Remove tags
             </button>
