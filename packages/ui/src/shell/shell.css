@@ -260,3 +260,96 @@
     padding-bottom: var(--space-4);
   }
 }
+
+/*
+ * The full-screen layer (the note editor, ADR 0014 decision 1): a wide window from 600 px, the
+ * whole screen under it, with its own action bar above the keyboard. `[open]` so a closed one
+ * stays hidden.
+ */
+.dialog-layer[open] {
+  display: flex;
+  flex-direction: column;
+  width: min(46rem, calc(100vw - 2 * var(--space-5)));
+  max-width: none;
+  max-height: calc(100dvh - 2 * var(--space-6));
+  padding: 0;
+}
+
+.dialog-layer-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5) 0 var(--space-3);
+}
+
+.dialog-layer-head h2 {
+  margin: 0;
+}
+
+.dialog-layer-back {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--target);
+  height: var(--target);
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--text);
+}
+
+.dialog-layer-body {
+  /* Not `flex: 1`: a zero basis collapses the body in WebKitGTK, where the window has no height. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5) var(--space-5);
+}
+
+.dialog-layer-action:empty {
+  display: none;
+}
+
+.dialog-layer-action {
+  border-top: var(--border);
+  padding: var(--space-3) var(--space-5);
+}
+
+@media (max-width: 599.98px) {
+  .dialog-layer[open] {
+    width: 100%;
+    height: calc(100dvh - var(--keyboard-inset, 0px));
+    max-height: none;
+    margin: 0;
+    background: var(--bg);
+    border: 0;
+    border-radius: 0;
+  }
+
+  .dialog-layer-head {
+    padding: calc(env(safe-area-inset-top) + var(--space-3))
+      calc(env(safe-area-inset-right) + var(--space-4)) 0
+      calc(env(safe-area-inset-left) + var(--space-2));
+  }
+
+  .dialog-layer-body {
+    padding: var(--space-3) calc(env(safe-area-inset-right) + var(--space-4)) var(--space-5)
+      calc(env(safe-area-inset-left) + var(--space-4));
+  }
+
+  .dialog-layer-action {
+    padding: var(--space-3) calc(env(safe-area-inset-right) + var(--space-4))
+      calc(env(safe-area-inset-bottom) + var(--space-3))
+      calc(env(safe-area-inset-left) + var(--space-4));
+  }
+
+  .shell[data-keyboard="open"] .dialog-layer-action {
+    padding-bottom: var(--space-3);
+  }
+}

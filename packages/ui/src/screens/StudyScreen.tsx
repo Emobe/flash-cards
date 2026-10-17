@@ -1,11 +1,13 @@
-import type { EventRating, RenderedCardOutput, StudyCounts } from "core-client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import type { EventRating, RenderedCardOutput, StudyCounts, UndoToken } from "core-client";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { CardFrame, type CardFrameHandle } from "../card/CardFrame";
+import { UndoNotice } from "../components/UndoNotice";
 import { useCore } from "../core";
+import { NoteEditor } from "../editor/NoteEditor";
 import { Link, PageHeading, useRouter } from "../router";
 import { WarningIcon } from "../shell/icons";
 import { BottomAction } from "../shell/slot";
-import { isTypingTarget } from "../shell/useShortcuts";
+import { isModalOpen, isTypingTarget } from "../shell/useShortcuts";
 import { formatInterval, formatSpan } from "../study/format";
 import { type Side, type StudyCard, type StudyView, useStudy } from "../study/useStudy";
 import { useTheme } from "../theme";
@@ -21,13 +23,33 @@ const RATINGS: { rating: EventRating; label: string; key: string }[] = [
 /**
  * The review screen (step 2.3): a card, Show answer, then four answers that each say when the card
  * comes back. Full screen, with the shell's back control. The card is shown only through
- * `CardFrame` (ADR 0005); this screen never touches card HTML.
+ * `CardFrame` (ADR 0005); this screen never touches card HTML. Edit opens the card's note over the
+ * screen (step 3.2b) and the answer's time stops meanwhile.
  */
 export function StudyScreen({ deckId }: { deckId: string }) {
   const study = useStudy(deckId);
   const { view } = study;
   // The card frame starts at height 0, so keep the last height until the next card reports its own.
   const [lastHeight, setLastHeight] = useState(0);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [notice, setNotice] = useState<UndoToken | null>(null);
+
+  const { pause, resume, refresh } = study;
+  const edit = useCallback(
+    (noteId: string) => {
+      pause();
+      setEditing(noteId);
+    },
+    [pause],
+  );
+  const shownNotice = notice && (
+    <UndoNotice
+      key={notice.id}
+      token={notice}
+      onUndone={() => void refresh(false)}
+      onDismiss={() => setNotice(null)}
+    />
+  );
 
   return (
     <div className="study">
@@ -54,10 +76,16 @@ export function StudyScreen({ deckId }: { deckId: string }) {
           minHeight={lastHeight}
           onHeight={setLastHeight}
           onShow={study.show}
-          onRate={(rating) => void study.rate(rating)}
+          onRate={(rating) => {
+            setNotice(null);
+            void study.rate(rating);
+          }}
           onUndo={() => void study.undo()}
+          onEdit={() => edit(view.card.noteId)}
+          notice={shownNotice}
         />
       )}
+      {view.kind === "finished" && shownNotice}
       {view.kind === "finished" && (
         <Finished
           view={view}
@@ -65,6 +93,25 @@ export function StudyScreen({ deckId }: { deckId: string }) {
           canUndo={study.canUndo}
           onAgain={() => void study.start()}
           onUndo={() => void study.undo()}
+        />
+      )}
+      {editing !== null && (
+        <NoteEditor
+          noteId={editing}
+          onClose={() => {
+            setEditing(null);
+            resume();
+          }}
+          onDone={(result) => {
+            setEditing(null);
+            resume();
+            setNotice(result.undo);
+            const current = view.kind === "card" ? view.card.cardId : null;
+            void refresh(
+              result.kind === "deleted" ||
+                (current !== null && result.cardsRemoved.includes(current)),
+            );
+          }}
         />
       )}
     </div>
@@ -93,6 +140,8 @@ function CardView({
   onShow,
   onRate,
   onUndo,
+  onEdit,
+  notice,
 }: {
   card: StudyCard;
   html: RenderedCardOutput;
@@ -104,6 +153,9 @@ function CardView({
   onShow: () => void;
   onRate: (rating: EventRating) => void;
   onUndo: () => void;
+  onEdit: () => void;
+  /** What the last edit did, under the top row. */
+  notice: ReactNode;
 }) {
   const core = useCore();
   const { effective } = useTheme();
@@ -125,7 +177,8 @@ function CardView({
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.altKey || event.metaKey || event.isComposing) return;
-      if (isTypingTarget(event.target)) return;
+      // The note editor, or another window, has the keys while it is open.
+      if (isTypingTarget(event.target) || isModalOpen()) return;
       const key = event.key.toLowerCase();
       if (event.ctrlKey) {
         if (key === "z" && canUndo && !pending) {
@@ -147,25 +200,34 @@ function CardView({
         onUndo();
       } else if (key === "r" && audioCount > 0) {
         frame.current?.play();
+      } else if (key === "e" && !pending) {
+        event.preventDefault();
+        onEdit();
       }
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [side, canUndo, pending, audioCount, onShow, onRate, onUndo]);
+  }, [side, canUndo, pending, audioCount, onShow, onRate, onUndo, onEdit]);
 
   return (
     <>
       <div className="study-top">
         <Counts counts={card.counts} active={card.state} />
-        <button
-          type="button"
-          className="button study-undo"
-          disabled={!canUndo || pending}
-          onClick={onUndo}
-        >
-          Undo <kbd>Z</kbd>
-        </button>
+        <div className="study-top-actions">
+          <button type="button" className="button" disabled={pending} onClick={onEdit}>
+            Edit <kbd>E</kbd>
+          </button>
+          <button
+            type="button"
+            className="button study-undo"
+            disabled={!canUndo || pending}
+            onClick={onUndo}
+          >
+            Undo <kbd>Z</kbd>
+          </button>
+        </div>
       </div>
+      {notice}
       <div className="study-card" style={{ minHeight }}>
         <CardFrame
           ref={frame}

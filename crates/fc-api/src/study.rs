@@ -6,6 +6,7 @@ use std::str::FromStr;
 use fc_core::Core;
 use fc_core::id::Id;
 use fc_core::media::MediaError;
+use fc_core::note::NoteError;
 use fc_core::scheduling::{CardState, Due, Rating};
 use fc_core::study::{Counts, Next, StudyError};
 use fc_core::template::RenderError;
@@ -185,6 +186,8 @@ pub enum StudyNext {
     /// Show this card. `previews` are for Again, Hard, Good and Easy, in that order.
     Card {
         card_id: String,
+        /// The card's note, for the editor.
+        note_id: String,
         deck_id: String,
         state: StudyCardState,
         previews: Vec<IntervalPreview>,
@@ -216,8 +219,20 @@ impl Method for NextCard {
 
     fn call(core: &Core, input: Self::Input, _: &OpContext) -> Result<Self::Output, ApiError> {
         let deck = parse_id(&input.deck_id)?;
-        let (next, now) = with(core, "find the next card", |c| {
-            Ok((c.next_card(deck)?, c.now_ms()))
+        let (next, note, now) = with(core, "find the next card", |c| {
+            let next = c.next_card(deck)?;
+            let note = match &next {
+                Next::Card { card, .. } => c
+                    .notes_of_cards(&[*card])
+                    .map_err(|error| match error {
+                        NoteError::Collection(inner) => StudyError::Collection(inner),
+                        _ => StudyError::NotFound,
+                    })?
+                    .first()
+                    .copied(),
+                _ => None,
+            };
+            Ok((next, note, c.now_ms()))
         })?;
         Ok(match next {
             Next::Card {
@@ -228,6 +243,7 @@ impl Method for NextCard {
                 counts,
             } => StudyNext::Card {
                 card_id: card.to_string(),
+                note_id: note.ok_or_else(ApiError::internal)?.to_string(),
                 deck_id: deck.to_string(),
                 state: match state {
                     CardState::New => StudyCardState::New,
@@ -526,6 +542,15 @@ mod tests {
         assert_eq!(previews.len(), 4, "Again, Hard, Good, Easy");
         assert_eq!(previews[0], json!({ "unit": "minutes", "amount": 1 }));
         let card = first["cardId"].as_str().unwrap().to_owned();
+        let note = core
+            .with_collection(|c| c.notes_of_cards(&[card.parse().unwrap()]))
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            first["noteId"],
+            note[0].to_string(),
+            "the card's note, for the editor"
+        );
 
         let html = call(&core, "renderCard", json!({ "cardId": card })).unwrap();
         assert!(

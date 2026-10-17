@@ -8,10 +8,13 @@ import {
 } from "core-client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { CoreProvider } from "../core";
+import { editorHandlers } from "../editor/testEditor";
 import { RouterProvider } from "../router";
 import { AppShell } from "../shell/AppShell";
 import { BrowseScreen } from "./BrowseScreen";
 import { resultRow } from "./testRows";
+
+vi.mock("../editor/FieldEditor", () => import("../editor/testEditor"));
 
 const deck = (id: string, name: string, path: string, depth: number, parentId: string | null) => ({
   id,
@@ -72,8 +75,11 @@ function renderBrowse({
   deckList?: DeckList;
 } = {}) {
   const searchFn = vi.fn(search);
+  // A note of a type with no fields: the editor's own tests cover the fields.
+  const edit = editorHandlers({ noteTypeId: "nt-1", fields: [] });
   const client = new CoreClient(
     createFakeTransport({
+      ...edit,
       search: searchFn,
       checkQuery: () => ({ problem: null }),
       getDeckList: () => deckList,
@@ -96,7 +102,7 @@ function renderBrowse({
     </CoreProvider>,
   );
   const lastQuery = () => searchFn.mock.lastCall?.[0].query;
-  return { searchFn, lastQuery };
+  return { searchFn, lastQuery, edit };
 }
 
 async function choose(chip: RegExp, options: string[]) {
@@ -340,4 +346,64 @@ test("Escape in a picker's filter box clears it, then closes the window", async 
   expect(screen.getByRole("dialog")).toBeDefined();
   fireEvent.keyDown(find, { key: "Escape" });
   expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+describe("editing from a row (step 3.2b)", () => {
+  test("a row opens its note; a save says Saved. with Undo and reads the same rows again", async () => {
+    const { searchFn, edit } = renderBrowse();
+    fireEvent.click(await screen.findByRole("button", { name: /^kot/ }));
+    const editor = await screen.findByRole("dialog", { name: "Edit note" });
+    await waitFor(() =>
+      expect(edit.getNote).toHaveBeenCalledWith({ noteId: "n-kot" }, expect.anything()),
+    );
+    fireEvent.change(await within(editor).findByLabelText("Deck"), {
+      target: { value: "d-polish" },
+    });
+    const searches = searchFn.mock.calls.length;
+    fireEvent.click(within(editor).getByRole("button", { name: "Save" }));
+
+    const notice = await screen.findByText("Saved.");
+    expect(screen.queryByRole("dialog", { name: "Edit note" })).toBeNull();
+    expect(edit.updateNote.mock.calls[0]?.[0]).toMatchObject({
+      noteId: "n-kot",
+      deckId: "d-polish",
+    });
+    await waitFor(() => expect(searchFn.mock.calls.length).toBeGreaterThan(searches));
+    expect(searchFn.mock.lastCall?.[0].offset).toBe(0);
+
+    const afterSave = searchFn.mock.calls.length;
+    const box = notice.closest(".undo-notice") as HTMLElement;
+    fireEvent.click(within(box).getByRole("button", { name: "Undo" }));
+    expect(await screen.findByText("Undone.")).not.toBeNull();
+    expect(edit.undoChange).toHaveBeenCalledWith({ undoId: "u1" }, expect.anything());
+    await waitFor(() => expect(searchFn.mock.calls.length).toBeGreaterThan(afterSave));
+    expect(within(box).queryByRole("button", { name: "Undo" })).toBeNull();
+
+    fireEvent.click(within(box).getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByText("Undone.")).toBeNull();
+  });
+
+  test("in Cards view a row opens the card's note", async () => {
+    const { edit } = renderBrowse({
+      search: () => ({
+        total: 1,
+        rows: [resultRow("kot", { cardId: "c-kot-2", noteId: "n-shared" })],
+      }),
+    });
+    fireEvent.click(await screen.findByRole("button", { name: /^kot/ }));
+    await waitFor(() =>
+      expect(edit.getNote).toHaveBeenCalledWith({ noteId: "n-shared" }, expect.anything()),
+    );
+  });
+
+  test("closing with nothing changed writes nothing and shows no notice", async () => {
+    const { edit } = renderBrowse();
+    fireEvent.click(await screen.findByRole("button", { name: /^kot/ }));
+    const editor = await screen.findByRole("dialog", { name: "Edit note" });
+    await within(editor).findByLabelText("Deck");
+    fireEvent.click(within(editor).getByRole("button", { name: "Back" }));
+    expect(screen.queryByRole("dialog", { name: "Edit note" })).toBeNull();
+    expect(edit.updateNote).not.toHaveBeenCalled();
+    expect(document.querySelector(".undo-notice")).toBeNull();
+  });
 });

@@ -262,7 +262,8 @@
   color: var(--danger);
 }
 
-.deck-undo {
+.deck-undo,
+.undo-notice {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -274,7 +275,8 @@
   border-radius: var(--radius);
 }
 
-.deck-undo span {
+.deck-undo span,
+.undo-notice span {
   flex: 1 1 12rem;
 }
 

@@ -157,10 +157,19 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 2px;
+  width: 100%;
   padding: var(--space-2) var(--space-4);
   background: var(--surface);
+  color: var(--text);
   border: var(--border);
   border-radius: var(--radius);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.browse-row:hover {
+  border-color: var(--accent);
 }
 
 .browse-row > span {
