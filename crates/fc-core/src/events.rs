@@ -39,7 +39,8 @@ pub enum Event {
         deck: Id,
         cards: Vec<Id>,
     },
-    /// A note's fields changed, or its cards did. `fields` are the fields whose value changed.
+    /// A note's fields changed, or its cards did, or an edit of the note (`edit_note_with`) changed
+    /// its tags. `fields` are the fields whose value changed (empty when only the tags did).
     NoteEdited {
         note: Id,
         fields: Vec<Id>,
