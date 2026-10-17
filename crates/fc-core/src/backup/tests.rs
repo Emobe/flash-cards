@@ -69,7 +69,10 @@ fn blobs(c: &Collection) -> Vec<(String, Vec<u8>)> {
 
 fn names(bytes: &[u8]) -> Vec<String> {
     let archive = ZipArchive::new(Cursor::new(bytes)).unwrap();
-    let mut names: Vec<String> = archive.file_names().map(str::to_owned).collect();
+    let mut names: Vec<String> = archive
+        .file_names()
+        .map(|n| n.unwrap().into_owned())
+        .collect();
     names.sort();
     names
 }
@@ -80,7 +83,7 @@ fn rewrite(bytes: &[u8], change: impl Fn(&str, Vec<u8>) -> Option<Vec<u8>>) -> V
     let mut out = ZipWriter::new(Cursor::new(Vec::new()));
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i).unwrap();
-        let name = entry.name().to_owned();
+        let name = entry.name().unwrap().into_owned();
         let mut data = Vec::new();
         entry.read_to_end(&mut data).unwrap();
         if let Some(data) = change(&name, data) {

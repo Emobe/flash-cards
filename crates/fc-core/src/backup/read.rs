@@ -69,11 +69,22 @@ fn store_media<R: Read + Seek>(
     archive: &mut ZipArchive<R>,
     failure: &mut Option<BackupError>,
 ) -> Result<usize, CollectionError> {
-    let names: Vec<String> = archive
-        .file_names()
-        .filter(|name| name.starts_with(MEDIA_PREFIX))
-        .map(str::to_owned)
-        .collect();
+    let mut names = Vec::new();
+    for name in archive.file_names() {
+        match name {
+            Ok(name) if name.starts_with(MEDIA_PREFIX) => names.push(name.into_owned()),
+            Ok(_) => {}
+            Err(error) => {
+                // A name that cannot be read is a damaged file, as a bad media entry is.
+                *failure = Some(BackupError::Damaged(format!(
+                    "an entry name cannot be read: {error}"
+                )));
+                return Err(CollectionError::Storage(
+                    "a backup entry is damaged".to_owned(),
+                ));
+            }
+        }
+    }
     let mut added = 0;
     for name in names {
         let wanted = &name[MEDIA_PREFIX.len()..];

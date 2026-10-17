@@ -36,7 +36,7 @@ sha2 = "=0.10.9"
 # Rust build with deflate only (no encryption, no C libraries), so it compiles on wasm and Android.
 # `serde_json` writes and reads the JSON lines (without serde's derive): it is already in the
 # lockfile for fc-api and fc-wasm.
-zip = { version = "=8.6.0", default-features = false, features = ["deflate-flate2"] }
+zip = { version = "=9.0.4", default-features = false, features = ["deflate-flate2"] }
 serde_json = "=1.0.151"
 # `zip` leaves flate2's backend to us. `rust_backend` is miniz_oxide, in pure Rust.
 flate2 = { version = "=1.1.10", default-features = false, features = ["rust_backend"] }
