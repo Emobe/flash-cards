@@ -10,7 +10,7 @@ Kept current by every session. A new session reads this first.
 - **3.1b Browse on the phone** (next debug APK, taps allowed, never unlock): the bottom panel in the hand and in landscape; typing with the keyboard open (panel above it, rows visible); a picker sheet with the Find box and the keyboard open; Android back closing a picker; time a one-word text search and a chip search on the real collection and write the numbers in the ADR 0013 3.1b notes. Also the first APK with `zip` 9 (PR #50 adds `nix` for Android).
 - **3.1c Saved searches on the phone** (next debug APK, taps allowed, never unlock): the Saved sheet with the name field and the keyboard open (field and buttons visible), Android back closing the sheet and the name form.
 
-**3.1c Saved searches is done** (PR open from `step/3.1c-saved-searches`; build notes: ADR 0013, step 3.1c). That finishes step 3.1 once it is merged. **Next: `/next`** to find the next step (3.2 per the phase file). 3.1b (PR #51), 3.1a (PR #49) and `zip` 9.0.4 (PR #50) are merged.
+**3.1c Saved searches is done** (PR #52 open from `step/3.1c-saved-searches`; build notes: ADR 0013, step 3.1c). That finishes step 3.1 once it is merged. **Next: `/next`** to find the next step (3.2 per the phase file). 3.1b (PR #51), 3.1a (PR #49) and `zip` 9.0.4 (PR #50) are merged.
 
 2.6 Settings and local backups is **done and merged (PR #44)**; 2.5 Deck management is done (PR #42, #43). Build notes: ADR 0006, step 2.6. Folder choosing is out (agreed): Export is how a copy leaves the device.
 
@@ -25,7 +25,7 @@ the phone. Anthony removes it, and the old `dev.placeholder.flashcards` app; ses
 
 ## Branch
 
-`step/3.1c-saved-searches`: 3.1c, PR open. 3.1b (PR #51), 3.1a (PR #49), the design session (PR #48) and `deps/zip-9` (PR #50) are merged. `tool/prune-target` (the `cargo xtask prune` PR) is separate and still open; its STATUS line is on that branch.
+`step/3.1c-saved-searches`: 3.1c, PR #52 open. 3.1b (PR #51), 3.1a (PR #49), the design session (PR #48) and `deps/zip-9` (PR #50) are merged. `tool/prune-target` (the `cargo xtask prune` PR) is separate and still open; its STATUS line is on that branch.
 
 ## Done
 
