@@ -454,6 +454,45 @@ fn delete_notes_counts_and_its_undo_restores_them() {
 }
 
 #[test]
+fn describe_target_counts_notes_cards_suspended_and_what_a_delete_takes() {
+    let (core, _) = core();
+    let (one, one_cards) = add(&core, "one", &[], true);
+    let (two, two_cards) = add(&core, "two", &[], false);
+    let describe = |target: Value| ok(&core, "describeTarget", json!({ "target": target }));
+    assert_eq!(
+        describe(json!({ "notes": [one, two, one] })),
+        json!({ "notes": 2, "cards": 3, "suspended": 0, "noteCards": 3 })
+    );
+    ok(
+        &core,
+        "suspendCards",
+        json!({ "target": { "cards": [one_cards[0], two_cards[0]] } }),
+    );
+    // One card of a two-card note: a delete still takes both.
+    assert_eq!(
+        describe(json!({ "cards": [one_cards[0], two_cards[0]] })),
+        json!({ "notes": 2, "cards": 2, "suspended": 2, "noteCards": 3 })
+    );
+    assert_eq!(
+        describe(json!({ "notes": [one] })),
+        json!({ "notes": 1, "cards": 2, "suspended": 1, "noteCards": 2 })
+    );
+    assert_eq!(describe(json!({ "notes": [] }))["cards"], 0);
+    ok(
+        &core,
+        "deleteNotes",
+        json!({ "target": { "notes": [two] } }),
+    );
+    let error = call(
+        &core,
+        "describeTarget",
+        json!({ "target": { "cards": [two_cards[0]] } }),
+    )
+    .unwrap_err();
+    assert_eq!(error.kind, ErrorKind::NotFound);
+}
+
+#[test]
 fn a_second_change_makes_the_first_token_too_old() {
     let (core, _) = core();
     let (one, _) = add(&core, "one", &[], false);
@@ -535,6 +574,7 @@ fn every_method_needs_an_open_collection() {
         ("suspendCards", json!({ "target": target })),
         ("unsuspendCards", json!({ "target": target })),
         ("deleteNotes", json!({ "target": target })),
+        ("describeTarget", json!({ "target": target })),
     ] {
         let error = call(&core, method, input).unwrap_err();
         assert_eq!(error.kind, ErrorKind::NotFound, "{method}");

@@ -75,6 +75,7 @@ const OPERATIONS: &[(&str, Covered)] = &[
     ("set_note_type_css", By("notetype")), ("set_preset_options", By("preset")),
     ("set_sort_field", By("notetype")), ("set_template_text", By("template")),
     ("start_study_session", Not("see end_study_session")), ("store_unknown_register", Not(SYNC_PLUMBING)),
+    ("suspended_among", Not("tells Browse whether a selection is all suspended; `search is:suspended` finds them")),
     ("study_counts", By("due")), ("study_today", By("stats")), ("suspend_cards", By("suspend")),
     ("tags", By("tags")), ("unbury_cards", By("unbury")), ("unbury_deck", By("unbury")),
     ("undo_answer", By("undo")), ("unknown_registers", Not(SYNC_PLUMBING)),

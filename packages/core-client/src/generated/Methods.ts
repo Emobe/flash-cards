@@ -75,6 +75,7 @@ import type { StudyNext } from "./StudyNext";
 import type { TagList } from "./TagList";
 import type { TagsInput } from "./TagsInput";
 import type { TargetInput } from "./TargetInput";
+import type { TargetSummary } from "./TargetSummary";
 import type { UndoAnswerOutput } from "./UndoAnswerOutput";
 import type { UndoChangeInput } from "./UndoChangeInput";
 import type { UndoChangeOutput } from "./UndoChangeOutput";
@@ -169,6 +170,7 @@ export type Methods = {
   suspendCards: { input: TargetInput; output: ChangeOutput; bytesIn: false; bytesOut: false };
   unsuspendCards: { input: TargetInput; output: ChangeOutput; bytesIn: false; bytesOut: false };
   deleteNotes: { input: TargetInput; output: DeletedNotes; bytesIn: false; bytesOut: false };
+  describeTarget: { input: TargetInput; output: TargetSummary; bytesIn: false; bytesOut: false };
   undoChange: { input: UndoChangeInput; output: UndoChangeOutput; bytesIn: false; bytesOut: false };
   exportBackupToFile: {
     input: ExportToFileInput;

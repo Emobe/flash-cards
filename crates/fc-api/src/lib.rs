@@ -192,6 +192,7 @@ methods! {
         edit::SuspendCards,
         edit::UnsuspendCards,
         edit::DeleteNotes,
+        edit::DescribeTarget,
         edit::UndoChange,
     ],
     native: [
