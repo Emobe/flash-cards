@@ -10,7 +10,7 @@ Kept current by every session. A new session reads this first.
 - **3.1b Browse on the phone** (next debug APK, taps allowed, never unlock): the bottom panel in the hand and in landscape; typing with the keyboard open (panel above it, rows visible); a picker sheet with the Find box and the keyboard open; Android back closing a picker; time a one-word text search and a chip search on the real collection and write the numbers in the ADR 0013 3.1b notes. Also the first APK with `zip` 9 (PR #50 adds `nix` for Android).
 - **3.1c Saved searches on the phone** (next debug APK, taps allowed, never unlock): the Saved sheet with the name field and the keyboard open (field and buttons visible), Android back closing the sheet and the name form.
 
-**3.2 design session done: ADR 0014 (Proposed) and `docs/plans/3.2-edit-and-bulk.md`, on `step/3.2-edit-bulk`, waiting for Anthony's review.** Nothing of 3.2 is built until ADR 0014 is Accepted. Then `/step 3.2` builds it as five PRs (3.2a to 3.2e, in the plan).
+**3.2 design session done: ADR 0014 (Proposed) and `docs/plans/3.2-edit-and-bulk.md`, on `step/3.2-edit-bulk`, PR #53, waiting for Anthony's review.** Nothing of 3.2 is built until ADR 0014 is Accepted. Then `/step 3.2` builds it as five PRs (3.2a to 3.2e, in the plan).
 
 **Step 3.1 is done**: 3.1c (PR #52), 3.1b (PR #51), 3.1a (PR #49) and `zip` 9.0.4 (PR #50) are merged.
 
