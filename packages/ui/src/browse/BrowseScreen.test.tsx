@@ -327,3 +327,17 @@ describe("picker focus", () => {
     expect(document.activeElement).not.toBe(within(dialog).getByLabelText("Default"));
   });
 });
+
+test("Escape in a picker's filter box clears it, then closes the window", async () => {
+  useWidth(true);
+  renderBrowse();
+  fireEvent.click(await screen.findByRole("button", { name: /^Tag/ }));
+  const dialog = await screen.findByRole("dialog");
+  const find = within(dialog).getByRole("searchbox") as HTMLInputElement;
+  fireEvent.change(find, { target: { value: "verbs" } });
+  fireEvent.keyDown(find, { key: "Escape" });
+  expect(find.value).toBe("");
+  expect(screen.getByRole("dialog")).toBeDefined();
+  fireEvent.keyDown(find, { key: "Escape" });
+  expect(screen.queryByRole("dialog")).toBeNull();
+});

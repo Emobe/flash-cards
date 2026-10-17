@@ -93,6 +93,13 @@ export function PickerDialog({
             onKeyDown={(event) => {
               // Enter in the filter box narrows the list, it does not apply.
               if (event.key === "Enter") event.preventDefault();
+              // Escape clears the box, then closes the window. WebKitGTK's search field keeps an
+              // Escape to itself even when empty, so the window would not close on its own.
+              if (event.key === "Escape") {
+                event.preventDefault();
+                if (filter !== "") setFilter("");
+                else onClose();
+              }
             }}
           />
         )}
