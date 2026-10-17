@@ -170,12 +170,15 @@ impl Method for FindDuplicates {
     }
 }
 
-#[derive(Debug, Deserialize, TS)]
+/// One field's value, by field ID. Also `getNote` and `updateNote` (step 3.2a).
+#[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(rename_all = "camelCase")]
 pub struct FieldValue {
+    /// A UUID string.
     pub field_id: String,
-    /// The field's HTML. A field left out is empty.
+    /// The field's HTML. Card content: never put it in the page as HTML. A field left out of
+    /// `addNote` is empty, and of `updateNote` stays as it is.
     pub value: String,
 }
 

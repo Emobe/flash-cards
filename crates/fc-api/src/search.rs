@@ -15,7 +15,7 @@ use crate::collection::not_open;
 use crate::study::{StudyCardState, internal, parse_id};
 use crate::{ApiError, ErrorKind, Method, OpContext};
 
-fn search_error(what: &str, error: SearchError) -> ApiError {
+pub(crate) fn search_error(what: &str, error: SearchError) -> ApiError {
     match error {
         SearchError::NotFound => ApiError::new(ErrorKind::NotFound, error.to_string()),
         SearchError::Syntax { .. }
@@ -130,7 +130,7 @@ pub enum SearchMode {
 }
 
 impl SearchMode {
-    fn core(self) -> Mode {
+    pub(crate) fn core(self) -> Mode {
         match self {
             Self::Notes => Mode::Notes,
             Self::Cards => Mode::Cards,
