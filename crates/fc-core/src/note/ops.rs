@@ -2,7 +2,7 @@
 //! connection serves the collection, so nothing changes in between). A change that edits a note also
 //! brings its cards in line, in the same transaction.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use rusqlite::types::Value;
 
@@ -42,6 +42,24 @@ pub struct NewNote<'a> {
     pub values: &'a [(Id, &'a str)],
     /// Tags for the new note, in the form `tag::check` accepts.
     pub tags: &'a [&'a str],
+}
+
+/// What `edit_note_with` did, and what it replaced.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct NoteEdit {
+    pub change: NoteChange,
+    /// The value each changed field had before, by field ID (empty for a field with none).
+    pub old_values: Vec<(Id, String)>,
+    /// The note's tags before, as stored, when the edit changed them.
+    pub old_tags: Option<Vec<String>>,
+}
+
+/// What `delete_notes` or `restore_notes` changed: the notes, and their cards that went or came
+/// back.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct NotesChange {
+    pub notes: Vec<Id>,
+    pub cards: Vec<Id>,
 }
 
 /// What `set_note_fields` and `restore_note` did to a note's cards.
@@ -192,14 +210,36 @@ impl Collection {
         note: Id,
         values: &[(Id, &str)],
     ) -> Result<NoteChange, NoteError> {
+        Ok(self.edit_note_with(note, values, None)?.change)
+    }
+
+    /// Like `set_note_fields`, and with `tags` makes the note's tags exactly those (as
+    /// `set_note_tags`). The values, the tags and the cards are one write, with one `NoteEdited` if
+    /// anything changed. A tag that is not valid refuses the whole edit. Answers what the changed
+    /// fields and tags were before, so the edit can be undone.
+    pub fn edit_note_with(
+        &self,
+        note: Id,
+        values: &[(Id, &str)],
+        tags: Option<&[&str]>,
+    ) -> Result<NoteEdit, NoteError> {
         let found = self.live_note(note)?;
         Self::check_fields(&found, values)?;
+        let (tag_changes, old_tags) = match tags {
+            Some(tags) => self.tag_changes(note, tags)?,
+            None => (Vec::new(), Vec::new()),
+        };
         let mut state = self.note_state(note)?;
         let first = found.fields.first().map(|f| f.id);
         let mut changed = Vec::new();
+        let mut old_values = Vec::new();
         for (field, value) in values {
             let current = state.values.get(field).map_or("", String::as_str);
             if current != *value {
+                if !old_values.iter().any(|(f, _)| f == field) {
+                    old_values.push((*field, current.to_owned()));
+                }
+                changed.retain(|(f, _)| f != field);
                 changed.push((*field, (*value).to_owned()));
                 state.values.insert(*field, (*value).to_owned());
             }
@@ -220,8 +260,13 @@ impl Collection {
             for (field, value) in &changed {
                 w.set_value(NOTE_VALUE.entity, note, *field, value)?;
             }
+            crate::tag::write_changes(w, &tag_changes)?;
             let done = reconcile(w, &plan, &state, &dead)?;
-            if !changed.is_empty() || !done.added.is_empty() || !done.removed.is_empty() {
+            if !changed.is_empty()
+                || !tag_changes.is_empty()
+                || !done.added.is_empty()
+                || !done.removed.is_empty()
+            {
                 w.emit(Event::NoteEdited {
                     note,
                     fields: changed.iter().map(|(field, _)| *field).collect(),
@@ -231,58 +276,114 @@ impl Collection {
             }
             Ok(done)
         })?;
-        Ok(NoteChange {
-            added_cards: done.added,
-            removed_cards: done.removed,
-            duplicates,
+        Ok(NoteEdit {
+            change: NoteChange {
+                added_cards: done.added,
+                removed_cards: done.removed,
+                duplicates,
+            },
+            old_values,
+            old_tags: (!tag_changes.is_empty()).then_some(old_tags),
         })
     }
 
     /// Deletes a note: it and its cards move to the trash, and the cards' history stays. Deleting
     /// a deleted note does nothing.
     pub fn delete_note(&self, note: Id) -> Result<(), NoteError> {
-        match self.note_deleted(note)? {
-            None => Err(NoteError::NotFound),
-            Some(true) => Ok(()),
-            Some(false) => Ok(self.write(|w| {
-                w.set(NOTE.entity, note, "deleted", flag(true))?;
-                self.tombstone_cards(w, "WHERE note = ?1", note)?;
-                w.emit(Event::NoteDeleted { note });
-                Ok(())
-            })?),
+        self.delete_notes(&[note]).map(|_| ())
+    }
+
+    /// Deletes notes and their cards in one write, as `delete_note` does. A note that is not there
+    /// refuses the whole call; one already deleted is left alone. Answers the notes and cards that
+    /// went to the trash.
+    pub fn delete_notes(&self, notes: &[Id]) -> Result<NotesChange, NoteError> {
+        let mut deleting = Vec::new();
+        for note in notes {
+            match self.note_deleted(*note)? {
+                None => return Err(NoteError::NotFound),
+                Some(false) if !deleting.contains(note) => deleting.push(*note),
+                Some(_) => {}
+            }
         }
+        if deleting.is_empty() {
+            return Ok(NotesChange::default());
+        }
+        let cards = self.write(|w| {
+            let mut cards = Vec::new();
+            for note in &deleting {
+                w.set(NOTE.entity, *note, "deleted", flag(true))?;
+                cards.extend(self.tombstone_cards(w, "WHERE note = ?1", *note)?);
+                w.emit(Event::NoteDeleted { note: *note });
+            }
+            Ok(cards)
+        })?;
+        Ok(NotesChange {
+            notes: deleting,
+            cards,
+        })
     }
 
     /// Brings a deleted note back, with the cards it should have: the same cards, with their
     /// history, for what is still filled in. Restoring a live note does nothing.
     pub fn restore_note(&self, note: Id) -> Result<NoteChange, NoteError> {
-        match self.note_deleted(note)? {
-            None => Err(NoteError::NotFound),
-            Some(false) => Ok(NoteChange::default()),
-            Some(true) => {
-                let note_type: Id = self.conn.query_row(
-                    "SELECT note_type FROM note WHERE id = ?1",
-                    [note],
-                    |row| row.get(0),
-                )?;
-                let found = self.note_type(note_type)?.ok_or(NoteError::NotFound)?;
-                let plan = Plan::new(&found);
-                let done = self.write(|w| {
-                    w.set(NOTE.entity, note, "deleted", flag(false))?;
-                    let done = reconcile(w, &plan, &self.note_state(note)?, &HashSet::new())?;
-                    w.emit(Event::NoteRestored {
-                        note,
-                        cards: done.added.clone(),
-                    });
-                    Ok(done)
-                })?;
-                Ok(NoteChange {
-                    added_cards: done.added,
-                    removed_cards: done.removed,
-                    duplicates: Vec::new(),
-                })
+        let done = self.restore_notes(&[note])?;
+        Ok(NoteChange {
+            added_cards: done.cards,
+            removed_cards: Vec::new(),
+            duplicates: Vec::new(),
+        })
+    }
+
+    /// Restores notes in one write, as `restore_note` does. A note that is not there refuses the
+    /// whole call; a live one is left alone. Answers the notes and cards that came back.
+    pub fn restore_notes(&self, notes: &[Id]) -> Result<NotesChange, NoteError> {
+        let mut restoring = Vec::new();
+        for note in notes {
+            match self.note_deleted(*note)? {
+                None => return Err(NoteError::NotFound),
+                Some(true) if !restoring.contains(note) => restoring.push(*note),
+                Some(_) => {}
             }
         }
+        if restoring.is_empty() {
+            return Ok(NotesChange::default());
+        }
+        let mut found: HashMap<Id, NoteType> = HashMap::new();
+        let mut note_types = Vec::with_capacity(restoring.len());
+        for note in &restoring {
+            let note_type: Id =
+                self.conn
+                    .query_row("SELECT note_type FROM note WHERE id = ?1", [note], |row| {
+                        row.get(0)
+                    })?;
+            if let std::collections::hash_map::Entry::Vacant(entry) = found.entry(note_type) {
+                entry.insert(self.note_type(note_type)?.ok_or(NoteError::NotFound)?);
+            }
+            note_types.push(note_type);
+        }
+        let plans: HashMap<Id, Plan> = found.iter().map(|(id, t)| (*id, Plan::new(t))).collect();
+        let cards = self.write(|w| {
+            let mut cards = Vec::new();
+            for (note, note_type) in restoring.iter().zip(&note_types) {
+                w.set(NOTE.entity, *note, "deleted", flag(false))?;
+                let done = reconcile(
+                    w,
+                    &plans[note_type],
+                    &self.note_state(*note)?,
+                    &HashSet::new(),
+                )?;
+                w.emit(Event::NoteRestored {
+                    note: *note,
+                    cards: done.added.clone(),
+                });
+                cards.extend(done.added);
+            }
+            Ok(cards)
+        })?;
+        Ok(NotesChange {
+            notes: restoring,
+            cards,
+        })
     }
 
     fn note_deleted(&self, note: Id) -> Result<Option<bool>, NoteError> {
@@ -297,23 +398,24 @@ impl Collection {
         }
     }
 
-    /// Deletes every live card matched by `filter` (a WHERE clause on `card`, with `?1` bound).
+    /// Deletes every live card matched by `filter` (a WHERE clause on `card`, with `?1` bound), and
+    /// answers them.
     fn tombstone_cards(
         &self,
         w: &mut WriteTx<'_>,
         filter: &str,
         arg: Id,
-    ) -> Result<(), CollectionError> {
-        let mut statement = self.conn.prepare(&format!(
+    ) -> Result<Vec<Id>, CollectionError> {
+        let mut statement = self.conn.prepare_cached(&format!(
             "SELECT id FROM card {filter} AND deleted = 0 ORDER BY id"
         ))?;
         let ids = statement
             .query_map([arg], |row| row.get::<_, Id>(0))?
             .collect::<Result<Vec<_>, _>>()?;
-        for id in ids {
-            w.set(CARD.entity, id, "deleted", flag(true))?;
+        for id in &ids {
+            w.set(CARD.entity, *id, "deleted", flag(true))?;
         }
-        Ok(())
+        Ok(ids)
     }
 
     /// Deletes every live note of a note type, and their cards: the tombstones that deleting a

@@ -22,7 +22,7 @@ Design and reasons: `adr/0009-core-events.md`. Rust: `fc_core::events`. Wire for
 | `kind` | Sent when | Fields |
 | --- | --- | --- |
 | `noteAdded` | a note is added | `note`, `noteType`, `deck`, `cards` (the cards it made) |
-| `noteEdited` | a note's field values changed, or its cards were added or removed | `note`, `fields` (IDs of the fields whose value changed), `cardsAdded`, `cardsRemoved` |
+| `noteEdited` | a note's field values changed, its cards were added or removed, or an edit of the note (`edit_note_with`, the note editor) changed its tags | `note`, `fields` (IDs of the fields whose value changed; empty when only the tags did), `cardsAdded`, `cardsRemoved` |
 | `noteDeleted` | a live note goes to the trash | `note` |
 | `noteRestored` | a deleted note comes back | `note`, `cards` (the cards that came back) |
 | `cardAnswered` | a card is answered | `card`, `deck`, `event` (the review in the card's history), `rating` (`again`, `hard`, `good`, `easy`), `session` (the open study session, or `null`) |
@@ -40,13 +40,16 @@ started that are not undone, whatever their deck.
 ### When nothing is sent
 
 - A write that fails or rolls back.
-- A no-op: deleting a deleted note, restoring a live one, an edit that changes no field and adds or
-  removes no card, a merge that applies and keeps nothing, ending a session that is not open.
+- A no-op: deleting a deleted note, restoring a live one, an edit that changes no field or tag and
+  adds or removes no card, a merge that applies and keeps nothing, ending a session that is not open.
+- A bulk delete or restore of notes (`delete_notes`, `restore_notes`) sends one `noteDeleted` or
+  `noteRestored` per note, in one batch.
 - A merge, a restore or an import sends one `mergeApplied`, not an event per note. `registersApplied` of a restore counts what it moved to the trash too.
 
 ### What has no event yet
 
-Decks, tags, note types, presets, suspend and bury, media and saved searches. Each gets a kind when a
+Decks, tags (other than in an edit of one note, above), note types, presets, suspend and bury, media
+and saved searches. Each gets a kind when a
 screen needs it, which is not a breaking change. Also not here: hooks that can change a result
 (Phase 10), and any API method that calls the note, answer or session functions (Phase 2 adds them with
 the screens). Sessions are held in memory only: one that is lost to an app kill or a worker restart is

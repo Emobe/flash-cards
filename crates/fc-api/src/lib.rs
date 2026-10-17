@@ -11,6 +11,9 @@ mod context;
 #[cfg(debug_assertions)]
 mod debug;
 mod decks;
+mod edit;
+#[cfg(test)]
+mod edit_tests;
 mod error;
 mod examples;
 mod notes;
@@ -180,6 +183,16 @@ methods! {
         search::SaveSearch,
         search::UpdateSavedSearch,
         search::DeleteSavedSearch,
+        edit::GetNote,
+        edit::UpdateNote,
+        edit::SearchIds,
+        edit::MoveCards,
+        edit::AddTags,
+        edit::RemoveTags,
+        edit::SuspendCards,
+        edit::UnsuspendCards,
+        edit::DeleteNotes,
+        edit::UndoChange,
     ],
     native: [
         backup::files::ExportBackupToFile,

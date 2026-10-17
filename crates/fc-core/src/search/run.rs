@@ -25,9 +25,41 @@ impl Collection {
     /// Runs a query. Cards are the live cards of live notes. See the module doc for the query
     /// language.
     pub fn search(&self, query: &str, options: &SearchOptions) -> Result<SearchPage, SearchError> {
+        let deck_sort = options.sort.key == SortKey::Deck;
+        self.with_filter(query, deck_sort, |filter, ctx, params| {
+            self.search_page(filter, ctx, params, options)
+        })
+    }
+
+    /// Every match of a query, unsorted and with no limit: note IDs in notes mode, card IDs in
+    /// cards mode. For acting on everything a search found (ADR 0014, decision 2).
+    pub fn search_ids(&self, query: &str, mode: Mode) -> Result<Vec<Id>, SearchError> {
+        self.with_filter(query, false, |filter, _, params| {
+            let sql = match mode {
+                Mode::Cards => format!("SELECT c.id {FROM} AND {filter} ORDER BY c.id"),
+                Mode::Notes => {
+                    format!("SELECT DISTINCT c.note {FROM} AND {filter} ORDER BY c.note")
+                }
+            };
+            let mut statement = self.conn.prepare(&sql)?;
+            let ids = statement
+                .query_map(params_from_iter(params.0.iter()), |row| row.get(0))?
+                .collect::<Result<_, _>>()?;
+            Ok(ids)
+        })
+    }
+
+    /// Parses and compiles a query, and calls `f` with its SQL filter, the context and the
+    /// parameters it bound. `decks` loads the deck tree even if the query does not use it.
+    fn with_filter<T>(
+        &self,
+        query: &str,
+        decks: bool,
+        f: impl FnOnce(&str, &Context<'_>, &mut Params) -> Result<T, SearchError>,
+    ) -> Result<T, SearchError> {
         let node = parse(query)?;
         let types = self.note_types().map_err(storage)?;
-        let tree = if uses_decks(&node) || options.sort.key == SortKey::Deck {
+        let tree = if decks || uses_decks(&node) {
             Some(Tree::load(&self.conn)?)
         } else {
             None
@@ -43,6 +75,17 @@ impl Collection {
         };
         let mut params = Params::default();
         let filter = compile(&node, &ctx, &mut params)?;
+        f(&filter, &ctx, &mut params)
+    }
+
+    fn search_page(
+        &self,
+        filter: &str,
+        ctx: &Context<'_>,
+        params: &mut Params,
+        options: &SearchOptions,
+    ) -> Result<SearchPage, SearchError> {
+        let types = ctx.types;
         let count_sql = match options.mode {
             Mode::Cards => format!("SELECT COUNT(*) {FROM} AND {filter}"),
             Mode::Notes => format!("SELECT COUNT(DISTINCT c.note) {FROM} AND {filter}"),
@@ -59,7 +102,7 @@ impl Collection {
                 rows: Vec::new(),
             });
         }
-        let key = sort_expression(options, &ctx, &mut params);
+        let key = sort_expression(options, ctx, params);
         let direction = if options.sort.descending {
             "DESC"
         } else {
@@ -82,7 +125,7 @@ impl Collection {
         let cards: Vec<Id> = statement
             .query_map(params_from_iter(params.0.iter()), |row| row.get(0))?
             .collect::<Result<_, _>>()?;
-        let rows = self.rows(&cards, &types)?;
+        let rows = self.rows(&cards, types)?;
         Ok(SearchPage {
             total: total as u64,
             rows,

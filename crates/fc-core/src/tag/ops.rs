@@ -12,10 +12,18 @@ use crate::id::Id;
 use crate::sync::WriteTx;
 
 /// One change to one `(note, tag)` register.
-struct Change {
+pub(crate) struct Change {
     note: Id,
     tag: String,
     present: bool,
+}
+
+/// The `(note, tag)` pairs a change wrote, with the tag as stored.
+fn pairs(changes: Vec<Change>) -> Vec<(Id, String)> {
+    changes
+        .into_iter()
+        .map(|change| (change.note, change.tag))
+        .collect()
 }
 
 impl Collection {
@@ -38,17 +46,7 @@ impl Collection {
         if changes.is_empty() {
             return Ok(());
         }
-        Ok(self.write(|w| {
-            for change in changes {
-                w.set_text_value(
-                    NOTE_TAG.entity,
-                    change.note,
-                    &change.tag,
-                    if change.present { PRESENT } else { "" },
-                )?;
-            }
-            Ok(())
-        })?)
+        Ok(self.write(|w| write_changes(w, changes))?)
     }
 
     /// Checks tags for a note that is about to be added and spells them the way the collection
@@ -72,8 +70,9 @@ impl Collection {
 
     /// Gives every note the tags it does not have yet. A tag is spelled the way the collection
     /// already spells it (`Polish` becomes `polish` if `polish` is in use). All the notes must be
-    /// live, or nothing changes. Returns how many `(note, tag)` pairs were added.
-    pub fn add_tags(&self, notes: &[Id], tags: &[&str]) -> Result<usize, TagError> {
+    /// live, or nothing changes. Returns the `(note, tag)` pairs that were added, with the tag as
+    /// written.
+    pub fn add_tags(&self, notes: &[Id], tags: &[&str]) -> Result<Vec<(Id, String)>, TagError> {
         let tags = tags
             .iter()
             .map(|tag| clean(tag))
@@ -107,13 +106,13 @@ impl Collection {
             }
         }
         self.apply(&changes)?;
-        Ok(changes.len())
+        Ok(pairs(changes))
     }
 
     /// Takes tags off notes. Only the tag itself goes, not tags inside it, and a note that does not
-    /// have it is left alone. All the notes must be live, or nothing changes. Returns how many
-    /// `(note, tag)` pairs were removed.
-    pub fn remove_tags(&self, notes: &[Id], tags: &[&str]) -> Result<usize, TagError> {
+    /// have it is left alone. All the notes must be live, or nothing changes. Returns the
+    /// `(note, tag)` pairs that were removed, with the tag as it was stored.
+    pub fn remove_tags(&self, notes: &[Id], tags: &[&str]) -> Result<Vec<(Id, String)>, TagError> {
         let keys: HashSet<String> = tags
             .iter()
             .map(|tag| clean(tag).map(|tag| key(&tag)))
@@ -132,11 +131,21 @@ impl Collection {
             })
             .collect();
         self.apply(&changes)?;
-        Ok(changes.len())
+        Ok(pairs(changes))
     }
 
     /// Makes the tags of a live note exactly `tags`: it gains the ones it lacks and loses the others.
     pub fn set_note_tags(&self, note: Id, tags: &[&str]) -> Result<(), TagError> {
+        let (changes, _) = self.tag_changes(note, tags)?;
+        self.apply(&changes)
+    }
+
+    /// What `set_note_tags` would write, and the note's tags now, as stored. Nothing is written.
+    pub(crate) fn tag_changes(
+        &self,
+        note: Id,
+        tags: &[&str],
+    ) -> Result<(Vec<Change>, Vec<String>), TagError> {
         let tags = tags
             .iter()
             .map(|tag| clean(tag))
@@ -150,7 +159,9 @@ impl Collection {
         }
         let mut present = HashSet::new();
         let mut changes = Vec::new();
+        let mut old = Vec::new();
         for row in snapshot.rows.iter().filter(|row| row.note == note) {
+            old.push(row.tag.clone());
             present.insert(key(&row.tag));
             if !wanted.contains_key(&key(&row.tag)) {
                 changes.push(Change {
@@ -171,7 +182,7 @@ impl Collection {
             .collect();
         added.sort_by(|a, b| a.tag.cmp(&b.tag));
         changes.extend(added);
-        self.apply(&changes)
+        Ok((changes, old))
     }
 
     /// Renames a tag and everything inside it: renaming `lang` to `language` also renames
@@ -296,6 +307,22 @@ impl Collection {
             .collect();
         Ok(live.len())
     }
+}
+
+/// Writes tag changes in a transaction that is already open.
+pub(crate) fn write_changes(
+    w: &mut WriteTx<'_>,
+    changes: &[Change],
+) -> Result<(), CollectionError> {
+    for change in changes {
+        w.set_text_value(
+            NOTE_TAG.entity,
+            change.note,
+            &change.tag,
+            if change.present { PRESENT } else { "" },
+        )?;
+    }
+    Ok(())
 }
 
 /// Gives a note that was just added in this transaction its tags, as returned by

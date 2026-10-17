@@ -1,6 +1,6 @@
 //! Reading notes and cards. Nothing here writes.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::{Card, Note, NoteError, NoteField};
 use crate::collection::Collection;
@@ -126,5 +126,53 @@ impl Collection {
     /// The deleted cards of a note, which come back if the note makes them again.
     pub fn deleted_cards_of_note(&self, note: Id) -> Result<Vec<Card>, NoteError> {
         self.cards_with(note, true)
+    }
+
+    /// The IDs of the live cards of live notes, note by note, each once. `NotFound` if a note is
+    /// missing or deleted.
+    pub fn cards_of_notes(&self, notes: &[Id]) -> Result<Vec<Id>, NoteError> {
+        let mut live = self
+            .conn
+            .prepare_cached("SELECT deleted FROM note WHERE id = ?1")?;
+        let mut cards = self
+            .conn
+            .prepare_cached("SELECT id FROM card WHERE note = ?1 AND deleted = 0 ORDER BY id")?;
+        let mut seen = HashSet::new();
+        let mut found = Vec::new();
+        for note in notes {
+            if !seen.insert(*note) {
+                continue;
+            }
+            let deleted: Option<i64> =
+                rusqlite::OptionalExtension::optional(live.query_row([note], |row| row.get(0)))?;
+            if deleted != Some(0) {
+                return Err(NoteError::NotFound);
+            }
+            for card in cards.query_map([note], |row| row.get::<_, Id>(0))? {
+                found.push(card?);
+            }
+        }
+        Ok(found)
+    }
+
+    /// The notes of live cards, in the order of their first card, each once. `NotFound` if a card
+    /// is missing or deleted, or its note is.
+    pub fn notes_of_cards(&self, cards: &[Id]) -> Result<Vec<Id>, NoteError> {
+        let mut statement = self.conn.prepare_cached(
+            "SELECT c.note FROM card c JOIN note n ON n.id = c.note
+             WHERE c.id = ?1 AND c.deleted = 0 AND n.deleted = 0",
+        )?;
+        let mut seen = HashSet::new();
+        let mut found = Vec::new();
+        for card in cards {
+            let note: Option<Id> = rusqlite::OptionalExtension::optional(
+                statement.query_row([card], |row| row.get(0)),
+            )?;
+            let note = note.ok_or(NoteError::NotFound)?;
+            if seen.insert(note) {
+                found.push(note);
+            }
+        }
+        Ok(found)
     }
 }

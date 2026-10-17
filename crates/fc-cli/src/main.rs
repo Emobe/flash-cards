@@ -76,13 +76,15 @@ Usage:
   fc preset <file> assign <deck> <preset>
                    Change option presets and which deck uses which. A deleted preset sends its
                    decks to the Default preset
-  fc edit-note <file> <note ID> <Field=value>...
+  fc edit-note <file> <note ID> [Field=value]... [--tag <tag>]...
                    Change fields of a note. Fields left out stay as they are. Cards are made or
-                   removed to match, and a duplicate of the first field is warned about
+                   removed to match, and a duplicate of the first field is warned about. With
+                   --tag, the note's tags become exactly those, in the same write
   fc delete-note <file> <note ID>...
-                   Move notes and their cards to the trash
-  fc restore-note <file> <note ID>
-                   Bring a note back from the trash (the notes command lists the trash)
+                   Move notes and their cards to the trash, in one write
+  fc restore-note <file> <note ID>...
+                   Bring notes back from the trash, in one write (the notes command lists the
+                   trash)
   fc find-duplicates <file> <note type> <text>
                    List the notes of a note type whose first field is <text>, ignoring case, tags
                    and spacing
@@ -156,7 +158,9 @@ Usage:
                    Tune the scheduler from the review history of a preset's cards (the Default
                    preset if none is given). Prints the result, and stores it with --apply
   fc search <file> <query> [--sort <key>[:desc]] [--notes] [--limit <n>] [--offset <n>] [--seed <n>]
-                   Find cards (or notes, with --notes). Examples: dog, deck:Polish is:due,
+                   [--ids]
+                   Find cards (or notes, with --notes). --ids lists every match's ID, with no
+                   limit. Examples: dog, deck:Polish is:due,
                    front:k*t, rated:7:1, difficulty:>7, due:..0 (quote a query that has spaces).
                    Join with spaces (and), or, - (not) and ( ). Sort keys: created, due, field, deck,
                    note, difficulty, stability, lapses, reviews, random
@@ -704,10 +708,10 @@ fn run(args: &[String]) -> Result<String, Failure> {
             let tags: Vec<&str> = tags.iter().map(String::as_str).collect();
             let text = if command == "tag" {
                 let added = collection.add_tags(&[note], &tags)?;
-                format!("Added {} to the note", plural(added, "tag"))
+                format!("Added {} to the note", plural(added.len(), "tag"))
             } else {
                 let removed = collection.remove_tags(&[note], &tags)?;
-                format!("Removed {} from the note", plural(removed, "tag"))
+                format!("Removed {} from the note", plural(removed.len(), "tag"))
             };
             let now = collection.note_tags(note)?;
             collection.close()?;
@@ -877,7 +881,9 @@ fn run(args: &[String]) -> Result<String, Failure> {
             edit::edit_note(file, note, values)
         }
         [command, file, notes @ ..] if command == "delete-note" => edit::delete_notes(file, notes),
-        [command, file, note] if command == "restore-note" => edit::restore_note(file, note),
+        [command, file, notes @ ..] if command == "restore-note" => {
+            edit::restore_notes(file, notes)
+        }
         [command, file, note_type, text] if command == "find-duplicates" => {
             edit::find_duplicates(file, note_type, text)
         }

@@ -14,6 +14,8 @@
 //! because the register names are field IDs) and `card` (note, template, ordinal, deck, deleted).
 //! A card's suspension, flag and scheduling arrive with step 1.7, as extra registers.
 
+#[cfg(test)]
+mod edit_tests;
 mod error;
 mod generate;
 mod ops;
@@ -29,7 +31,7 @@ use crate::sync::{DynamicTable, SyncedTable};
 
 pub use error::NoteError;
 pub use generate::card_id;
-pub use ops::{AddedNote, NewNote, NoteChange};
+pub use ops::{AddedNote, NewNote, NoteChange, NoteEdit, NotesChange};
 
 /// The sync entity types and register names are part of the sync format and never change (ADR 0006,
 /// section 10). A note's field values are registers of the entity `note` too, named by field ID.

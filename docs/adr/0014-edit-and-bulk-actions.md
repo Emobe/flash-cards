@@ -407,3 +407,110 @@ question is answered as proposed:
 6. One level of undo, in memory, with a notice that stays until the next change or Dismiss.
 7. In Notes view, card actions apply to every card of the notes.
 8. Five PRs: 3.2a to 3.2e.
+
+## Build notes (step 3.2a, core and API)
+
+Branch `step/3.2a-edit-api`. No migration, no sync format change, no new dependency, no UI.
+
+- **`edit_note_with(note, values, tags)` (`note/ops.rs`).** `set_note_fields`'s checks and
+  writes, plus the tag set when `tags` is `Some` (`set_note_tags`'s rules: spelled as the
+  collection spells it, matched ignoring case), in one write. One `NoteEdited` when a value, a tag or
+  a card changed; a tags-only edit sends it with no fields (`docs/events.md` says so now). It answers
+  `NoteEdit`: the `NoteChange`, the old value of each changed field and, when the tags changed, the
+  old tags as stored. `set_note_fields` now calls it with `None`. A field given twice takes the last
+  value, as before.
+- **`delete_notes`, `restore_notes`.** One write each, one `NoteDeleted` or `NoteRestored` per note
+  in one batch. A note that is not there refuses the whole call before anything is written; one
+  already in the wanted state is skipped. They answer `NotesChange` (the notes and the cards that
+  went or came back). `delete_note` and `restore_note` call them.
+- **Changed sets.** `move_cards` answers `(card, old deck)` for each moved card (a card given twice
+  is moved once), `add_tags` and `remove_tags` the `(note, tag)` pairs written, `suspend_cards` and
+  `unsuspend_cards` the cards that changed. Callers that used the old counts take `.len()`.
+- **Reads.** `search_ids(query, mode)`: every match, by ID, no limit and no sort (a shared
+  `with_filter` compiles the query for it and for `search`). `cards_of_notes` and `notes_of_cards`
+  turn a selection into the other kind in one prepared statement each, and refuse with `NotFound` if
+  anything in it is gone.
+- **The kept change (`fc_core::undo`).** `KeptChange { id, reverse }` with a `Reverse` per kind
+  (decks, tags to take off or put back, suspension, notes to restore, an edit). `Core` keeps one
+  (`keep_change`, `take_change(id)` takes it once if it is still the latest) and drops it when a
+  collection opens or closes.
+- **`fc-api` (`crates/fc-api/src/edit.rs`).** `getNote`, `updateNote`, `searchIds`, `moveCards`,
+  `addTags`, `removeTags`, `suspendCards`, `unsuspendCards`, `deleteNotes`, `undoChange`. A `Target`
+  is `{ notes }` or `{ cards }`, resolved in one place (`Ids::cards`, `Ids::notes`). A change that
+  changed nothing answers `undo: null` and keeps the earlier token. `updateNote` takes an optional
+  `deckId`: the deck is checked first, then the edit and the move are two writes with one undo
+  ("Saved."). `undoChange` answers `notFound` with "That can no longer be undone." for a token that
+  is not the latest. Undo moves cards back with one `move_cards` per old deck and changes tags with
+  one call per tag; a group whose card, note or deck is gone is skipped and the message says how many
+  could not be put back. An edit's undo moves the cards back before writing the old values, since
+  the values can remove a card. `FieldValue` is shared with `addNote`.
+- **CLI.** `edit-note … [--tag <tag>]…` (`edit_note_with`), `delete-note` and `restore-note` take
+  several IDs and use the bulk operations, `search --ids` (`search_ids`). `tests/coverage.rs` has the
+  new rows; `cards_of_notes` and `notes_of_cards` have a reason instead of a command.
+- **Tests.** 18 core tests (`note/edit_tests.rs`): values and tags with the old ones answered,
+  writing them back, tags only, a no-op writes nothing, no tags leaves tags alone, a bad tag refuses
+  everything (digest and events), a deleted note, a card made by an edit, bulk delete and restore
+  (events in one batch, skipped and missing notes, the same cards back), the changed sets, the reads,
+  `search_ids` in both modes, and replays of edits and bulk deletes into another collection (same
+  digest). The random tour test now also edits with tags and deletes and restores several notes.
+  One `Core` test for the kept change. 15 `fc-api` tests through `dispatch`: each method, a note
+  target on card actions, undo of each kind, one undo for edit and move, an undo that goes once, a
+  second change making the first token too old, a new collection dropping it, a move back to a
+  deleted deck, undo after a merge still writing the old value, no collection open. One more CLI
+  test.
+
+### Measured
+
+Release, Linux, through `dispatch` (so with the JSON), on a copy of a `fc fake` collection in the
+session scratchpad (`/tmp`), with a throwaway test that was not committed:
+
+| Call (10,000 notes, 13,629 cards) | Time | Its undo |
+|---|---|---|
+| `deleteNotes`, every note | 597 ms | 760 ms |
+| `suspendCards`, every note (13,499 changed) | 638 ms | 416 ms |
+| `suspendCards`, every card | 407 ms | 350 ms |
+| `addTags`, one tag on every note | 285 ms | 298 ms |
+| `moveCards`, every note | 706 ms | 681 ms (one write per old deck) |
+| `moveCards`, every card | 456 ms | 662 ms |
+
+`searchIds` on a `fc fake` collection of 37,000 notes and 50,740 cards: every card 27 ms (50,740
+IDs, 1.98 MB of JSON), every note 75 ms (37,000 IDs, 1.44 MB), `tag:*` in cards mode 79 ms (25,539
+IDs). Not measured: the same list through the bridge to the webview (ADR 0014 "Not verified").
+
+### Verified
+
+- `cargo xtask check` passes (Rust tests, clippy, the wasm build, bindings, `tsc`, Vitest).
+- The CLI commands on test collections (CLI tests).
+
+### Not verified
+
+- The phone: nothing was built for it (Anthony is away, STATUS). 3.2a has no UI; the phone runs it
+  with the next debug APK (the app starts and opens the real collection as before).
+- The web client and the desktop app: nothing calls the new methods until 3.2b.
+- Timings in wasm and on the phone, and on a disk rather than `/tmp`.
+- What 10,000 `noteDeleted` events do to the webview (3.2c, with the selection bar).
+- Windows, Firefox, Safari.
+
+### Deviations from the plan
+
+- **`updateNote` takes an optional `deckId`** and one undo covers the edit and the move. Decision 7
+  had no deck on `updateNote` and decision 1 a separate `moveCards`, whose token would replace the
+  edit's, so Undo after "Saved." would only have moved the cards back. Proposed in the chat plan;
+  Anthony said "go" without answering, so the proposal was taken.
+- **The kept change lives on `fc_core::Core`**, not in `fc-api`: `Core` is `fc-core`'s type and
+  `fc-api` has no state of its own. `fc-api` still builds the changes, the messages and the undo.
+  (Chat plan, as above.)
+- **No `delete-notes` or `restore-notes` commands.** `delete-note` already took several IDs; it and
+  `restore-note` now take several and use the bulk operations. (Chat plan, as above.)
+- **Undo of a move from several decks, or of several tags, is one write per deck or tag**, not one
+  write. (Chat plan, as above; the alternative was two more public core operations.)
+- **New core reads not in the plan:** `search_ids`, `cards_of_notes`, `notes_of_cards`, and
+  `fc search --ids`.
+- `add_tags` and `remove_tags` answer `(note, tag)` pairs, not "the notes that changed", so undoing
+  an add of two tags does not take off one a note already had.
+- `deleteNotes`'s output type is `DeletedNotes`, not `DeleteNotesOutput`: the binding check compares
+  imports in generated order and Biome sorts them ignoring case (as in 3.1a).
+- The CLI was in the core commit, not its own.
+- `searchIds` was timed at about 50,000 cards on a separate `fc fake` collection of 37,000 notes
+  (made in the background), since `fc fake` takes about 75 s for 10,000 notes and grows with the
+  square.

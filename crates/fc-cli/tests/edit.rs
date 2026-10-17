@@ -63,6 +63,49 @@ fn a_note_can_be_edited_deleted_and_restored() {
 }
 
 #[test]
+fn a_note_edit_can_set_tags_and_notes_go_and_come_back_together() {
+    let file = TempFile::collection("edit", "bulk.fc");
+    let f = file.path();
+    let first = note_id(&out(&fc(&["add-note", f, "Basic", "Front=kot"])));
+    let second = note_id(&out(&fc(&["add-note", f, "Basic", "Front=pies"])));
+
+    let edited = out(&fc(&[
+        "edit-note",
+        f,
+        &first,
+        "Front=kotek",
+        "--tag",
+        "pl",
+        "--tag",
+        "animals",
+    ]));
+    assert!(edited.contains("Its tags changed"), "{edited}");
+    let edited = out(&fc(&["edit-note", f, &second, "--tag", "pl"]));
+    assert!(edited.contains("Its tags changed"), "{edited}");
+    let notes = out(&fc(&["notes", f]));
+    assert!(notes.contains("Front: kotek"), "{notes}");
+    assert!(err(&fc(&["edit-note", f, &first, "--tag"])).contains("--tag needs a tag"));
+
+    let ids = out(&fc(&["search", f, "tag:pl", "--notes", "--ids"]));
+    assert!(
+        ids.starts_with("2 notes match") && ids.contains(&first) && ids.contains(&second),
+        "{ids}"
+    );
+
+    let deleted = out(&fc(&["delete-note", f, &first, &second]));
+    assert!(
+        deleted.starts_with("Deleted 2 notes and 2 cards"),
+        "{deleted}"
+    );
+    let restored = out(&fc(&["restore-note", f, &first, &second]));
+    assert!(
+        restored.starts_with("Restored 2 notes and 2 cards"),
+        "{restored}"
+    );
+    assert!(err(&fc(&["restore-note", f])).contains("needs note IDs"));
+}
+
+#[test]
 fn editing_refuses_what_it_cannot_do() {
     let file = TempFile::collection("edit", "errors.fc");
     let f = file.path();
