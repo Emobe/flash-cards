@@ -743,6 +743,25 @@ fn a_suspended_review_card_and_a_suspended_learning_card_are_out_too() {
 }
 
 #[test]
+fn suspended_among_answers_the_suspended_cards_once_and_refuses_a_deleted_one() {
+    let (c, clock) = setup();
+    let cards = add(&c, &clock, default_deck(), 3);
+    assert!(c.suspended_among(&cards).unwrap().is_empty());
+    c.suspend_cards(&[cards[2], cards[0]]).unwrap();
+    assert_eq!(
+        c.suspended_among(&[cards[2], cards[1], cards[0], cards[2]])
+            .unwrap(),
+        vec![cards[2], cards[0]]
+    );
+    let note = c.notes_of_cards(&[cards[1]]).unwrap()[0];
+    c.delete_notes(&[note]).unwrap();
+    assert!(matches!(
+        c.suspended_among(&cards),
+        Err(StudyError::NotFound)
+    ));
+}
+
+#[test]
 fn suspending_writes_only_the_cards_that_change() {
     let (c, clock) = setup();
     let cards = add(&c, &clock, default_deck(), 2);

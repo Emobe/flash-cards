@@ -656,6 +656,58 @@ impl Method for DeleteNotes {
     }
 }
 
+// ---- describeTarget -------------------------------------------------------------------------------
+
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct TargetSummary {
+    /// The notes a note action (tags, delete) acts on.
+    pub notes: u32,
+    /// The cards a card action (move, suspend) acts on.
+    pub cards: u32,
+    /// How many of those cards are suspended.
+    pub suspended: u32,
+    /// Every live card of the notes: what a delete takes with them. More than `cards` when only
+    /// some cards of a note were chosen.
+    pub note_cards: u32,
+}
+
+/// What a selection comes to before acting on it: "12 notes (18 cards)", whether Suspend should
+/// read Unsuspend, and the counts of a delete's question.
+pub struct DescribeTarget;
+
+impl Method for DescribeTarget {
+    const NAME: &'static str = "describeTarget";
+    type Input = TargetInput;
+    type Output = TargetSummary;
+
+    fn call(core: &Core, input: TargetInput, _: &OpContext) -> Result<TargetSummary, ApiError> {
+        let target = input.target.parse()?;
+        let what = "describe a selection";
+        with(core, |c| {
+            let notes = target.notes(c, what)?;
+            let cards = target.cards(c, what)?;
+            let note_cards = match target {
+                Ids::Notes(_) => cards.len(),
+                Ids::Cards(_) => c
+                    .cards_of_notes(&notes)
+                    .map_err(|e| note_error(what, e))?
+                    .len(),
+            };
+            let suspended = c
+                .suspended_among(&cards)
+                .map_err(|e| study_error(what, e))?;
+            Ok(TargetSummary {
+                notes: count(notes.iter().collect::<HashSet<_>>().len()),
+                cards: count(cards.iter().collect::<HashSet<_>>().len()),
+                suspended: count(suspended.len()),
+                note_cards: count(note_cards),
+            })
+        })
+    }
+}
+
 // ---- undoChange -----------------------------------------------------------------------------------
 
 #[derive(Debug, Deserialize, TS)]

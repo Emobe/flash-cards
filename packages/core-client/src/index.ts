@@ -46,6 +46,8 @@ export type { StudyCardState } from "./generated/StudyCardState";
 export type { StudyCounts } from "./generated/StudyCounts";
 export type { StudyNext } from "./generated/StudyNext";
 export type { TagList } from "./generated/TagList";
+export type { Target } from "./generated/Target";
+export type { TargetSummary } from "./generated/TargetSummary";
 export type { UndoToken } from "./generated/UndoToken";
 export type { UpdateSavedSearchInput } from "./generated/UpdateSavedSearchInput";
 export { isApiError, type Transport } from "./transport";

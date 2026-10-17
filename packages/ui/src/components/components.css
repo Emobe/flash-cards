@@ -262,6 +262,12 @@
   color: var(--danger);
 }
 
+/* A button that cannot be used now (the selection bar with nothing chosen, Apply before a choice). */
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .deck-undo,
 .undo-notice {
   display: flex;

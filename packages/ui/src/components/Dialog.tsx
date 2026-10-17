@@ -1,20 +1,14 @@
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { BackIcon } from "../shell/icons";
 import { BottomActionSlot } from "../shell/slot";
-
-/** How many dialogs are mounted. Effects run twice in development, so a push is only undone once none is. */
-let mounted = 0;
-
-function inDialogEntry(): boolean {
-  return Boolean(window.history.state?.fcDialog);
-}
+import { useBackEntry } from "../shell/useBackEntry";
 
 /**
  * A modal window on a native `dialog`, so focus and the backdrop just work. Mount it to open it
  * and unmount it to close it. `onClose` runs when the person dismisses it (Escape or the back
  * button); a dialog its parent keeps mounted stays open, so a window with unsaved changes can ask
- * first. It takes a history entry while open, so the Android back button closes the window and does
- * not leave the screen behind it.
+ * first. It holds a history entry while open (`useBackEntry`), so the Android back button closes
+ * the window, and only the top one, and does not leave the screen behind it.
  *
  * - `variant="sheet"` makes it a sheet from the bottom of the screen in the compact layout, for
  *   pickers in thumb reach.
@@ -46,29 +40,7 @@ export function Dialog({
     else dialog.setAttribute("open", "");
   }, []);
 
-  useEffect(() => {
-    if (!inDialogEntry()) window.history.pushState({ fcDialog: true }, "");
-    mounted += 1;
-    let alive = true;
-    const onPop = () => {
-      if (inDialogEntry()) return;
-      onCloseRef.current();
-      // Kept open (a question about unsaved changes): back needs an entry to close it again.
-      setTimeout(() => {
-        if (alive && !inDialogEntry()) window.history.pushState({ fcDialog: true }, "");
-      }, 0);
-    };
-    window.addEventListener("popstate", onPop);
-    return () => {
-      alive = false;
-      window.removeEventListener("popstate", onPop);
-      mounted -= 1;
-      // Closed by a button: take the entry back. Closed by back: it is already gone.
-      setTimeout(() => {
-        if (mounted === 0 && inDialogEntry()) window.history.back();
-      }, 0);
-    };
-  }, []);
+  useBackEntry(true, () => onCloseRef.current());
 
   const layer = variant === "layer";
   return (

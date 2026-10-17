@@ -190,7 +190,7 @@ describe("closing", () => {
   test("Back with changes asks, and the editor keeps a history entry for the next Back", async () => {
     const { onClose } = setup();
     fireEvent.change(await field("Front"), { target: { value: "pies" } });
-    expect(window.history.state?.fcDialog).toBe(true);
+    expect(window.history.state?.fcDialog).toBe(1);
     await act(async () => {
       window.history.replaceState(null, "");
       window.dispatchEvent(new PopStateEvent("popstate"));
@@ -198,7 +198,15 @@ describe("closing", () => {
     });
     expect(screen.getByRole("dialog", { name: "Discard your changes?" })).not.toBeNull();
     expect(onClose).not.toHaveBeenCalled();
-    expect(window.history.state?.fcDialog).toBe(true);
+    // The editor's entry again, and one for the question above it.
+    expect(window.history.state?.fcDialog).toBe(2);
+    await act(async () => {
+      window.history.back();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(screen.queryByRole("dialog", { name: "Discard your changes?" })).toBeNull();
+    expect(screen.getByRole("dialog", { name: "Edit note" })).not.toBeNull();
+    expect(window.history.state?.fcDialog).toBe(1);
   });
 
   test("the Back control closes when nothing changed", async () => {

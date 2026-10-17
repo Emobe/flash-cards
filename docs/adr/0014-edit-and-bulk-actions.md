@@ -611,3 +611,121 @@ change. One `fc-api` field.
 - `components/UndoNotice.tsx` and `editor/testEditor.tsx` are new files the plan did not name;
   `DecksScreen`'s own notice is unchanged.
 - "Change note type" in the editor is not there yet: it comes with 3.2e.
+
+## Build notes (step 3.2c, multi-select and the simple bulk actions)
+
+Branch `step/3.2c-bulk-select`. No migration, no sync format change, no new dependency, no bridge,
+permission or CSP change. One `fc-api` method and one core read.
+
+- **`describeTarget`** (`fc-api` `edit.rs`): a target's `notes`, `cards` (what a card action
+  reaches), `suspended` (of those cards) and `noteCards` (every live card of the notes, what a delete
+  takes). The bar needs it for "12 notes (18 cards)", for Unsuspend when every card is suspended,
+  and for the delete question's counts when the selection is "all 5,000". Core gains
+  `Collection::suspended_among(cards)` (a reason row in `tests/coverage.rs`), and the shared read
+  behind suspend and bury now skips repeats with a set instead of a scan, which was quadratic in the
+  selection.
+- **`shell/useBackEntry.ts`**: each window, layer or mode that Back closes holds its own history
+  entry (`{ fcDialog: depth }`), so Back closes only the top one (a Move sheet over selection mode).
+  A holder that stays open gets its entry back; closing by a button takes it back, with one
+  `history.go` at a time; an entry left behind by a route change is skipped. `Dialog` uses it in
+  place of its own history code (it used to share one entry between windows opened over each other).
+- **`browse/useSelection.ts`**: a set of IDs (notes or cards, as the view), the phone's selection
+  mode, Shift ranges over the loaded rows, cleared when the query or the view changes (kept on a
+  sort change), and `useTargetSummary` (`describeTarget` 150 ms after the selection rests, the latest
+  answer winning, asked again after each change).
+- **`browse/useLongPress.ts`**: 500 ms, cancelled by 10 px of movement, lifting or a pointer cancel
+  (a scroll); the click that ends a long press is swallowed. Under 600 px rows also have
+  `user-select: none`, and `selectstart` and `contextmenu` cancelled.
+- **`browse/SelectionBar.tsx`**: ✕, the count, "Select all 340" (`searchIds`), and the actions:
+  Move, Tag, Suspend or Unsuspend, Delete and More (Remove tags) under 600 px, in `BottomAction` in
+  place of the search panel; Move, Add tags, Remove tags, Suspend and Delete from 600 px, above the
+  list in place of the search panel. Move is `PickerDialog` with one choice (new props: an action
+  label, no Clear, a note line, a find label, busy); Tags is a sheet with Add | Remove and `TagInput`;
+  Delete asks "Delete 12 notes and their 18 cards?" and then clears the selection; Suspend acts at
+  once. A refused action says why in the bar (`role="alert"`).
+- **`BrowseScreen`**: rows are a checkbox and the row's button (`data-checks` on the list: hidden,
+  hover or shown). A tap in selection mode toggles; otherwise a row opens the editor, or with Shift
+  and a selection chooses a range. Escape clears and Ctrl+A selects every match (a checkbox with
+  focus does not count as typing). One notice for edits and bulk actions, under the search panel or
+  the bar: in the bottom slot under 600 px, above the list from 600 px. Browse keeps what Undo did,
+  so the notice does not offer Undo again when the layout changes.
+- **`.button:disabled`** now looks disabled (no style existed).
+- **Tests**: 18 in `browse/Selection.test.tsx` (Select and ✕, a tap toggles and opens otherwise, long
+  press, a moved finger, the context menu and `selectstart`, Back closing the sheet and then the
+  mode, checkboxes, Shift and Escape, Select all and Ctrl+A with `searchIds`, "2 notes (3 cards)",
+  Move, Add and Remove tags, Suspend to Unsuspend, Delete with its counts then Undo, Cards view
+  targets and counts, a refused action, the notice across a layout change, `useSelection`'s scope and
+  range), 5 for `useBackEntry`, 2 more `NoteEditor` assertions (the question's own entry), 1 core
+  test (`suspended_among`), 1 `fc-api` test (`describeTarget`) and a row in the no-collection test.
+
+### Measured
+
+Desktop app (`bun run dev`, debug build, Linux X11, WebKitGTK), on a `fc fake` collection of 5,000
+notes and 6,810 cards, from the click until the window changed (screenshots polled, so about
+±50 ms):
+
+| Action on all 5,000 notes (Ctrl+A) | Time |
+|---|---|
+| Delete (5,000 `noteDeleted` events reach the webview) | 974 ms |
+| Its Undo | 1,250 ms |
+| Suspend (6,727 cards changed) | 551 ms |
+| Its Undo | 414 ms |
+| Move to one deck (6,478 cards moved) | 764 ms |
+
+Ctrl+A itself (`searchIds` of 5,000 notes, then `describeTarget`) showed "5,000 notes (6,810 cards)"
+too fast to time this way. Nothing stalled: 5,000 per-note events do not need ADR 0014's summary
+event yet.
+
+### Verified
+
+- `cargo xtask check` passes (456 UI tests).
+- **Web** (`bun run web:dev`, headless Brave over CDP, real touch, mouse and key events, sample cards,
+  screenshots read): at 390 px light, a long press (touch, 700 ms) selects the row with no editor and
+  no text selected, a tap toggles another, the bar sits in the bottom slot with 48 px targets, Back
+  closes the Move sheet and keeps the selection, Move with its notice and Undo, the selection kept,
+  Back leaves selection mode and stays on Browse with no history entry left; at 390 px dark, Select,
+  Select all 13, Add tags, Suspend becoming Unsuspend, Unsuspend, More then Remove tags, Delete ("Delete
+  13 notes and their 15 cards?"), the mode left, Undo bringing the rows back; at 1100 px light and
+  dark, a checkbox replacing the panel with the bar, Shift+click for a range, a row still opening the
+  editor with the selection kept, Escape clearing, Ctrl+A, and hover showing one row's checkbox.
+- **Desktop** (`bun run dev`, scratch `XDG_DATA_HOME`, `xdotool`, screenshots read): checkbox,
+  Shift+click range, Escape from a focused checkbox, Ctrl+A on 5,000 notes, Delete with its question,
+  Undo, Suspend to Unsuspend, Move through the picker, and the timings above.
+- Found and fixed while checking: Delete's question and selection mode closing together went back
+  twice, to the page before the app (`useBackEntry`); the notice offering Undo again after the layout
+  changed.
+
+### Not verified
+
+- **The phone (skipped while Anthony is away, STATUS):** long press on a row in the WebView (finding
+  3), the selection bar with the keyboard closed and open (the Tags sheet types), Android back leaving
+  selection mode and closing a sheet first, a bulk action on a real-sized selection with its time.
+- The compact layout in the desktop app (the window manager would not resize the window); a long press
+  with a mouse in WebKitGTK.
+- Timings in wasm and on the phone, and Ctrl+A over 50,000 notes through the bridge.
+- Windows, Firefox, Safari.
+
+### Deviations from the plan
+
+- **`describeTarget` and `suspended_among`**: an `fc-api` method and a core read not in the plan
+  (proposed in the chat plan, approved with "go").
+- **`useBackEntry` replaces `Dialog`'s history handling**, so every window opened over another now
+  has its own entry and Back closes only the top one (chat plan, approved). The `NoteEditor` test that
+  checked one shared entry now checks two.
+- **The selection is cleared when the query changes**, not only the view (chat plan, approved). A
+  sort change keeps it.
+- **One notice place**: 3.2b's "Saved." notice moved from under the heading to under the search
+  panel, so in the bottom slot under 600 px (chat plan, approved).
+- **The bar's count** reads "12 notes (18 cards)" in Notes view (the cards only when they differ),
+  "5 cards" in Cards view and "Nothing selected" with none, instead of ADR decision 2's "12 selected".
+- **Tags** is one sheet with an Add | Remove switch; under 600 px Tag opens it on Add and More has
+  Remove tags (the only More item until 3.2d and 3.2e); from 600 px Add tags and Remove tags are
+  separate buttons.
+- **Ctrl+A works under 600 px too** (it enters selection mode), not only from 600 px.
+- **Shift+click on a row** (not only on a checkbox) chooses a range when something is selected.
+- **`.button:disabled`** is a shared style change, outside Browse.
+- **`UndoNotice` takes `undone`** and passes Undo's message to `onUndone`, for the layout change.
+- A change that changes nothing (Move to the deck the cards are in) shows no notice, as 3.2b does
+  for an edit.
+- The undo messages from `fc-api` print counts without a thousands separator ("Deleted 5000 notes"),
+  unlike the bar ("5,000 notes"); left as 3.2a wrote them.

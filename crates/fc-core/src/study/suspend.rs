@@ -6,6 +6,8 @@
 //! while today is at or before it, and a new day lifts it with no write. Only cards that change are
 //! written.
 
+use std::collections::HashSet;
+
 use rusqlite::types::Value;
 
 use super::StudyError;
@@ -40,8 +42,9 @@ impl Collection {
              WHERE c.id = ?1 AND c.deleted = 0 AND n.deleted = 0",
         )?;
         let mut found: Vec<(Id, Hidden)> = Vec::with_capacity(cards.len());
+        let mut seen = HashSet::with_capacity(cards.len());
         for card in cards {
-            if found.iter().any(|(id, _)| id == card) {
+            if !seen.insert(*card) {
                 continue;
             }
             let hidden = statement
@@ -79,6 +82,17 @@ impl Collection {
             Ok(())
         })?;
         Ok(changing)
+    }
+
+    /// The cards among `cards` that are suspended, each once, in the order given. `NotFound` if
+    /// any is deleted or missing. Browse reads it to offer Unsuspend for a selection.
+    pub fn suspended_among(&self, cards: &[Id]) -> Result<Vec<Id>, StudyError> {
+        Ok(self
+            .hidden(cards)?
+            .into_iter()
+            .filter(|(_, hidden)| hidden.suspended)
+            .map(|(id, _)| id)
+            .collect())
     }
 
     /// Takes the cards out of the queue until they are unsuspended. A card that is suspended
