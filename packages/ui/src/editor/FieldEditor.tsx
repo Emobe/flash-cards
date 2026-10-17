@@ -81,6 +81,8 @@ export function FieldEditor({
           latest.current.onFocus(editor);
           return false;
         },
+        // ProseMirror swallows Escape. Left to the page, it closes the window around the editor.
+        keydown: (_, event) => event.key === "Escape",
       },
     });
     view.current = editor;
