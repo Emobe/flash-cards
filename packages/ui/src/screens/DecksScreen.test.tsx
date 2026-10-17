@@ -331,7 +331,7 @@ describe("Managing decks", () => {
     await manage();
     const before = window.history.length;
     fireEvent.click(screen.getByRole("button", { name: "Rename Polish" }));
-    expect(window.history.state?.fcDialog).toBe(true);
+    expect(window.history.state?.fcDialog).toBe(1);
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(window.history.state?.fcDialog).toBeFalsy());
     expect(window.history.length).toBe(before + 1);
