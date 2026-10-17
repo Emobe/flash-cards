@@ -1,0 +1,30 @@
+/* The note editor (step 3.2b). The Add screen's styles do the fields, tags and bar. Tokens only. */
+
+.note-editor-type {
+  display: flex;
+  align-items: center;
+  min-height: var(--target);
+}
+
+.note-editor-html-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+/* A field's HTML as text, for formatting the editor cannot show (ADR 0011). */
+.note-editor-html {
+  min-height: 6rem;
+  padding: var(--space-3);
+  background: var(--surface);
+  color: var(--text);
+  border: var(--border-control);
+  border-radius: var(--radius);
+  font-family: ui-monospace, monospace;
+  font-size: var(--text-sm);
+  resize: vertical;
+}
+
+.note-editor-delete {
+  align-self: flex-start;
+}

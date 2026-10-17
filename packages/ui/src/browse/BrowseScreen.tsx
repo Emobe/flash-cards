@@ -1,7 +1,9 @@
-import type { SavedSearchSummary, SearchMode, SearchResultRow } from "core-client";
+import type { SavedSearchSummary, SearchMode, SearchResultRow, UndoToken } from "core-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
+import { UndoNotice } from "../components/UndoNotice";
 import { useCore } from "../core";
+import { NoteEditor } from "../editor/NoteEditor";
 import { PageHeading, useRouter } from "../router";
 import { CloseIcon, SortIcon } from "../shell/icons";
 import { BottomAction } from "../shell/slot";
@@ -153,7 +155,8 @@ function useLoadMore(hasMore: boolean, rows: number, loadMore: () => Promise<voi
 /**
  * Browse (step 3.1, ADR 0013): a search box and filter chips, sorting, notes or cards, and the
  * results as a list. On a phone the search panel sits at the bottom in thumb reach and above the
- * keyboard; from 600 px it sits above the list. Rows do nothing when tapped yet (3.2 edits).
+ * keyboard; from 600 px it sits above the list. A row opens its note in the editor (step 3.2b), and
+ * what a save or delete did stays in a notice with Undo.
  */
 export function BrowseScreen() {
   const search = useBrowseSearch();
@@ -162,6 +165,8 @@ export function BrowseScreen() {
   const wide = useWideLayout();
   const saved = useSavedSearches();
   const [open, setOpen] = useState<ChipKind | "sort" | "saved" | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [notice, setNotice] = useState<UndoToken | null>(null);
   const box = useRef<HTMLInputElement>(null);
   useKeyShortcut("/", () => box.current?.focus());
 
@@ -176,6 +181,13 @@ export function BrowseScreen() {
   useEffect(() => {
     if (saved.searches && state.savedId !== null && openSaved === null) setSavedId(null);
   }, [saved.searches, state.savedId, openSaved, setSavedId]);
+
+  // After a write here: the same rows read again, and names a save may have added (a new tag).
+  const { searchNow } = search;
+  const afterChange = useCallback(() => {
+    searchNow();
+    reload();
+  }, [searchNow, reload]);
 
   function openPicker(kind: ChipKind) {
     if (kind === "decks" || kind === "tags" || kind === "noteTypes") reload();
@@ -281,6 +293,14 @@ export function BrowseScreen() {
           </p>
         )}
       </div>
+      {notice && (
+        <UndoNotice
+          key={notice.id}
+          token={notice}
+          onUndone={afterChange}
+          onDismiss={() => setNotice(null)}
+        />
+      )}
       {panel}
       {results &&
         results.total === 0 &&
@@ -297,7 +317,12 @@ export function BrowseScreen() {
       {rows.length > 0 && (
         <ul className="browse-list" aria-label="Results" data-stale={problem !== null}>
           {rows.map((row) => (
-            <ResultRow key={row.cardId} row={row} deck={deckPaths.get(row.deckId) ?? ""} />
+            <ResultRow
+              key={row.cardId}
+              row={row}
+              deck={deckPaths.get(row.deckId) ?? ""}
+              onOpen={() => setEditing(row.noteId)}
+            />
           ))}
         </ul>
       )}
@@ -312,6 +337,17 @@ export function BrowseScreen() {
             {search.loadingMore ? "Loading more…" : "Show more"}
           </button>
         </div>
+      )}
+      {editing !== null && (
+        <NoteEditor
+          noteId={editing}
+          onClose={() => setEditing(null)}
+          onDone={(result) => {
+            setEditing(null);
+            if (result.undo) setNotice(result.undo);
+            afterChange();
+          }}
+        />
       )}
       {open === "sort" && (
         <SortDialog
@@ -351,19 +387,32 @@ export function BrowseScreen() {
   );
 }
 
-/** One result: the sort field, the next field with text, then the deck and the state or due. */
-function ResultRow({ row, deck }: { row: SearchResultRow; deck: string }) {
+/**
+ * One result: the sort field, the next field with text, then the deck and the state or due. A tap
+ * opens its note (in Cards view, the card's note).
+ */
+function ResultRow({
+  row,
+  deck,
+  onOpen,
+}: {
+  row: SearchResultRow;
+  deck: string;
+  onOpen: () => void;
+}) {
   const title = rowText(row.title);
   return (
-    <li className="browse-row">
-      <span className="browse-title" data-empty={title === ""}>
-        {title || "(empty)"}
-      </span>
-      <span className="browse-detail">{rowText(row.detail)}</span>
-      <span className="browse-meta">
-        {deck && <span className="browse-deck">{deck}</span>}
-        <span>{formatDue(row)}</span>
-      </span>
+    <li>
+      <button type="button" className="browse-row" onClick={onOpen}>
+        <span className="browse-title" data-empty={title === ""}>
+          {title || "(empty)"}
+        </span>
+        <span className="browse-detail">{rowText(row.detail)}</span>
+        <span className="browse-meta">
+          {deck && <span className="browse-deck">{deck}</span>}
+          <span>{formatDue(row)}</span>
+        </span>
+      </button>
     </li>
   );
 }

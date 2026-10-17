@@ -160,5 +160,65 @@ export function useStudy(deckId: string) {
     [core, exclusive, startSession, loadNext],
   );
 
-  return { view, pending, canUndo: answered > 0, start, show, rate, undo };
+  // ---- Editing the card's note (step 3.2b) ----
+
+  /** When the editor opened, so the answer's time leaves out the editing. */
+  const pausedAt = useRef<number | null>(null);
+
+  const pause = useCallback(() => {
+    pausedAt.current = performance.now();
+  }, []);
+
+  const resume = useCallback(() => {
+    const since = pausedAt.current;
+    if (since === null) return;
+    pausedAt.current = null;
+    const gap = performance.now() - since;
+    setView((v) => (v.kind === "card" ? { ...v, shownAt: v.shownAt + gap } : v));
+  }, []);
+
+  /**
+   * After the note was edited or a change undone: the same card again on the side it was on, or
+   * the next card when `gone` (the edit removed it) or it can no longer be shown.
+   */
+  const refresh = useCallback(
+    (gone: boolean) =>
+      exclusive(async () => {
+        const current = viewRef.current;
+        if (current.kind === "finished") {
+          // An undo brought a card back after the last one went: it comes back in a new session.
+          if (session.current === null) await startSession();
+          await loadNext();
+          return;
+        }
+        if (current.kind !== "card") return;
+        if (!gone) {
+          try {
+            const html = await core.call("renderCard", { cardId: current.card.cardId });
+            if (!alive.current) return;
+            setView((v) =>
+              v.kind === "card" && v.card.cardId === current.card.cardId ? { ...v, html } : v,
+            );
+            return;
+          } catch (error) {
+            if (!(error instanceof CoreError && error.kind === "notFound")) throw error;
+          }
+        }
+        await loadNext();
+      }),
+    [core, exclusive, startSession, loadNext],
+  );
+
+  return {
+    view,
+    pending,
+    canUndo: answered > 0,
+    start,
+    show,
+    rate,
+    undo,
+    pause,
+    resume,
+    refresh,
+  };
 }
