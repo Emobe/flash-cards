@@ -20,7 +20,7 @@ Docs live in `docs/`: start with `docs/README.md`. `PRODUCT.md` is the source of
 
 ## Commands
 
-See `README.md` for prerequisites.
+See `docs/DEVELOPMENT.md` for prerequisites.
 
 - `cargo xtask check`: run every check. Must pass before opening a PR (there is no CI).
 - `cargo xtask fmt`: format Rust and JS/TS.

@@ -11,6 +11,7 @@ Planning documents for the app (name TBD, referred to as "the app" and `<APP_NAM
 | `adr/` | Architecture Decision Records. Written by Claude Code, reviewed and accepted by Anthony. |
 | `events.md` | The public events surface: each event, when it fires, listener rules and the stability promise. |
 | `plans/` | Implementation plans from design sessions, one per step, for the build session. |
+| `DEVELOPMENT.md` | Prerequisites, commands, Android setup and dogfood builds. |
 
 Division of responsibility:
 
