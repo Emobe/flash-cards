@@ -59,7 +59,7 @@ Spike code may be thrown away. ADRs are the real output.
 
 **Review focus:** are the setup instructions complete enough to redo from scratch?
 
-**Status:** done on Android (2026-10-04). Debug APK and USB live reload verified on Anthony's phone (Samsung S24 Ultra, Android 16), with the workflow running through Bun and no Node. Setup instructions are in `README.md`.
+**Status:** done on Android (2026-10-04). Debug APK and USB live reload verified on Anthony's phone (Samsung S24 Ultra, Android 16), with the workflow running through Bun and no Node. Setup instructions are in `docs/DEVELOPMENT.md`.
 
 ---
 

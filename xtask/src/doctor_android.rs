@@ -1,5 +1,5 @@
 //! `cargo xtask doctor-android`: checks the Android toolchain setup described
-//! in README.md and says exactly what is missing. Read-only; installs nothing.
+//! in docs/DEVELOPMENT.md and says exactly what is missing. Read-only; installs nothing.
 
 use std::env;
 use std::fs;
@@ -31,7 +31,7 @@ impl Report {
 }
 
 pub fn run() -> Result<(), String> {
-    println!("Checking Android setup (see README.md, Android):\n");
+    println!("Checking Android setup (see docs/DEVELOPMENT.md, Android):\n");
     let mut report = Report { failures: 0 };
 
     let sdk = check_sdk(&mut report);
