@@ -117,6 +117,12 @@ pub(super) fn wanted(plan: &Plan<'_>, values: &HashMap<Id, String>) -> Vec<(Id, 
     wanted
 }
 
+/// The cards a note with these values (by field ID) would have under `note_type`, as `(template,
+/// ordinal)`. Reads nothing stored, so a draft of a note type can be asked.
+pub(crate) fn wanted_cards(note_type: &NoteType, values: &HashMap<Id, String>) -> Vec<(Id, u32)> {
+    wanted(&Plan::new(note_type), values)
+}
+
 /// What reconciling did to a note's cards.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub(super) struct Reconciled {
@@ -124,6 +130,15 @@ pub(super) struct Reconciled {
     pub added: Vec<Id>,
     /// Cards that were deleted.
     pub removed: Vec<Id>,
+}
+
+/// What reconciling a note type did: notes with a change, and cards created or brought back, and
+/// cards deleted.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ReconcileTotals {
+    pub notes: usize,
+    pub cards_added: usize,
+    pub cards_removed: usize,
 }
 
 fn flag(on: bool) -> Value {
@@ -195,6 +210,14 @@ pub(super) fn reconcile(
 }
 
 impl Collection {
+    /// A note's stored field values, by field ID.
+    pub(crate) fn note_field_values(
+        &self,
+        note: Id,
+    ) -> Result<HashMap<Id, String>, CollectionError> {
+        self.note_state(note).map(|state| state.values)
+    }
+
     /// The stored state of one note.
     pub(super) fn note_state(&self, note: Id) -> Result<NoteState, CollectionError> {
         let mut values = HashMap::new();
@@ -308,15 +331,30 @@ impl Collection {
         note_type: Id,
         dead: &HashSet<Id>,
     ) -> Result<usize, CollectionError> {
+        self.reconcile_note_type_totals(w, note_type, dead)
+            .map(|totals| totals.notes)
+    }
+
+    /// `reconcile_note_type` answering what it did to the cards (the save of a note type reports
+    /// this, and the dry run before it).
+    pub(crate) fn reconcile_note_type_totals(
+        &self,
+        w: &mut WriteTx<'_>,
+        note_type: Id,
+        dead: &HashSet<Id>,
+    ) -> Result<ReconcileTotals, CollectionError> {
+        let mut totals = ReconcileTotals::default();
         let Some(found) = self.note_type(note_type).map_err(CollectionError::from)? else {
-            return Ok(0);
+            return Ok(totals);
         };
         let plan = Plan::new(&found);
-        let mut changed = 0;
         for note in self.note_states(note_type)? {
-            changed += usize::from(reconciled(&reconcile(w, &plan, &note, dead)?));
+            let done = reconcile(w, &plan, &note, dead)?;
+            totals.notes += usize::from(reconciled(&done));
+            totals.cards_added += done.added.len();
+            totals.cards_removed += done.removed.len();
         }
-        Ok(changed)
+        Ok(totals)
     }
 
     /// The same for some notes of one note type, as the merge needs it (ADR 0008, part 5). A note

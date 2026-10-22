@@ -35,6 +35,7 @@ use crate::sync::{DynamicTable, SyncedTable};
 pub use change_type::TypeChange;
 pub use error::NoteError;
 pub use generate::card_id;
+pub(crate) use generate::wanted_cards;
 pub use ops::{AddedNote, NewNote, NoteChange, NoteEdit, NotesChange};
 
 /// The sync entity types and register names are part of the sync format and never change (ADR 0006,
