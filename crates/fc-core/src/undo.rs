@@ -6,6 +6,7 @@
 //! them in between.
 
 use crate::id::Id;
+use crate::notetype::RegisterChange;
 
 /// A change that can be undone, by the ID its method answered.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,4 +47,13 @@ pub enum Reverse {
         tags: Option<Vec<String>>,
         decks: Vec<(Id, Id)>,
     },
+    /// Write the registers a note type save changed back to what they held (`SaveOutcome::undo`).
+    NoteTypeSave {
+        note_type: Id,
+        registers: Vec<RegisterChange>,
+    },
+    /// Delete this note type (it was just created).
+    DeleteNoteType(Id),
+    /// Restore this note type (it was just deleted).
+    RestoreNoteType(Id),
 }

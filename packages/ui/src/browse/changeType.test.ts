@@ -11,6 +11,7 @@ const type = (
   id,
   name: id,
   kind,
+  noteCount: 0,
   fields: fields.map((name) => ({ id: `${id}/${name}`, name })),
   templates: templates.map((name) => ({ id: `${id}/t/${name}`, name })),
 });

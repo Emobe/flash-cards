@@ -54,7 +54,7 @@ pub fn unknown_fields(text: &str, known: &[&str]) -> Vec<String> {
 
 /// `text` with every tag that names the field `old` changed to name `new`. Filters and the spacing
 /// inside the braces stay as written. Works on a template that has mistakes.
-pub(crate) fn rename_field(text: &str, old: &str, new: &str) -> String {
+pub fn rename_field(text: &str, old: &str, new: &str) -> String {
     let mut result = text.to_owned();
     for token in lex(text).into_iter().rev() {
         if let Token::Tag(tag) = token

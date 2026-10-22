@@ -14,6 +14,9 @@
 //! and cards; a note that is still live keeps a deleted note type alive (ADR 0006, section 5).
 
 pub mod builtin;
+mod draft;
+#[cfg(test)]
+mod draft_tests;
 mod error;
 mod ops;
 mod position;
@@ -24,6 +27,9 @@ mod tests;
 use crate::id::Id;
 use crate::sync::SyncedTable;
 
+pub use draft::{
+    Draft, DraftField, DraftTemplate, Preview, RegisterChange, RegisterValue, SaveOutcome,
+};
 pub use error::NoteTypeError;
 
 /// The sync entity types and register names are part of the sync format and never change (ADR 0006,

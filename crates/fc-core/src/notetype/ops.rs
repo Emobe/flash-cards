@@ -29,7 +29,11 @@ fn flag(on: bool) -> Value {
 
 /// Fails if either side of a template has a mistake in its syntax. A field name that the note type
 /// does not have is not a mistake: it reads as empty (`template::unknown_fields` can warn).
-fn check_template_text(name: &str, front: &str, back: &str) -> Result<(), NoteTypeError> {
+pub(super) fn check_template_text(
+    name: &str,
+    front: &str,
+    back: &str,
+) -> Result<(), NoteTypeError> {
     for (side, text) in [(Side::Front, front), (Side::Back, back)] {
         let errors = template::check(text, side);
         if !errors.is_empty() {
@@ -43,7 +47,7 @@ fn check_template_text(name: &str, front: &str, back: &str) -> Result<(), NoteTy
     Ok(())
 }
 
-fn clean_name(name: &str) -> Result<String, NoteTypeError> {
+pub(super) fn clean_name(name: &str) -> Result<String, NoteTypeError> {
     let name = name.trim();
     if name.is_empty() {
         Err(NoteTypeError::EmptyName)

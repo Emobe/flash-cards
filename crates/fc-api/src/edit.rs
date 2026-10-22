@@ -33,7 +33,7 @@ const GONE: &str = "That can no longer be undone.";
 
 // ---- Errors ---------------------------------------------------------------------------------------
 
-fn collection_error(what: &str, error: CollectionError) -> ApiError {
+pub(crate) fn collection_error(what: &str, error: CollectionError) -> ApiError {
     match ApiError::from(error) {
         api if api == ApiError::internal() => internal(what, &api),
         api => api,
@@ -164,7 +164,7 @@ pub struct UndoToken {
 }
 
 /// Keeps a change for undo, in place of the one before, and answers its token.
-fn keep(
+pub(crate) fn keep(
     core: &Core,
     c: &Collection,
     message: String,
@@ -1191,6 +1191,9 @@ fn reverse(c: &Collection, reverse: Reverse) -> Result<Option<String>, ApiError>
                 "Changed {} back to {name}.{left}",
                 plural(done.notes.len(), "note", "notes")
             )))
+        }
+        Reverse::NoteTypeSave { .. } | Reverse::DeleteNoteType(_) | Reverse::RestoreNoteType(_) => {
+            crate::notetypes::undo(c, reverse)
         }
         Reverse::Edit {
             note,

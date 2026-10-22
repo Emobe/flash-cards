@@ -14,6 +14,7 @@ import type { CardInfoOutput } from "./CardInfoOutput";
 import type { ChangeNoteTypeInput } from "./ChangeNoteTypeInput";
 import type { ChangeNoteTypeOutput } from "./ChangeNoteTypeOutput";
 import type { ChangeOutput } from "./ChangeOutput";
+import type { CheckNoteTypeOutput } from "./CheckNoteTypeOutput";
 import type { CheckQueryInput } from "./CheckQueryInput";
 import type { CollectionInfo } from "./CollectionInfo";
 import type { CoreInfo } from "./CoreInfo";
@@ -26,6 +27,7 @@ import type { DeletedNotes } from "./DeletedNotes";
 import type { DeletedPreset } from "./DeletedPreset";
 import type { DivideInput } from "./DivideInput";
 import type { DivideOutput } from "./DivideOutput";
+import type { DraftInput } from "./DraftInput";
 import type { EchoOutput } from "./EchoOutput";
 import type { EmitInput } from "./EmitInput";
 import type { EndSessionInput } from "./EndSessionInput";
@@ -41,20 +43,32 @@ import type { ListBackupsOutput } from "./ListBackupsOutput";
 import type { MoveCardsInput } from "./MoveCardsInput";
 import type { MoveDeckInput } from "./MoveDeckInput";
 import type { NameInput } from "./NameInput";
+import type { NewNoteTypeInput } from "./NewNoteTypeInput";
+import type { NewNoteTypeOutput } from "./NewNoteTypeOutput";
 import type { NewPreset } from "./NewPreset";
 import type { NewSavedSearch } from "./NewSavedSearch";
 import type { NewSavedSearchInput } from "./NewSavedSearchInput";
 import type { NextCardInput } from "./NextCardInput";
 import type { NoteDetails } from "./NoteDetails";
 import type { NoteInput } from "./NoteInput";
+import type { NoteTypeDeleted } from "./NoteTypeDeleted";
+import type { NoteTypeDetails } from "./NoteTypeDetails";
+import type { NoteTypeInput } from "./NoteTypeInput";
 import type { NoteTypeList } from "./NoteTypeList";
+import type { NoteTypeSaved } from "./NoteTypeSaved";
 import type { OptimiseInput } from "./OptimiseInput";
 import type { OptimiseOutput } from "./OptimiseOutput";
 import type { PathInput } from "./PathInput";
 import type { PresetIdInput } from "./PresetIdInput";
 import type { PresetList } from "./PresetList";
+import type { PreviewCardInput } from "./PreviewCardInput";
+import type { PreviewCardOutput } from "./PreviewCardOutput";
+import type { PreviewNotesInput } from "./PreviewNotesInput";
+import type { PreviewNotesOutput } from "./PreviewNotesOutput";
 import type { QueryCheck } from "./QueryCheck";
 import type { RenameDeckInput } from "./RenameDeckInput";
+import type { RenameFieldInTemplatesInput } from "./RenameFieldInTemplatesInput";
+import type { RenameFieldInTemplatesOutput } from "./RenameFieldInTemplatesOutput";
 import type { RenamePresetInput } from "./RenamePresetInput";
 import type { RenderCardInput } from "./RenderCardInput";
 import type { RenderedCardOutput } from "./RenderedCardOutput";
@@ -187,6 +201,49 @@ export type Methods = {
   describeTarget: { input: TargetInput; output: TargetSummary; bytesIn: false; bytesOut: false };
   undoChange: { input: UndoChangeInput; output: UndoChangeOutput; bytesIn: false; bytesOut: false };
   getCardInfo: { input: CardInfoInput; output: CardInfoOutput; bytesIn: false; bytesOut: false };
+  getNoteTypeDetails: {
+    input: NoteTypeInput;
+    output: NoteTypeDetails;
+    bytesIn: false;
+    bytesOut: false;
+  };
+  renameFieldInTemplates: {
+    input: RenameFieldInTemplatesInput;
+    output: RenameFieldInTemplatesOutput;
+    bytesIn: false;
+    bytesOut: false;
+  };
+  previewNotes: {
+    input: PreviewNotesInput;
+    output: PreviewNotesOutput;
+    bytesIn: false;
+    bytesOut: false;
+  };
+  previewCard: {
+    input: PreviewCardInput;
+    output: PreviewCardOutput;
+    bytesIn: false;
+    bytesOut: false;
+  };
+  checkNoteType: {
+    input: DraftInput;
+    output: CheckNoteTypeOutput;
+    bytesIn: false;
+    bytesOut: false;
+  };
+  saveNoteType: { input: DraftInput; output: NoteTypeSaved; bytesIn: false; bytesOut: false };
+  createNoteType: {
+    input: NewNoteTypeInput;
+    output: NewNoteTypeOutput;
+    bytesIn: false;
+    bytesOut: false;
+  };
+  deleteNoteType: {
+    input: NoteTypeInput;
+    output: NoteTypeDeleted;
+    bytesIn: false;
+    bytesOut: false;
+  };
   exportBackupToFile: {
     input: ExportToFileInput;
     output: ExportOutput;

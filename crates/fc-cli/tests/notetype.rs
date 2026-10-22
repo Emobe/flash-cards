@@ -185,3 +185,60 @@ fn mistakes_are_refused_with_a_message() {
     assert!(err(&fc(&["template", f, "Basic", "set", "Card 1"])).contains("needs --front"));
     assert!(err(&fc(&["notetype", f, "css", "Basic", "@/no/such/file"])).contains("Cannot read"));
 }
+
+#[test]
+fn a_draft_is_checked_saved_previewed_and_copied() {
+    let file = TempFile::collection("notetype", "draft.fc");
+    let f = file.path();
+    let note = note_id(&out(&fc(&[
+        "add-note",
+        f,
+        "Basic",
+        "Front=kot",
+        "Back=cat",
+    ])));
+    assert!(out(&fc(&["notetypes", f])).contains("Notes: 1"));
+
+    // The stored draft, edited: a new name, and a front that no note can fill any more.
+    let json = out(&fc(&["notetype", f, "draft", "Basic"]));
+    let edited = json
+        .replace("\"name\": \"Basic\"", "\"name\": \"Words\"")
+        .replace("{{Front}}", "no field here");
+    let draft = TempFile::new("notetype", "draft.json");
+    std::fs::write(draft.path(), &edited).unwrap();
+    let at = format!("@{}", draft.path());
+
+    let checked = out(&fc(&["notetype", f, "check", "Basic", &at]));
+    assert_eq!(
+        checked.trim_end(),
+        "Saving would change: 0 cards added, 1 card sent to the trash, 1 note affected"
+    );
+    assert!(
+        out(&fc(&["notetypes", f])).contains("Basic (standard)"),
+        "a check writes nothing"
+    );
+
+    let preview = out(&fc(&[
+        "notetype", f, "preview", "Basic", "--note", &note, "--draft", &at,
+    ]));
+    assert!(preview.contains("no field here"), "{preview}");
+
+    let saved = out(&fc(&["notetype", f, "save", "Basic", &at]));
+    assert_eq!(
+        saved.trim_end(),
+        "Saved Words: 0 cards added, 1 card sent to the trash, 1 note affected"
+    );
+    assert!(out(&fc(&["notetypes", f])).contains("Words (standard)"));
+    let again = out(&fc(&["notetype", f, "save", "Words", &at]));
+    assert_eq!(again.trim_end(), "No changes to save in Words");
+
+    let copied = out(&fc(&["notetype", f, "copy", "Words", "Words 2"]));
+    assert!(copied.starts_with("Copied Words to Words 2"), "{copied}");
+    let plain = out(&fc(&["notetype", f, "preview", "Words 2"]));
+    assert!(plain.contains("(Back)"), "{plain}");
+
+    std::fs::write(draft.path(), "{ not json").unwrap();
+    let failed = fc(&["notetype", f, "check", "Words", &at]);
+    assert!(!failed.status.success());
+    assert!(err(&failed).contains("not valid"), "{}", err(&failed));
+}

@@ -267,6 +267,7 @@ describe("changing the note type", () => {
       id: "nt-rev",
       name: "Basic and reversed",
       kind: "standard" as const,
+      noteCount: 0,
       fields: [
         { id: "f2-front", name: "Front" },
         { id: "f2-back", name: "Back" },

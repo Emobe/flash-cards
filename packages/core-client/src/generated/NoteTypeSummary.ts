@@ -18,4 +18,8 @@ export type NoteTypeSummary = {
    * The card templates, in order. A cloze type has one.
    */
   templates: Array<TemplateSummary>;
+  /**
+   * How many notes have this type.
+   */
+  noteCount: number;
 };

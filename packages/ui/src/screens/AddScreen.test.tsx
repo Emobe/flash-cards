@@ -89,6 +89,7 @@ const noteTypes: NoteTypeSummary[] = [
     id: "t-basic",
     name: "Basic",
     kind: "standard",
+    noteCount: 0,
     fields: [
       { id: "f-front", name: "Front" },
       { id: "f-back", name: "Back" },
@@ -99,6 +100,7 @@ const noteTypes: NoteTypeSummary[] = [
     id: "t-cloze",
     name: "Cloze",
     kind: "cloze",
+    noteCount: 0,
     fields: [
       { id: "f-text", name: "Text" },
       { id: "f-extra", name: "Extra" },
@@ -109,6 +111,7 @@ const noteTypes: NoteTypeSummary[] = [
     id: "t-word",
     name: "Word",
     kind: "standard",
+    noteCount: 0,
     fields: [
       { id: "f-w-front", name: "Front" },
       { id: "f-w-notes", name: "Notes" },
