@@ -9,6 +9,8 @@ import type { AnswerCardOutput } from "./AnswerCardOutput";
 import type { BackupEntry } from "./BackupEntry";
 import type { BackupInfo } from "./BackupInfo";
 import type { BackupSettingsOutput } from "./BackupSettingsOutput";
+import type { CardInfoInput } from "./CardInfoInput";
+import type { CardInfoOutput } from "./CardInfoOutput";
 import type { ChangeNoteTypeInput } from "./ChangeNoteTypeInput";
 import type { ChangeNoteTypeOutput } from "./ChangeNoteTypeOutput";
 import type { ChangeOutput } from "./ChangeOutput";
@@ -184,6 +186,7 @@ export type Methods = {
   };
   describeTarget: { input: TargetInput; output: TargetSummary; bytesIn: false; bytesOut: false };
   undoChange: { input: UndoChangeInput; output: UndoChangeOutput; bytesIn: false; bytesOut: false };
+  getCardInfo: { input: CardInfoInput; output: CardInfoOutput; bytesIn: false; bytesOut: false };
   exportBackupToFile: {
     input: ExportToFileInput;
     output: ExportOutput;

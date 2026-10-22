@@ -22,7 +22,7 @@ const OPERATIONS: &[(&str, Covered)] = &[
     ("add_field", By("field")), ("add_media", By("add-media")), ("add_note", By("add-note")),
     ("add_note_to_deck", By("add-note")), ("add_note_with", By("add-note")), ("edit_note_with", By("edit-note")), ("add_tags", By("tag")), ("add_template", By("template")),
     ("answer", By("answer")), ("backup_settings", By("backup-settings")),
-    ("bury_cards", By("bury")), ("card_events", By("schedule")), ("card_history", By("history")),
+    ("bury_cards", By("bury")), ("card_detail", Not("the deck, template and queue flags of one card for fc-api's getCardInfo; `schedule` and `history` show the rest")), ("card_events", By("schedule")), ("card_history", By("history")),
     ("card_schedule", By("schedule")), ("cards_of_note", By("notes")),
     ("cards_of_notes", Not("turns a selection of notes into their cards for fc-api's bulk methods; `notes` lists each note's cards")),
     ("notes_of_cards", Not("turns a selection of cards into their notes for fc-api's bulk methods; `notes` lists each note's cards")), ("changes", By("merge")),

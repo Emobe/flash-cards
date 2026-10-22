@@ -6,6 +6,9 @@ mod backup;
 #[cfg(test)]
 mod backup_tests;
 mod bindings;
+mod card_info;
+#[cfg(test)]
+mod card_info_tests;
 mod collection;
 mod context;
 #[cfg(debug_assertions)]
@@ -197,6 +200,7 @@ methods! {
         edit::ChangeNoteType,
         edit::DescribeTarget,
         edit::UndoChange,
+        card_info::GetCardInfo,
     ],
     native: [
         backup::files::ExportBackupToFile,

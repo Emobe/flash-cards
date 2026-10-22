@@ -20,23 +20,23 @@ fn host(n: u8, clock: &Arc<ManualClock>) -> Host {
     }
 }
 
-fn core() -> (Core, Arc<ManualClock>) {
+pub(crate) fn core() -> (Core, Arc<ManualClock>) {
     let core = Core::new();
     let clock = Arc::new(ManualClock::new(T0));
     core.open_collection(":memory:", host(1, &clock)).unwrap();
     (core, clock)
 }
 
-fn call(core: &Core, method: &str, input: Value) -> Result<Value, ApiError> {
+pub(crate) fn call(core: &Core, method: &str, input: Value) -> Result<Value, ApiError> {
     dispatch(core, method, input, &OpContext::uncancellable()).map(|r| r.output)
 }
 
-fn ok(core: &Core, method: &str, input: Value) -> Value {
+pub(crate) fn ok(core: &Core, method: &str, input: Value) -> Value {
     call(core, method, input).unwrap_or_else(|e| panic!("{method}: {e:?}"))
 }
 
 /// The field IDs of a built-in note type.
-fn fields(core: &Core, note_type: Id) -> Vec<String> {
+pub(crate) fn fields(core: &Core, note_type: Id) -> Vec<String> {
     core.with_collection(|c| {
         c.note_type(note_type)
             .unwrap()
@@ -50,7 +50,12 @@ fn fields(core: &Core, note_type: Id) -> Vec<String> {
 }
 
 /// A note with this front (and "back"), as `(note ID, card IDs)`. `reversed` makes two cards.
-fn add(core: &Core, front: &str, tags: &[&str], reversed: bool) -> (String, Vec<String>) {
+pub(crate) fn add(
+    core: &Core,
+    front: &str,
+    tags: &[&str],
+    reversed: bool,
+) -> (String, Vec<String>) {
     let note_type = if reversed {
         builtin::basic_and_reversed()
     } else {
@@ -498,7 +503,7 @@ fn describe_target_counts_notes_cards_suspended_and_what_a_delete_takes() {
 // ---- setDueDate and resetCards --------------------------------------------------------------------
 
 /// Answers a card Easy, so it is a review card.
-fn study(core: &Core, card: &str) {
+pub(crate) fn study(core: &Core, card: &str) {
     core.with_collection(|c| {
         c.answer(
             card.parse().unwrap(),
@@ -510,7 +515,7 @@ fn study(core: &Core, card: &str) {
     .unwrap();
 }
 
-fn schedule(core: &Core, card: &str) -> fc_core::study::CardSchedule {
+pub(crate) fn schedule(core: &Core, card: &str) -> fc_core::study::CardSchedule {
     core.with_collection(|c| c.card_schedule(card.parse().unwrap()).unwrap())
         .unwrap()
 }
@@ -632,7 +637,7 @@ fn reset_cards_and_its_undo_says_what_was_studied_since() {
 
 // ---- changeNoteType -------------------------------------------------------------------------------
 
-fn templates(core: &Core, note_type: Id) -> Vec<String> {
+pub(crate) fn templates(core: &Core, note_type: Id) -> Vec<String> {
     core.with_collection(|c| {
         c.note_type(note_type)
             .unwrap()
@@ -646,7 +651,7 @@ fn templates(core: &Core, note_type: Id) -> Vec<String> {
 }
 
 /// The input to change Basic notes to Basic and reversed, Card 1 keeping its schedule.
-fn change_input(core: &Core, target: Value) -> Value {
+pub(crate) fn change_input(core: &Core, target: Value) -> Value {
     let (of, nf) = (
         fields(core, builtin::basic()),
         fields(core, builtin::basic_and_reversed()),

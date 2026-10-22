@@ -148,6 +148,12 @@ pub fn example_divide(dividend: f64, divisor: f64) -> Result<f64, DivideByZero> 
     }
 }
 
+/// Card HTML as plain text for a list or a summary (tags dropped, entities decoded, sounds and
+/// pictures named). Never put the result in a page as HTML.
+pub fn readable_text(html: &str) -> String {
+    html::readable(html)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

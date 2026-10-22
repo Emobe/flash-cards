@@ -941,3 +941,61 @@ proposed choice taken.
 - **Notes view shows one card of a note**, the one with the lowest card ID (`MIN(c.id)` in
   `search/run.rs`). After a change to Basic and reversed a note can read "New" while its Card 1 is a
   review card, and another reads "Due in 9 days". It was always so for Basic and reversed notes (3.1).
+
+## Build notes (step 3.3, card info)
+
+Read only, no ADR of its own (no new data, no schema change). ADR 0014 decision 6 already says
+history follows the source card, so card info and training see one history.
+
+- **Core:** `Collection::card_detail` (note, note type, template, cloze number, deck, suspended,
+  buried; `NotFound` for a deleted card or note) beside `card_history`, and `fc_core::readable_text`
+  so the API can hand the page plain text.
+- **API:** `getCardInfo { cardId }` answers the schedule (state, step, due as in `search`, FSRS
+  memory, days since the last answer, answers, lapses, suspended, buried, deck path, template), the
+  note (type, each field as plain text, tags, card count) and the history, oldest first, each entry
+  with its event ID, kind (answer, set due, reset, transfer), time and UTC offset, rating, state
+  before and after, days since the previous answer, when it came back and how long it took.
+  Answers and lapses are counted from the history, not the cached counts, which start at 0 for a card
+  made by a note type change (the gap noted under decision 6).
+- **UI:** `CardInfoWindow` (`packages/ui/src/card/`), a `layer` dialog: full screen on a phone, a wide
+  window from 600 px. Fields are shown as text, never as HTML. Opened from Study (Info, key `i`; the
+  answer's time stops while it is open, as for Edit) and from Browse's More sheet when exactly one row
+  is selected.
+
+### Verified
+
+- `cargo xtask check` passes: core tests for `card_detail`, `getCardInfo` tests through `dispatch` (new
+  card, answered card with a lapse, suspended, history across a note type change, deleted and bad
+  IDs), and UI tests for the window (schedule, history order, text not markup, empty card, failure and
+  Try again, Close and Back), the Info button and `i` in Study, and Card info in More (on for one
+  row, off for several, selection kept on close).
+- **Web** (`bun run web:dev`, headless Brave over CDP, real clicks, screenshots read): at 390 px a new
+  card from Browse's More sheet (no horizontal scroll, Close leaves the selection), and at 1100 px an
+  answered card (learning, stability, difficulty, last answered, the Good answer with "New to learning
+  · back in 10 minutes · took 1 second"). Study's Info button was clicked in the same run.
+- **Desktop** (`bun run dev`, Linux X11, WebKitGTK, scratch `XDG_DATA_HOME`, a collection made with
+  `fc` and a card answered Good then Again with `fc answer`, `xdotool`, screenshots read): Browse,
+  the checkbox, More with Card info first, the window (Learning, stability under 1 day, difficulty
+  7.4, 2 answers, deck, note type, tag, both fields, the two answers matching `fc history`), Close;
+  then Study from Decks, the Info button and `i` opened it over the card, and Escape closed it with
+  Study still showing.
+
+### Not verified
+
+- **The phone.** None was connected. Not seen on a phone: the layer's height with the browser bars, Android back closing it (the same `Dialog` as
+  the note editor, which was checked in 3.2).
+- Dark theme, and a card with a long history (hundreds of answers): no scroll or speed check.
+- Windows, Firefox, Safari.
+
+### Deviations from the plan
+
+- **Entry point in Browse:** Card info is in the More sheet when one row is selected, not an Info
+  action on the row. A tap on a row opens the editor (3.2b) and the row has no room for a second
+  control on a phone, so this is two taps after selecting. Easy to move if you want it elsewhere.
+- **No created or modified time** for the note: the core stores none (ADR 0006 keeps clocks, not
+  dates), so "note details" is type, fields, tags, deck and card count.
+- **Added beyond the plan:** the `i` key in Study, an `id` on each history entry (a stable key for the
+  list), `fc_core::readable_text`, an `fc-cli` coverage entry for `card_detail`, and the helpers of
+  `edit.rs` and `edit_tests.rs` made `pub(crate)` so `card_info` and its tests reuse them.
+- **Not done from the plan:** the long-history check (risks list).
+- Size and commit structure as planned: one PR, three commits (core and API, UI, docs).
