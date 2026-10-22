@@ -36,6 +36,11 @@ Usage:
   fc notetype <file> rename <note type> <new name>
   fc notetype <file> css <note type> <css or @path>
   fc notetype <file> sort-field <note type> <field>
+  fc notetype <file> copy <note type> <new name>
+  fc notetype <file> draft <note type>
+  fc notetype <file> check <note type> <draft.json or @path>
+  fc notetype <file> save <note type> <draft.json or @path>
+  fc notetype <file> preview <note type> [--template <n>] [--note <ID>] [--cloze <n>] [--draft @path]
   fc notetype <file> delete <note type>
   fc notetype <file> restore <note type>
                    Change note types. A note type, field or template is given by name or by ID.
@@ -557,6 +562,10 @@ fn run(args: &[String]) -> Result<String, Failure> {
             let mut text = format!("Note types in {file}:");
             for note_type in live {
                 text.push_str(&describe(&note_type));
+                text.push_str(&format!(
+                    "\n  Notes: {}",
+                    collection.note_count(note_type.id)?
+                ));
                 let fields = collection.removed_fields(note_type.id)?;
                 if !fields.is_empty() {
                     text.push_str(&format!(

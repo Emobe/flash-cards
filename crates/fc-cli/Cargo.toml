@@ -18,3 +18,5 @@ fc-core = { path = "../fc-core" }
 # The local UTC offset, which std cannot give (the `Clock` needs it). Already in the lockfile
 # through Tauri. Native only: the core itself never reads the clock.
 chrono = { version = "=0.4.45", default-features = false, features = ["clock"] }
+# Reads a note type draft from a file (`notetype save`). Already in the lockfile through fc-api.
+serde_json = "1"
