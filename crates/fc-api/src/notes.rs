@@ -68,6 +68,8 @@ pub struct NoteTypeSummary {
     pub fields: Vec<FieldSummary>,
     /// The card templates, in order. A cloze type has one.
     pub templates: Vec<TemplateSummary>,
+    /// How many notes have this type.
+    pub note_count: u32,
 }
 
 #[derive(Debug, Serialize, TS)]
@@ -96,12 +98,20 @@ impl Method for GetNoteTypes {
 
     fn call(core: &Core, (): (), _: &OpContext) -> Result<NoteTypeList, ApiError> {
         let found = core
-            .with_collection(|c| c.note_types())
+            .with_collection(|c| {
+                c.note_types().and_then(|types| {
+                    types
+                        .into_iter()
+                        .map(|t| c.note_count(t.id).map(|n| (t, n)))
+                        .collect::<Result<Vec<_>, _>>()
+                })
+            })
             .ok_or_else(|| not_open(core))?
             .map_err(|error| internal("read the note types", error))?;
         let note_types = found
             .into_iter()
-            .map(|t| NoteTypeSummary {
+            .map(|(t, notes)| NoteTypeSummary {
+                note_count: u32::try_from(notes).unwrap_or(u32::MAX),
                 id: t.id.to_string(),
                 name: t.name,
                 kind: match t.kind {

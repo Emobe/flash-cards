@@ -20,6 +20,9 @@ mod edit_tests;
 mod error;
 mod examples;
 mod notes;
+mod notetypes;
+#[cfg(test)]
+mod notetypes_tests;
 mod notice;
 mod presets;
 #[cfg(debug_assertions)]
@@ -201,6 +204,14 @@ methods! {
         edit::DescribeTarget,
         edit::UndoChange,
         card_info::GetCardInfo,
+        notetypes::GetNoteTypeDetails,
+        notetypes::RenameFieldInTemplates,
+        notetypes::PreviewNotes,
+        notetypes::PreviewCard,
+        notetypes::CheckNoteType,
+        notetypes::SaveNoteType,
+        notetypes::CreateNoteType,
+        notetypes::DeleteNoteType,
     ],
     native: [
         backup::files::ExportBackupToFile,

@@ -188,6 +188,16 @@ impl Collection {
         load(&self.conn, None, Some(true))
     }
 
+    /// How many live notes a note type has.
+    pub fn note_count(&self, note_type: Id) -> Result<usize, NoteTypeError> {
+        let count: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM note WHERE note_type = ?1 AND deleted = 0",
+            params![note_type],
+            |row| row.get(0),
+        )?;
+        Ok(usize::try_from(count).unwrap_or(0))
+    }
+
     /// One note type, deleted or not.
     pub fn note_type(&self, id: Id) -> Result<Option<NoteType>, NoteTypeError> {
         Ok(load(&self.conn, Some(id), None)?.pop())
