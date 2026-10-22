@@ -4,7 +4,9 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-**3.3 Card info is done: reviewed by Anthony, tested on the phone by Anthony, and merged (PR #61, 2026-10-22).** Next: 3.4 Note type and template editor (Model line: Sonnet build; check whether it needs `/adr 3.4` first).
+**3.4 Note type and template editor: ADR 0015 accepted by Anthony (2026-10-22, every question as proposed) and merged with `docs/plans/3.4-notetype-editor.md` (PR #63).** Nothing is built. Next: `/step 3.4`, starting with 3.4a (core and API), then 3.4b (note type screens) and 3.4c (template editor and preview).
+
+3.3 Card info is done: reviewed by Anthony, tested on the phone by Anthony, and merged (PR #61, 2026-10-22).
 
 **Phone checks for 3.1 and 3.2 run on 2026-10-17** (Anthony back home; debug APK from `master` at `e94586c`, Galaxy S24 Ultra, 720 × 1560 at density 300, about 384 px wide, taps and `adb` key events only). The dev app (`io.github.emobe.flashcards.dev`, installed 2026-10-07) opened and migrated v11 to v12 (it wrote `backups/before-update-v11-to-v12-…db`), but its collection had no cards. Anthony chose to add test cards through the UI, so 12 Basic notes were added in Add and four answered Easy in Study. Passed:
 
