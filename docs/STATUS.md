@@ -4,7 +4,7 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-**3.4b (note type screens) is built on `step/3.4b-notetype-screens`, stacked on 3.4a (PR #64), PR open, awaiting Anthony's review.** `cargo xtask check` passes. Build notes and "Deviations from the plan" are in ADR 0015 ("Build notes (step 3.4b)"). Not yet checked: the compact layout on a phone or narrow window (Anthony can resize the window), dark theme, Save/Undo/Delete against a real collection. Next: 3.4c (template editor and live preview), stacked on 3.4b. 3.4 as a whole is not done.
+**3.4 Note type and template editor is done: 3.4a, 3.4b and 3.4c built** (3.4a and 3.4b merged, PR #64 and #65; 3.4c is in the PR from `step/3.4c-template-editor`, awaiting Anthony's review). Build notes and "Deviations from the plan" for each are in ADR 0015. 3.4c ran in the desktop app (editing, mistakes, live preview, Save, Undo); the one-column layouts, dark theme, web client and the phone are not yet verified (see ADR 0015 build notes 3.4c). **Next after merge: run `/next`.**
 
 3.3 Card info is done: reviewed by Anthony, tested on the phone by Anthony, and merged (PR #61, 2026-10-22).
 

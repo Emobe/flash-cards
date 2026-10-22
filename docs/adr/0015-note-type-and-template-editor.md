@@ -477,3 +477,67 @@ Keyboard and Gboard.
 - Two existing tests (`StudyScreen` "Replay sound" and `AddScreen` "photo from the camera") timed
   out once each when the whole suite ran under load, and pass alone and on a second full run. Not
   changed.
+
+## Build notes (step 3.4c: the template editor and live preview)
+
+Branch `step/3.4c-template-editor`, cut from `status/3.4ab-merged` (local `master` was behind and did
+not have 3.4a or 3.4b).
+
+**What exists**
+
+- `TemplateEditor.tsx`: a full-screen layer (`Dialog variant="layer"`) over the note type screen
+  with tabs Front, Back and Styling, a plain `<textarea>` (monospace, autocapitalize, autocorrect and
+  spellcheck off, wrapping under 600 px, scrolling sideways from 600 px, Tab keeps its meaning), an
+  Insert row (`{{Name}}` for each field, `{{FrontSide}}` on Back, `{{cloze:Name}}` on cloze types,
+  Show if... wrapping the selection in `{{#Name}}...{{/Name}}`) and Done. It edits the screen's draft
+  as you type, so Done only closes it.
+- Mistakes and warnings under the box, from `previewCard`: line, column and the core's sentence;
+  tapping one switches to its side and puts the cursor there. Unknown fields are a warning.
+- `TemplatePreview.tsx`: `usePreview` (`previewNotes` for 50 notes, `previewCard` after 400 ms of
+  stillness, at once for another note or number) and the pane (Front and Back, Previous and Next,
+  cloze number, the "no notes", "makes no card" and "Fix the mistake" lines). The last good render
+  stays, dimmed, while there is a mistake. Two frame slots take turns, so the old card stays until the
+  new one has reported a height.
+- `templateText.ts`: insert, wrap, jump to a line and column, cloze numbers. Reducer actions
+  `templateText` and `css`. Edit template in a card's options and a Styling button on the note type
+  screen.
+- Layout: side by side from 840 px (the window widens to 72 rem), one column under it with an Edit /
+  Preview switch. Under 600 px the Insert row and the switch share the bar above the keyboard;
+  from 600 to 839 px the switch is in the header. Preview blurs the box; Edit puts the cursor back.
+
+**Verified:** `cargo xtask check` passes. 29 new tests (text helpers, the reducer actions, the
+editor: insert at the cursor, wrapping, tabs, Done keeping the edit and Save sending it, Styling, the
+debounce, a mistake keeping the last preview and the cursor jump, a field that is not a field, notes
+Previous and Next, sides, no notes, makes no card, cloze numbers, the frame swap not going back,
+phone and 840 px layouts). In the desktop app (Linux, `bun run dev`, a throwaway data directory,
+two notes added through the UI): Settings, Note types, Basic, Edit template; side by side at the
+default width; the Insert chips; typing `{{#` showed the mistake with its place and dimmed the
+preview; fixing it updated the preview; Done, Save ("Saved Basic.") and Undo ("Put back the earlier
+version of Basic.") all worked against a real collection. The run found three faults, fixed: an
+unreadable pressed button, an oversized warning icon, and the preview going back to the old card
+after 1.5 s (the hidden frame slot kept the old card and the fallback timer showed it again).
+
+**Not verified:** the one-column layouts (under 840 px, including the Edit / Preview switch and the
+Insert row above the keyboard) in a real browser or on the phone: the desktop window cannot be
+narrowed from here and no phone was connected; the dark theme; the web client; Windows; typing with
+Samsung Keyboard and Gboard; Save on Anthony's real Polish note type with timing; a card with media
+in the preview.
+
+### Deviations from the plan
+
+- Branched from `status/3.4ab-merged`, not `master`, because local `master` was behind.
+- `PreviewNote` has no `clozeNumbers` (3.4a shipped `noteId` and `title`), so the cloze number picker
+  reads the numbers from the note's fields with `getNote` and a pattern in the UI. No API change.
+- Ctrl+S inside the editor closes the editor and then saves, so a refusal or the trash question is
+  seen on the note type screen. The plan said it saves the whole draft; it does.
+- The Insert row's buttons are labelled with the tag they insert (`{{Back}}`), so they are not
+  confused with the Front and Back tabs. A cloze type gets both the plain and the `{{cloze:Name}}`
+  button for each field.
+- "Edit / Preview" is in the header from 600 to 839 px and in the bar above the keyboard under 600
+  px (the ADR said both "header" and "BottomAction").
+- The double buffer uses the height a frame reports as its ready signal, so `CardFrame` is
+  unchanged. A frame that never reports one is shown after 1.5 s.
+- Styling opens the editor on the first card, which is the card the preview shows.
+- `core-client` exports `PreviewNote`, `PreviewCardInput` and `TemplateMistakes`.
+- The editor's window has a minimum height from 840 px so a list of mistakes does not make the
+  centred window jump.

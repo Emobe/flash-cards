@@ -103,3 +103,227 @@
     min-height: var(--target);
   }
 }
+
+/* The template editor (step 3.4c). Tokens only. */
+
+.template-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+.template-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.template-tabs {
+  display: flex;
+  gap: var(--space-1);
+  margin-right: auto;
+}
+
+.template-tabs [role="tab"][aria-selected="true"],
+.edit-preview [aria-pressed="true"],
+.preview-sides [aria-pressed="true"] {
+  background: var(--surface);
+  border-color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.edit-preview,
+.preview-sides,
+.insert-row {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+}
+
+.edit-preview,
+.preview-sides {
+  display: flex;
+  gap: var(--space-1);
+  padding: 0;
+}
+
+.template-columns {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+}
+
+.template-edit,
+.template-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* `hidden` must win over the flex display above. */
+.template-edit[hidden],
+.template-side[hidden] {
+  display: none;
+}
+
+.template-box {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 14rem;
+  padding: var(--space-3);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--surface);
+  border: var(--border-control);
+  border-radius: var(--radius);
+  resize: vertical;
+  tab-size: 2;
+}
+
+.insert-row {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding: 0 0 var(--space-1);
+}
+
+.insert-chip {
+  flex: none;
+  white-space: nowrap;
+}
+
+.template-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.template-bar .insert-row {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.template-bar .edit-preview {
+  flex: none;
+  margin-left: auto;
+}
+
+.template-problems {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.problem {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  width: 100%;
+  min-height: var(--target);
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  color: var(--danger);
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+.problem-warning {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.preview-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.preview-notes {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.preview-note-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.preview-cloze {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.preview-card {
+  padding: var(--space-3);
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+/* The last good render while the template has a mistake. */
+.preview-card[data-stale="true"] {
+  opacity: 0.5;
+}
+
+.preview-frames {
+  position: relative;
+}
+
+.preview-frame[data-active="false"] {
+  position: absolute;
+  inset: 0 0 auto 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media (min-width: 840px) {
+  .dialog-layer[open]:has(.template-editor) {
+    width: min(72rem, calc(100vw - 2 * var(--space-5)));
+  }
+
+  .template-columns[data-two="true"] {
+    /* The window is centred: a list of mistakes must not make it jump. */
+    min-height: 26rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+@media (max-width: 599px) {
+  .template-tabs .button,
+  .insert-chip,
+  .edit-preview .button,
+  .preview-sides .button,
+  .preview-notes .button,
+  .template-head > .button {
+    min-height: var(--target);
+  }
+}
+
+.group > .button {
+  margin-bottom: var(--space-2);
+}
+
+.problem svg {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+}
