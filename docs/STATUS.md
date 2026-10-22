@@ -4,7 +4,7 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-**3.4 Note type and template editor: design session done, waiting for Anthony's review.** ADR 0015 (Proposed) and `docs/plans/3.4-notetype-editor.md` on `step/3.4-notetype-editor`. Nothing is built. After acceptance: `/step 3.4`, three PRs (3.4a core and API, 3.4b note type screens, 3.4c template editor and preview).
+**3.4 Note type and template editor: ADR 0015 accepted by Anthony (2026-10-22, every question as proposed) and merged with `docs/plans/3.4-notetype-editor.md` (PR #63).** Nothing is built. Next: `/step 3.4`, starting with 3.4a (core and API), then 3.4b (note type screens) and 3.4c (template editor and preview).
 
 3.3 Card info is done: reviewed by Anthony, tested on the phone by Anthony, and merged (PR #61, 2026-10-22).
 

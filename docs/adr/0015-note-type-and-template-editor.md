@@ -1,7 +1,8 @@
 # 0015: Note type and template editor
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-22
+Accepted: 2026-10-22 (every question as proposed, see Decisions on review)
 
 ## Context
 
@@ -352,3 +353,16 @@ New `fc-api` methods. IDs are UUID strings, counts `u32` (ADR 0002).
    exists.
 6. **Drafts are not kept across a restart.**
 7. **Three PRs** as in the plan (`docs/plans/3.4-notetype-editor.md`).
+
+## Decisions on review
+
+Anthony's answer on 2026-10-22, in chat: "I accept. Approve. Merge". He changed nothing, so every
+question is answered as proposed:
+
+1. A "Note types" row in Settings, and "Manage note types" from Add's picker.
+2. A draft and one Save, with a question only when cards would go to the trash, and Undo after.
+3. A plain text box with an Insert row, no highlighting.
+4. On the phone, an Edit / Preview switch. Side by side from 840 px.
+5. Scripts run in the preview, as in Study.
+6. Drafts are not kept across a restart.
+7. Three PRs: 3.4a to 3.4c.
