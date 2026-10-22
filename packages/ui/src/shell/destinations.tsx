@@ -37,6 +37,6 @@ export const destinations: readonly Destination[] = [
     icon: <SettingsIcon />,
     path: "/settings",
     shortcut: "s",
-    routes: ["settings", "developer"],
+    routes: ["settings", "developer", "notetypes", "notetype"],
   },
 ];

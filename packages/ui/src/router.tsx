@@ -17,6 +17,8 @@ import {
 
 export type Route =
   | { name: "decks" | "add" | "browse" | "settings" | "developer"; path: string; title: string }
+  | { name: "notetypes"; path: string; title: string }
+  | { name: "notetype"; path: string; title: string; noteTypeId: string }
   | { name: "study" | "options"; path: string; title: string; deckId: string };
 
 const DEFAULT_PATH = "/decks";
@@ -29,10 +31,16 @@ const titles = {
   developer: "Developer tools",
   study: "Study",
   options: "Deck options",
+  notetypes: "Note types",
+  notetype: "Note type",
 } as const;
 
 export function studyPath(deckId: string): string {
   return `/study/${encodeURIComponent(deckId)}`;
+}
+
+export function noteTypePath(noteTypeId: string): string {
+  return `/notetypes/${encodeURIComponent(noteTypeId)}`;
 }
 
 export function optionsPath(deckId: string): string {
@@ -53,6 +61,23 @@ export function parseRoute(path: string): Route | null {
   }
   if (first === "settings" && second === "developer" && !extra) {
     return { name: "developer", path: "/settings/developer", title: titles.developer };
+  }
+  if (first === "notetypes" && parts.length === 1) {
+    return { name: "notetypes", path: "/notetypes", title: titles.notetypes };
+  }
+  if (first === "notetypes" && second && !extra) {
+    let noteTypeId: string;
+    try {
+      noteTypeId = decodeURIComponent(second);
+    } catch {
+      return null;
+    }
+    return {
+      name: "notetype",
+      path: noteTypePath(noteTypeId),
+      title: titles.notetype,
+      noteTypeId,
+    };
   }
   if ((first === "study" || first === "options") && second && !extra) {
     let deckId: string;
