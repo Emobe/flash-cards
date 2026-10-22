@@ -24,6 +24,7 @@ import {
   startState,
   toDraft,
 } from "./draft";
+import { type Tab, TemplateEditor } from "./TemplateEditor";
 import "./notetypes.css";
 
 const EMPTY: DraftState = {
@@ -62,7 +63,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 /**
  * One note type (step 3.4b, ADR 0015 decisions 2 and 5): its name, fields and cards are changed in
  * a draft and saved together with Save. A change that sends cards to the trash asks first. Edit
- * template and Styling arrive with the template editor (3.4c).
+ * template and Styling open the template editor (3.4c) over it.
  */
 export function NoteTypeScreen({ noteTypeId }: { noteTypeId: string }) {
   const core = useCore();
@@ -74,6 +75,8 @@ export function NoteTypeScreen({ noteTypeId }: { noteTypeId: string }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ message: string; undo: UndoToken | null } | null>(null);
+  /** The template editor over this screen, on a card (or the first one for Styling). */
+  const [editing, setEditing] = useState<{ key: string; tab: Tab } | null>(null);
   const busy = useRef(false);
 
   const load = useCallback(() => {
@@ -112,6 +115,8 @@ export function NoteTypeScreen({ noteTypeId }: { noteTypeId: string }) {
 
   async function save(confirmed = false) {
     if (!ready || busy.current || !changed) return;
+    // Ctrl+S inside the template editor: the editor closes so the answer is seen here.
+    setEditing(null);
     if (!draft.name.trim()) {
       setError("The name is empty. Type a name.");
       return;
@@ -204,7 +209,11 @@ export function NoteTypeScreen({ noteTypeId }: { noteTypeId: string }) {
   function actionsFor(list: List, key: string): Action[] {
     const items = list === "fields" ? draft.fields : draft.templates;
     const index = items.findIndex((i) => i.key === key);
-    const actions: Action[] = [
+    const actions: Action[] =
+      list === "templates"
+        ? [{ label: "Edit template", run: () => setEditing({ key, tab: "front" }) }]
+        : [];
+    actions.push(
       { label: "Rename", run: () => setAsking({ kind: "rename", list, key }) },
       {
         label: "Move up",
@@ -216,7 +225,7 @@ export function NoteTypeScreen({ noteTypeId }: { noteTypeId: string }) {
         run: () => dispatch({ type: "move", list, key, by: 1 }),
         disabled: index === items.length - 1,
       },
-    ];
+    );
     if (list === "fields") {
       actions.push({
         label: "Use to sort",
@@ -397,6 +406,17 @@ export function NoteTypeScreen({ noteTypeId }: { noteTypeId: string }) {
                 <p className="hint">A cloze note type has one card, made for each gap in a note.</p>
               )}
               {rows("templates")}
+              <button
+                type="button"
+                className="button"
+                disabled={!draft.templates[0]}
+                onClick={() => {
+                  const first = draft.templates[0];
+                  if (first) setEditing({ key: first.key, tab: "styling" });
+                }}
+              >
+                Styling
+              </button>
               {!cloze && (
                 <AddPart
                   label="Card name"
@@ -441,6 +461,18 @@ export function NoteTypeScreen({ noteTypeId }: { noteTypeId: string }) {
             </div>
           </BottomAction>
         </form>
+      )}
+
+      {editing && ready && (
+        <TemplateEditor
+          noteTypeId={noteTypeId}
+          cloze={cloze === true}
+          draft={draft}
+          dispatch={dispatch}
+          templateKey={editing.key}
+          initialTab={editing.tab}
+          onClose={() => setEditing(null)}
+        />
       )}
 
       {options && (

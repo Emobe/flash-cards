@@ -35,6 +35,8 @@ export type Action =
   /** `templates` are the draft's templates with the old name rewritten (`renameFieldInTemplates`). */
   | { type: "renameField"; key: string; name: string; templates: TemplateDraft[] }
   | { type: "renameTemplate"; key: string; name: string }
+  | { type: "templateText"; key: string; side: "front" | "back"; text: string }
+  | { type: "css"; css: string }
   | { type: "move"; list: List; key: string; by: -1 | 1 }
   | { type: "sort"; key: string }
   | { type: "remove"; list: List; key: string }
@@ -146,6 +148,15 @@ export function reducer(state: DraftState, action: Action): DraftState {
           t.key === action.key ? { ...t, name: action.name.trim() } : t,
         ),
       };
+    case "templateText":
+      return {
+        ...state,
+        templates: state.templates.map((t) =>
+          t.key === action.key ? { ...t, [action.side]: action.text } : t,
+        ),
+      };
+    case "css":
+      return { ...state, css: action.css };
     case "move": {
       const items = state[action.list] as { key: string }[];
       const index = items.findIndex((i) => i.key === action.key);

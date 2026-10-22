@@ -4,6 +4,8 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
+**3.4c in progress** on `step/3.4c-template-editor` (from `status/3.4ab-merged`, because local `master` was behind). Built: `TemplateEditor.tsx` (tabs Front/Back/Styling, textarea, Insert row, Show if, mistakes, Done), `TemplatePreview.tsx` (`previewCard` after 400 ms, Previous/Next, cloze numbers, Front/Back, two frame slots so there is no flash), the Edit template and Styling buttons on the note type screen, the two layouts (side by side from 840 px, Edit / Preview switch under it), tests; `cargo xtask check` passes. **Remaining:** run it in the desktop app and the web client (390 and 1100 px, light and dark), the phone, ADR 0015 build notes with "Deviations from the plan", mark 3.4 done, open the PR.
+
 **3.4 Note type and template editor: 3.4a and 3.4b are done and merged** (PR #64 core and API, PR #65 note type screens, 2026-10-22). Anthony reviewed and tested them himself and approved. Build notes and "Deviations from the plan" are in ADR 0015. **Next: `/step 3.4` for 3.4c (the template editor and live preview), on a new branch `step/3.4c-template-editor` from `master`.** 3.4 as a whole is not done until 3.4c is merged.
 
 3.3 Card info is done: reviewed by Anthony, tested on the phone by Anthony, and merged (PR #61, 2026-10-22).
