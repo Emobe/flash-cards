@@ -59,3 +59,11 @@ describe("About in Settings", () => {
     expect(screen.queryByText(/Version/)).toBeNull();
   });
 });
+
+describe("Note types in Settings", () => {
+  test("has a link to the note types", async () => {
+    renderSettings(() => ({ coreVersion: "0.1.0" }));
+    const link = await screen.findByRole("link", { name: "Note types" });
+    expect(link.getAttribute("href")).toBe("#/notetypes");
+  });
+});

@@ -737,3 +737,12 @@ describe("pictures and sounds", () => {
     expect(field("Front").value).toContain("<img");
   });
 });
+
+describe("managing note types", () => {
+  test("the note type choice links to the note type screens", async () => {
+    setup();
+    await ready();
+    const link = screen.getByRole("link", { name: "Manage note types" });
+    expect(link.getAttribute("href")).toBe("#/notetypes");
+  });
+});

@@ -427,3 +427,53 @@ clippy). 3.4a has no screen, so there was nothing to run on the desktop.
   the bindings test.
 - Test fixtures in `packages/ui` gained `noteCount: 0`, because `noteCount` is now a required field
   of `NoteTypeSummary`.
+
+## Build notes (step 3.4b: the note type screens)
+
+Branch `step/3.4b-notetype-screens`, stacked on `step/3.4a-notetype-api`.
+
+**What exists**
+
+- Routes `#/notetypes` and `#/notetypes/<id>` under the Settings destination; a "Note types" row in
+  Settings; "Manage note types" under the Type choice on Add.
+- `screens/notetypes/NoteTypeList.tsx`: name, kind and note count per type, and New note type (name,
+  Start from: a copy of any type, or the Basic or Cloze shape when none is left).
+- `screens/notetypes/NoteTypeScreen.tsx` with the draft in a reducer (`draft.ts`): name; Fields and
+  Cards rows (an Options sheet under 600 px, row buttons from 600 px: Rename, Move up, Move down,
+  Use to sort, Remove); Add field and Add card (a copy of the first card, next free name); Removed
+  fields and cards with Restore; Delete note type with the note count and Undo.
+- Save: the name check, `checkNoteType`, the trash question when `cardsRemoved > 0`, "Saving...",
+  `saveNoteType`, then the notice with Undo. Ctrl+S saves. Back, Escape and the system Back ask
+  "Discard your changes?" when there is a change. A rename of a field calls `renameFieldInTemplates`
+  and replaces the draft's templates.
+- `core-client` exports the new types the screens use.
+
+**Verified:** `cargo xtask check` passes. New tests: the reducer (9), the list (3), the screen (15:
+both layouts, rename rewriting, Save paths with no question, the trash question and a refusal,
+Undo, Discard, delete with Undo, Ctrl+S, cloze), the route, the Settings link and the Add link. In
+the desktop app (Linux, `bun run dev`, an empty collection, view only, nothing saved): Settings,
+Note types, a note type screen at the app's default width (about 1,200 px) in the light theme, and
+the Rename window. That run found two layout faults (a field name squeezed to "Fro/nt" by the
+buttons, and plain text boxes), both fixed.
+
+**Not verified:** the compact layout (Options sheet, Save above the keyboard, 48 px targets) in
+any real browser or on the phone (the desktop window could not be narrowed from here and no phone
+was connected); the dark theme; Save, Undo and Delete against a real collection (the desktop run
+was view only, so as not to write to Anthony's data); Windows; the web client; typing with Samsung
+Keyboard and Gboard.
+
+### Deviations from the plan
+
+- Edit template and Styling are not shown, as the plan says. Nothing else is missing.
+- A rename opens a small window (Rename) instead of editing the name in the row, so one rename is
+  one `renameFieldInTemplates` call, not one per key.
+- After "New note type" the screen opens the new type at once, with no list notice; Undo of a
+  create is therefore only reachable through `undoChange` until the next change. (3.4a keeps the
+  token; the list does not show it.)
+- Deleting shows the notice on the same screen (Undo, Dismiss, a link back) instead of returning to
+  the list with the notice.
+- `core-client` gained type exports; the destination list gained the two routes so Settings stays
+  highlighted.
+- Two existing tests (`StudyScreen` "Replay sound" and `AddScreen` "photo from the camera") timed
+  out once each when the whole suite ran under load, and pass alone and on a second full run. Not
+  changed.

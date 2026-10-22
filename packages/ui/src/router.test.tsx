@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import {
   Link,
+  noteTypePath,
   optionsPath,
   PageHeading,
   parseRoute,
@@ -60,6 +61,14 @@ describe("parseRoute", () => {
     for (const path of ["", "/", "/nope", "/study", "/decks/1", "/settings/x", "/study/%E0%A4%A"]) {
       expect(parseRoute(path)).toBeNull();
     }
+  });
+
+  test("note type routes carry the note type id", () => {
+    expect(parseRoute("/notetypes")?.name).toBe("notetypes");
+    const route = parseRoute(noteTypePath("a/b"));
+    expect(route).toMatchObject({ name: "notetype", noteTypeId: "a/b" });
+    expect(parseRoute("/notetypes/a/b")).toBeNull();
+    expect(parseRoute("/notetypes/%E0%A4%A")).toBeNull();
   });
 
   test("options routes carry the deck id", () => {

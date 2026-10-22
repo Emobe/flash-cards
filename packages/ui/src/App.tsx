@@ -7,6 +7,8 @@ import { AddScreen } from "./screens/AddScreen";
 import { CollectionProblem } from "./screens/CollectionProblem";
 import { DecksScreen } from "./screens/DecksScreen";
 import { DeveloperScreen } from "./screens/DeveloperScreen";
+import { NoteTypeList } from "./screens/notetypes/NoteTypeList";
+import { NoteTypeScreen } from "./screens/notetypes/NoteTypeScreen";
 import { OptionsScreen } from "./screens/OptionsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { StudyScreen } from "./screens/StudyScreen";
@@ -84,6 +86,10 @@ function screenFor(
       ) : (
         <SettingsScreen developerTools={false} build={build} />
       );
+    case "notetypes":
+      return <NoteTypeList />;
+    case "notetype":
+      return <NoteTypeScreen key={route.noteTypeId} noteTypeId={route.noteTypeId} />;
     case "study":
       return <StudyScreen deckId={route.deckId} />;
     case "options":

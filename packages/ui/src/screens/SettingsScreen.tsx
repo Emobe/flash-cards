@@ -39,6 +39,9 @@ export function SettingsScreen({
         ))}
         <p className="hint">System follows your device. This choice is kept on this device only.</p>
       </fieldset>
+      <Link path="/notetypes" className="row-link">
+        Note types
+      </Link>
       <BackupsSection />
       <AboutGroup build={build} />
       {developerTools && (

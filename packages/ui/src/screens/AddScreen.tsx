@@ -5,7 +5,7 @@ import { highestCloze } from "../editor/commands";
 import { FieldEditor } from "../editor/FieldEditor";
 import { Toolbar } from "../editor/Toolbar";
 import { useFieldEditing } from "../editor/useFieldEditing";
-import { PageHeading } from "../router";
+import { Link, PageHeading } from "../router";
 import { WarningIcon } from "../shell/icons";
 import { BottomAction } from "../shell/slot";
 import { TagInput, withTyped } from "./add/TagInput";
@@ -344,6 +344,9 @@ export function AddScreen() {
               </option>
             ))}
           </select>
+          <Link path="/notetypes" className="note-types-link">
+            Manage note types
+          </Link>
         </div>
       </div>
 
