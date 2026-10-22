@@ -46,7 +46,8 @@
 }
 
 .part-name {
-  flex: 1;
+  /* Takes a line of its own when the buttons leave it too little room. */
+  flex: 1 1 8rem;
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -60,6 +61,18 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  margin-left: auto;
+}
+
+.notetype-screen input:not([type]),
+.notetype-screen input[type="text"],
+.part-sheet input,
+.dialog-field input {
+  min-height: var(--target);
+  padding: 0 var(--space-3);
+  background: var(--surface);
+  border: var(--border-control);
+  border-radius: var(--radius);
 }
 
 .part-add {
