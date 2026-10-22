@@ -4,7 +4,7 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-**3.3 Card info is built and waiting for review** (PR #61, branch `step/3.3-card-info`; build notes: ADR 0014, step 3.3). `getCardInfo` and `CardInfoWindow`, opened by Info (key `i`) in Study and by Card info in Browse's More sheet. Checked in the web client at 390 and 1100 px and in the Linux desktop app; not on the phone (see the notes). After it: 3.4 Note type and template editor.
+**3.3 Card info is done: reviewed by Anthony, tested on the phone by Anthony, and merged (PR #61, 2026-10-22).** Next: 3.4 Note type and template editor (Model line: Sonnet build; check whether it needs `/adr 3.4` first).
 
 **Phone checks for 3.1 and 3.2 run on 2026-10-17** (Anthony back home; debug APK from `master` at `e94586c`, Galaxy S24 Ultra, 720 × 1560 at density 300, about 384 px wide, taps and `adb` key events only). The dev app (`io.github.emobe.flashcards.dev`, installed 2026-10-07) opened and migrated v11 to v12 (it wrote `backups/before-update-v11-to-v12-…db`), but its collection had no cards. Anthony chose to add test cards through the UI, so 12 Basic notes were added in Add and four answered Easy in Study. Passed:
 
@@ -40,11 +40,11 @@ the phone. Anthony removes it, and the old `dev.placeholder.flashcards` app; ses
 
 ## Branch
 
-`master`: 3.2e (PR #59), 3.2d (PR #57), 3.2c (PR #56), 3.2b (PR #55), 3.2a (PR #54), the 3.2 design session (PR #53) and all of 3.1 (PRs #48 to #52) are merged.  `tool/prune-target` (the `cargo xtask prune` PR) is separate and still open; its STATUS line is on that branch.
+`master`: 3.3 (PR #61), 3.2e (PR #59), 3.2d (PR #57), 3.2c (PR #56), 3.2b (PR #55), 3.2a (PR #54), the 3.2 design session (PR #53) and all of 3.1 (PRs #48 to #52) are merged.  `tool/prune-target` (the `cargo xtask prune` PR) is separate and still open; its STATUS line is on that branch.
 
 ## Done
 
-- 3.3 Card info (ADR 0014 build notes, step 3.3), PR #61: core `card_detail`, API `getCardInfo`, `CardInfoWindow` in Study and Browse.
+- 3.3 Card info (ADR 0014 build notes, step 3.3), merged (PR #61): core `card_detail`, API `getCardInfo`, `CardInfoWindow` in Study and Browse.
 - 3.2e Change note type (ADR 0014 build notes, step 3.2e), merged (PR #59): `EventKind::Transfer`, `change_note_type`, history and the optimiser following `source`, `note_types_among`; `fc-api` `changeNoteType` with its undo, templates in `getNoteTypes`, `noteTypeId` in `describeTarget`; CLI `change-notetype`; `browse/ChangeTypeWindow.tsx` from More and from the editor. No migration, no dependency. Verified: web at 390 and 1100 px light and dark, the desktop app, the phone (Anthony). Not verified: timings on thousands of notes, Windows, Firefox, Safari.
 
 - 3.2d Set due date and reset to new (ADR 0014 build notes, step 3.2d), merged (PR #57): migration 12 (`source`, `last_day` on `card_event`), `EventKind::SetDue` and `Reset` with their fold rules, `set_due`, `reset_cards`, `void_events`, `new_among`, history kinds, the optimiser after a reset; `fc-api` `setDueDate`, `resetCards`, `newCards`; CLI `set-due`, `reset`; `browse/DueSheet.tsx` and the Reset question, both in More. No dependency. Verified: web at 390 and 1100 px light and dark, the desktop app. Not verified: the phone (list above), timings on thousands of cards, older builds after sync, Windows, Firefox, Safari.
