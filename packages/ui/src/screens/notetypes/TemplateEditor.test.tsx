@@ -159,10 +159,10 @@ describe("the template box", () => {
     setup({}, details({ kind: "cloze" }));
     await openEditor();
     expect(screen.getByRole("button", { name: "Insert cloze Front" })).toBeDefined();
-    expect(screen.queryByRole("button", { name: "FrontSide" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "{{FrontSide}}" })).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Back" }));
     await screen.findByRole("textbox", { name: "Back template" });
-    expect(screen.getByRole("button", { name: "FrontSide" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "{{FrontSide}}" })).toBeDefined();
   });
 
   test("Done keeps the edit in the draft, and Save sends it", async () => {
@@ -271,6 +271,24 @@ describe("the preview", () => {
     await waitFor(() => expect(lastInput(calls).noteId).toBe("n1"));
     expect(screen.getByText(/pies \(2 of 2\)/)).toBeDefined();
   });
+
+  test("a new render takes over once, and the old card does not come back", async () => {
+    let front = "<p>one</p>";
+    setup({ previewCard: () => rendered(front) });
+    const box = await openEditor();
+    const activeSlot = () =>
+      [...document.querySelectorAll(".preview-frame")].findIndex(
+        (el) => el.getAttribute("data-active") === "true",
+      );
+    await waitFor(() => expect(document.querySelectorAll(".preview-frame").length).toBe(1));
+    expect(activeSlot()).toBe(0);
+    front = "<p>two</p>";
+    fireEvent.change(box, { target: { value: "{{Back}}" } });
+    // The card never reports a height here, so the new one is shown after the fallback wait.
+    await waitFor(() => expect(activeSlot()).toBe(1), { timeout: 4000 });
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    expect(activeSlot()).toBe(1);
+  }, 10_000);
 
   test("Front and Back switch the side shown", async () => {
     setup();

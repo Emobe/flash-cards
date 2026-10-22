@@ -137,7 +137,7 @@ export function TemplateEditor(props: {
             onMouseDown={keepFocus}
             onClick={() => apply((t, s, e) => insertAt(t, s, e, "{{FrontSide}}"))}
           >
-            FrontSide
+            {"{{FrontSide}}"}
           </button>
         )}
         {fieldNames.map((name) => (
@@ -149,7 +149,7 @@ export function TemplateEditor(props: {
             onMouseDown={keepFocus}
             onClick={() => apply((t, s, e) => insertAt(t, s, e, `{{${name}}}`))}
           >
-            {name}
+            {`{{${name}}}`}
           </button>
         ))}
         {cloze &&
@@ -162,7 +162,7 @@ export function TemplateEditor(props: {
               onMouseDown={keepFocus}
               onClick={() => apply((t, s, e) => insertAt(t, s, e, `{{cloze:${name}}}`))}
             >
-              cloze:{name}
+              {`{{cloze:${name}}}`}
             </button>
           ))}
         <button

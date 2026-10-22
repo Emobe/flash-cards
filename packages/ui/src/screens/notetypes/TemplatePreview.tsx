@@ -166,32 +166,43 @@ function DoubleFrame(props: {
   const { content, theme, loadMedia } = props;
   const [slots, setSlots] = useState<[FrameContent | null, FrameContent | null]>([content, null]);
   const [active, setActive] = useState(0);
+  /** The slot loading a newer card, shown once it reports a height. */
+  const [pending, setPending] = useState<number | null>(null);
   const [height, setHeight] = useState(0);
 
   // A different card goes into the slot that is not shown.
-  const shown = slots[active];
-  const loading = slots[1 - active];
   const wanted = key(content);
-  useEffect(() => {
-    if (shown && key(shown) === wanted) return;
-    if (loading && key(loading) === wanted) return;
-    setSlots((now) => {
-      const next: [FrameContent | null, FrameContent | null] = [...now];
-      next[1 - active] = content;
-      return next;
-    });
-  }, [wanted, content, shown, loading, active]);
-
-  const reveal = useCallback((slot: number) => setActive(slot), []);
   const wantedNow = useRef(wanted);
   wantedNow.current = wanted;
+  useEffect(() => {
+    const shown = slots[active];
+    if (shown && key(shown) === wanted) {
+      // Back to the card on show: nothing is waiting any more.
+      if (pending !== null) setPending(null);
+      return;
+    }
+    const waiting = pending === null ? null : slots[pending];
+    if (waiting && key(waiting) === wanted) return;
+    const target = 1 - active;
+    setSlots((now) => {
+      const next: [FrameContent | null, FrameContent | null] = [...now];
+      next[target] = content;
+      return next;
+    });
+    setPending(target);
+  }, [wanted, content, slots, active, pending]);
+
+  const reveal = useCallback((slot: number) => {
+    setActive(slot);
+    setPending(null);
+  }, []);
 
   // A card that never reports a height is shown anyway.
   useEffect(() => {
-    if (!loading) return;
-    const timer = setTimeout(() => reveal(1 - active), SWAP_AFTER_MS);
+    if (pending === null) return;
+    const timer = setTimeout(() => reveal(pending), SWAP_AFTER_MS);
     return () => clearTimeout(timer);
-  }, [loading, active, reveal]);
+  }, [pending, reveal]);
 
   return (
     <div className="preview-frames" style={{ minHeight: height }}>
@@ -212,7 +223,7 @@ function DoubleFrame(props: {
               onHeight={(px) => {
                 if (i === active) setHeight(px);
                 // A slot that is waiting is shown once, and only while it is the card wanted.
-                else if (key(slot) === wantedNow.current) {
+                else if (i === pending && key(slot) === wantedNow.current) {
                   setHeight(px);
                   reveal(i);
                 }
