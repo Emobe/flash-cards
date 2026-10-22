@@ -116,3 +116,51 @@ impl Collection {
         Ok(out)
     }
 }
+
+/// Where a live card is and whether it is out of the queue, for the card info screen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CardDetail {
+    pub card: Id,
+    pub note: Id,
+    pub note_type: Id,
+    pub template: Id,
+    /// The cloze number, or 0 for a template that is not cloze.
+    pub ordinal: u32,
+    pub deck: Id,
+    pub suspended: bool,
+    /// Buried until a later study day.
+    pub buried: bool,
+}
+
+impl Collection {
+    /// A live card of a live note. `NotFound` for a missing or deleted card or note.
+    pub fn card_detail(&self, card: Id) -> Result<CardDetail, StudyError> {
+        let today = self.today()?;
+        let found = self
+            .conn
+            .query_row(
+                "SELECT c.note, n.note_type, c.template, c.ordinal, c.deck, c.suspended,
+                        c.buried_until
+                 FROM card c JOIN note n ON n.id = c.note
+                 WHERE c.id = ?1 AND c.deleted = 0 AND n.deleted = 0",
+                [card],
+                |row| {
+                    Ok(CardDetail {
+                        card,
+                        note: row.get(0)?,
+                        note_type: row.get(1)?,
+                        template: row.get(2)?,
+                        ordinal: row.get(3)?,
+                        deck: crate::deck::card_deck(&row.get::<_, Vec<u8>>(4)?),
+                        suspended: row.get::<_, i64>(5)? != 0,
+                        buried: row.get::<_, i64>(6)? >= today,
+                    })
+                },
+            )
+            .map_err(|e| match e {
+                rusqlite::Error::QueryReturnedNoRows => StudyError::NotFound,
+                other => other.into(),
+            })?;
+        Ok(found)
+    }
+}

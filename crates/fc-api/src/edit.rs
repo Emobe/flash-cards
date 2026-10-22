@@ -40,7 +40,7 @@ fn collection_error(what: &str, error: CollectionError) -> ApiError {
     }
 }
 
-fn note_error(what: &str, error: NoteError) -> ApiError {
+pub(crate) fn note_error(what: &str, error: NoteError) -> ApiError {
     match error {
         NoteError::NotFound => ApiError::new(
             ErrorKind::NotFound,
@@ -57,7 +57,7 @@ fn note_error(what: &str, error: NoteError) -> ApiError {
     }
 }
 
-fn deck_error(what: &str, error: DeckError) -> ApiError {
+pub(crate) fn deck_error(what: &str, error: DeckError) -> ApiError {
     match error {
         DeckError::NotFound => ApiError::new(
             ErrorKind::NotFound,
@@ -68,7 +68,7 @@ fn deck_error(what: &str, error: DeckError) -> ApiError {
     }
 }
 
-fn tag_error(what: &str, error: TagError) -> ApiError {
+pub(crate) fn tag_error(what: &str, error: TagError) -> ApiError {
     match error {
         TagError::NotFound => note_error(what, NoteError::NotFound),
         TagError::Collection(inner) => collection_error(what, inner),
@@ -76,7 +76,7 @@ fn tag_error(what: &str, error: TagError) -> ApiError {
     }
 }
 
-fn study_error(what: &str, error: StudyError) -> ApiError {
+pub(crate) fn study_error(what: &str, error: StudyError) -> ApiError {
     match error {
         StudyError::NotFound => note_error(what, NoteError::NotFound),
         StudyError::DueRange => ApiError::invalid_input(error.to_string()),
@@ -86,7 +86,10 @@ fn study_error(what: &str, error: StudyError) -> ApiError {
 }
 
 /// Runs `f` on the open collection.
-fn with<T>(core: &Core, f: impl FnOnce(&Collection) -> Result<T, ApiError>) -> Result<T, ApiError> {
+pub(crate) fn with<T>(
+    core: &Core,
+    f: impl FnOnce(&Collection) -> Result<T, ApiError>,
+) -> Result<T, ApiError> {
     core.with_collection(f).ok_or_else(|| not_open(core))?
 }
 

@@ -4,6 +4,11 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
+**3.3 Card info is in progress** on branch `step/3.3-card-info` (no ADR: read only, no new data). Plan approved in chat ("go"): a `getCardInfo` API method, then a `CardInfoWindow` dialog opened by Info on a Browse row and in Study.
+
+- Done: core `Collection::card_detail` and `fc_core::readable_text`; API `getCardInfo` (`crates/fc-api/src/card_info.rs`, tests in `card_info_tests.rs`); bindings regenerated and exported from `core-client`. `cargo xtask check` passes.
+- Remains: the `CardInfoWindow` UI, the Info entry in Browse and Study, UI tests, a check on desktop, the web client at 390 px and the phone, the build notes, the PR.
+
 **Phone checks for 3.1 and 3.2 run on 2026-10-17** (Anthony back home; debug APK from `master` at `e94586c`, Galaxy S24 Ultra, 720 × 1560 at density 300, about 384 px wide, taps and `adb` key events only). The dev app (`io.github.emobe.flashcards.dev`, installed 2026-10-07) opened and migrated v11 to v12 (it wrote `backups/before-update-v11-to-v12-…db`), but its collection had no cards. Anthony chose to add test cards through the UI, so 12 Basic notes were added in Add and four answered Easy in Study. Passed:
 
 - 3.1a, 3.2a, 3.2d start: the app starts and opens its collection; the migration to 12 ran. The APK is the first with `zip` 9 and builds and runs.

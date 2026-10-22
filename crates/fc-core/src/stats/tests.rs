@@ -701,3 +701,30 @@ fn fsrs_parameters_are_checked_when_a_preset_stores_them() {
         21
     );
 }
+
+// ---- Card detail ----
+
+#[test]
+fn a_cards_detail_says_where_it_is_and_whether_it_is_out_of_the_queue() {
+    let (c, _) = setup();
+    let (card, note) = card_in(&c, default_deck(), "a");
+    let detail = c.card_detail(card).unwrap();
+    assert_eq!(detail.note, note);
+    assert_eq!(detail.note_type, builtin::basic());
+    assert_eq!(detail.deck, default_deck());
+    assert!(!detail.suspended && !detail.buried);
+    c.suspend_cards(&[card]).unwrap();
+    assert!(c.card_detail(card).unwrap().suspended);
+}
+
+#[test]
+fn a_missing_or_deleted_card_has_no_detail() {
+    let (c, _) = setup();
+    let (card, note) = card_in(&c, default_deck(), "a");
+    assert_eq!(
+        c.card_detail(Id::from_bytes([7; 16])),
+        Err(StudyError::NotFound)
+    );
+    c.delete_note(note).unwrap();
+    assert_eq!(c.card_detail(card), Err(StudyError::NotFound));
+}

@@ -22,7 +22,7 @@ use crate::study::StudyError;
 
 pub use counts::{DailyCount, DayRange, Retention};
 pub use forecast::{DueForecast, ForecastDay};
-pub use history::{HistoryKind, ReviewEntry};
+pub use history::{CardDetail, HistoryKind, ReviewEntry};
 pub use optimise::{MIN_TRAINING_ITEMS, Optimised, TrainingSet};
 
 /// The decks a statistic is limited to: the chosen deck and everything inside it, or `None` for
