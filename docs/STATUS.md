@@ -4,7 +4,7 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-**3.3 Card info is built and waiting for review** (PR #61, branch `step/3.3-card-info`; build notes: ADR 0014, step 3.3). `getCardInfo` and `CardInfoWindow`, opened by Info (key `i`) in Study and by Card info in Browse's More sheet. Checked in the web client at 390 and 1100 px; not on the phone or the desktop app (see the notes). After it: 3.4 Note type and template editor.
+**3.3 Card info is built and waiting for review** (PR #61, branch `step/3.3-card-info`; build notes: ADR 0014, step 3.3). `getCardInfo` and `CardInfoWindow`, opened by Info (key `i`) in Study and by Card info in Browse's More sheet. Checked in the web client at 390 and 1100 px and in the Linux desktop app; not on the phone (see the notes). After it: 3.4 Note type and template editor.
 
 **Phone checks for 3.1 and 3.2 run on 2026-10-17** (Anthony back home; debug APK from `master` at `e94586c`, Galaxy S24 Ultra, 720 × 1560 at density 300, about 384 px wide, taps and `adb` key events only). The dev app (`io.github.emobe.flashcards.dev`, installed 2026-10-07) opened and migrated v11 to v12 (it wrote `backups/before-update-v11-to-v12-…db`), but its collection had no cards. Anthony chose to add test cards through the UI, so 12 Basic notes were added in Add and four answered Easy in Study. Passed:
 

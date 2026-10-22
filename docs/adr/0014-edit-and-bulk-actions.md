@@ -973,11 +973,16 @@ history follows the source card, so card info and training see one history.
   card from Browse's More sheet (no horizontal scroll, Close leaves the selection), and at 1100 px an
   answered card (learning, stability, difficulty, last answered, the Good answer with "New to learning
   · back in 10 minutes · took 1 second"). Study's Info button was clicked in the same run.
+- **Desktop** (`bun run dev`, Linux X11, WebKitGTK, scratch `XDG_DATA_HOME`, a collection made with
+  `fc` and a card answered Good then Again with `fc answer`, `xdotool`, screenshots read): Browse,
+  the checkbox, More with Card info first, the window (Learning, stability under 1 day, difficulty
+  7.4, 2 answers, deck, note type, tag, both fields, the two answers matching `fc history`), Close;
+  then Study from Decks, the Info button and `i` opened it over the card, and Escape closed it with
+  Study still showing.
 
 ### Not verified
 
-- **The phone and the desktop app.** No phone was connected, and the desktop app was not run. Not seen
-  on a phone: the layer's height with the browser bars, Android back closing it (the same `Dialog` as
+- **The phone.** None was connected. Not seen on a phone: the layer's height with the browser bars, Android back closing it (the same `Dialog` as
   the note editor, which was checked in 3.2).
 - Dark theme, and a card with a long history (hundreds of answers): no scroll or speed check.
 - Windows, Firefox, Safari.
