@@ -1,6 +1,7 @@
 import type { EventRating, RenderedCardOutput, StudyCounts, UndoToken } from "core-client";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { CardFrame, type CardFrameHandle } from "../card/CardFrame";
+import { CardInfoWindow } from "../card/CardInfoWindow";
 import { UndoNotice } from "../components/UndoNotice";
 import { useCore } from "../core";
 import { NoteEditor } from "../editor/NoteEditor";
@@ -32,6 +33,7 @@ export function StudyScreen({ deckId }: { deckId: string }) {
   // The card frame starts at height 0, so keep the last height until the next card reports its own.
   const [lastHeight, setLastHeight] = useState(0);
   const [editing, setEditing] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [notice, setNotice] = useState<UndoToken | null>(null);
 
   const { pause, resume, refresh } = study;
@@ -39,6 +41,13 @@ export function StudyScreen({ deckId }: { deckId: string }) {
     (noteId: string) => {
       pause();
       setEditing(noteId);
+    },
+    [pause],
+  );
+  const showInfo = useCallback(
+    (cardId: string) => {
+      pause();
+      setInfo(cardId);
     },
     [pause],
   );
@@ -82,6 +91,7 @@ export function StudyScreen({ deckId }: { deckId: string }) {
           }}
           onUndo={() => void study.undo()}
           onEdit={() => edit(view.card.noteId)}
+          onInfo={() => showInfo(view.card.cardId)}
           notice={shownNotice}
         />
       )}
@@ -93,6 +103,15 @@ export function StudyScreen({ deckId }: { deckId: string }) {
           canUndo={study.canUndo}
           onAgain={() => void study.start()}
           onUndo={() => void study.undo()}
+        />
+      )}
+      {info !== null && (
+        <CardInfoWindow
+          cardId={info}
+          onClose={() => {
+            setInfo(null);
+            resume();
+          }}
         />
       )}
       {editing !== null && (
@@ -141,6 +160,7 @@ function CardView({
   onRate,
   onUndo,
   onEdit,
+  onInfo,
   notice,
 }: {
   card: StudyCard;
@@ -154,6 +174,7 @@ function CardView({
   onRate: (rating: EventRating) => void;
   onUndo: () => void;
   onEdit: () => void;
+  onInfo: () => void;
   /** What the last edit did, under the top row. */
   notice: ReactNode;
 }) {
@@ -203,11 +224,14 @@ function CardView({
       } else if (key === "e" && !pending) {
         event.preventDefault();
         onEdit();
+      } else if (key === "i" && !pending) {
+        event.preventDefault();
+        onInfo();
       }
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [side, canUndo, pending, audioCount, onShow, onRate, onUndo, onEdit]);
+  }, [side, canUndo, pending, audioCount, onShow, onRate, onUndo, onEdit, onInfo]);
 
   return (
     <>
@@ -216,6 +240,9 @@ function CardView({
         <div className="study-top-actions">
           <button type="button" className="button" disabled={pending} onClick={onEdit}>
             Edit <kbd>E</kbd>
+          </button>
+          <button type="button" className="button" disabled={pending} onClick={onInfo}>
+            Info <kbd>I</kbd>
           </button>
           <button
             type="button"

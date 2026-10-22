@@ -112,6 +112,8 @@ pub enum CardInfoRating {
 #[serde(rename_all = "camelCase")]
 #[ts(rename_all = "camelCase")]
 pub struct CardInfoEntry {
+    /// A UUID string: the event this entry is.
+    pub id: String,
     pub kind: CardInfoEntryKind,
     /// Unix milliseconds.
     #[ts(type = "number")]
@@ -166,6 +168,7 @@ fn state(state: CardState) -> StudyCardState {
 fn entry(e: &ReviewEntry) -> CardInfoEntry {
     use fc_core::scheduling::Rating;
     CardInfoEntry {
+        id: e.event.to_string(),
         kind: match e.kind {
             HistoryKind::Answer => CardInfoEntryKind::Answer,
             HistoryKind::SetDue => CardInfoEntryKind::SetDue,

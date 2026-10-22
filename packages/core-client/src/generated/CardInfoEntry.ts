@@ -6,6 +6,10 @@ import type { CardMemory } from "./CardMemory";
 import type { StudyCardState } from "./StudyCardState";
 
 export type CardInfoEntry = {
+  /**
+   * A UUID string: the event this entry is.
+   */
+  id: string;
   kind: CardInfoEntryKind;
   /**
    * Unix milliseconds.

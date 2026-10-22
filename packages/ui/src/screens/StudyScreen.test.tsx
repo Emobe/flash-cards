@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { CoreClient, createFakeTransport, type EventRating, type StudyNext } from "core-client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { typeReversed } from "../browse/testTypes";
+import { infoReview } from "../card/testInfo";
 import { CoreProvider } from "../core";
 import { basic, editorHandlers } from "../editor/testEditor";
 import { PlatformProvider } from "../platform";
@@ -66,6 +67,7 @@ function setup({ queue, summary = null, undone = true }: Options) {
     })),
     undoAnswer: vi.fn(() => ({ undone: undone ? { cardId: "c1" } : null })),
     getMedia: vi.fn(() => ({ contentType: "audio/mpeg" })),
+    getCardInfo: vi.fn((_input: { cardId: string }) => infoReview),
     getNoteTypes: vi.fn(() => ({ noteTypes: [basic, typeReversed] })),
     changeNoteType: vi.fn((_input: unknown) => ({
       notes: 1,
@@ -405,6 +407,36 @@ describe("the card frame", () => {
       );
     });
     expect(await screen.findByText(/did not start by itself/)).not.toBeNull();
+  });
+});
+
+describe("card info (step 3.3)", () => {
+  test("Info and i open the card's information, and the answer's time stops meanwhile", async () => {
+    const now = vi.spyOn(performance, "now").mockReturnValue(1_000);
+    try {
+      const { getCardInfo, answerCard } = setup({ queue: [card("c1")] });
+      await screen.findByRole("button", { name: /^Info/ });
+      fireEvent.click(screen.getByRole("button", { name: /^Info/ }));
+      expect(await screen.findByRole("dialog", { name: "Card info" })).not.toBeNull();
+      expect(getCardInfo).toHaveBeenCalledWith({ cardId: "c1" }, expect.anything());
+      now.mockReturnValue(61_000);
+      fireEvent.click(screen.getByRole("button", { name: "Close" }));
+      await waitFor(() => expect(screen.queryByRole("dialog", { name: "Card info" })).toBeNull());
+      now.mockReturnValue(62_000);
+      await showAnswer();
+      fireEvent.click(await screen.findByRole("button", { name: /^Good/ }));
+      await waitFor(() => expect(answerCard).toHaveBeenCalled());
+      expect(answerCard.mock.calls[0]?.[0].durationMs).toBeLessThan(5_000);
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  test("i opens it from the keyboard", async () => {
+    setup({ queue: [card("c1")] });
+    await screen.findByRole("button", { name: /^Info/ });
+    press("i");
+    expect(await screen.findByRole("dialog", { name: "Card info" })).not.toBeNull();
   });
 });
 

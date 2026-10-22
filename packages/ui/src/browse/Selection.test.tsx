@@ -18,6 +18,7 @@ import {
   type TargetSummary,
 } from "core-client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { infoReview } from "../card/testInfo";
 import { CoreProvider } from "../core";
 import { editorHandlers } from "../editor/testEditor";
 import { RouterProvider } from "../router";
@@ -115,6 +116,7 @@ function renderBrowse({
       undo: { id: "u-due", message: "Made 2 cards due tomorrow." },
     })),
     resetCards: vi.fn(change("Reset 1 card to new.")),
+    getCardInfo: vi.fn((_input: { cardId: string }) => infoReview),
     changeNoteType: vi.fn(() => ({
       notes: 2,
       carried: 2,
@@ -654,7 +656,7 @@ describe("useSelection", () => {
   });
 });
 
-test("under 600 px More has Set due date, Reset to new, Change note type and Remove tags", async () => {
+test("under 600 px More has Card info, Set due date, Reset to new, Change note type and Remove tags", async () => {
   const { handlers } = renderBrowse();
   fireEvent.click(await screen.findByRole("button", { name: "Select" }));
   fireEvent.click(await row("kot"));
@@ -664,6 +666,7 @@ test("under 600 px More has Set due date, Reset to new, Change note type and Rem
     .getAllByRole("button")
     .map((b) => b.textContent);
   expect(items).toEqual([
+    "Card info",
     "Set due date",
     "Reset to new",
     "Change note type",
@@ -683,4 +686,37 @@ test("under 600 px More has Set due date, Reset to new, Change note type and Rem
       toDays: 0,
     }),
   );
+});
+
+describe("card info from the selection (step 3.3)", () => {
+  beforeEach(() => useWidth(true));
+
+  const openMore = () => {
+    fireEvent.click(within(bar()).getByRole("button", { name: "More" }));
+    return screen.getByRole("dialog", { name: "More actions" });
+  };
+
+  test("with one row selected, More has Card info for that row's card", async () => {
+    const { handlers } = renderBrowse();
+    await row("kot");
+    fireEvent.click(checkbox("kot"));
+    fireEvent.click(within(openMore()).getByRole("button", { name: "Card info" }));
+    expect(await screen.findByRole("dialog", { name: "Card info" })).not.toBeNull();
+    expect(handlers.getCardInfo).toHaveBeenCalledWith({ cardId: "c-kot" }, expect.anything());
+    // Closing it leaves the selection as it was.
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Card info" })).toBeNull());
+    expect(checkbox("kot").checked).toBe(true);
+  });
+
+  test("with several rows selected, Card info is off", async () => {
+    renderBrowse();
+    await row("kot");
+    fireEvent.click(checkbox("kot"));
+    fireEvent.click(checkbox("pies"));
+    const more = openMore();
+    expect(
+      (within(more).getByRole("button", { name: "Card info" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
 });

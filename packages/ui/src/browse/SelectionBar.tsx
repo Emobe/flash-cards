@@ -1,5 +1,6 @@
 import { CoreError, type SearchMode, type TargetSummary, type UndoToken } from "core-client";
 import { useState } from "react";
+import { CardInfoWindow } from "../card/CardInfoWindow";
 import { Dialog } from "../components/Dialog";
 import { useCore } from "../core";
 import { TagInput, withTyped } from "../screens/add/TagInput";
@@ -11,7 +12,7 @@ import { PickerDialog } from "./PickerDialog";
 import { targetOf, type useSelection } from "./useSelection";
 
 type Selection = ReturnType<typeof useSelection>;
-type Sheet = "move" | "add" | "remove" | "delete" | "due" | "reset" | "change" | "more";
+type Sheet = "move" | "add" | "remove" | "delete" | "due" | "reset" | "change" | "more" | "info";
 
 /** `1 card`, `18 cards`. */
 function plural(n: number, one: string, many: string): string {
@@ -84,6 +85,7 @@ export function SelectionBar({
   wide,
   names,
   summary,
+  infoCard,
   onDone,
 }: {
   selection: Selection;
@@ -95,6 +97,8 @@ export function SelectionBar({
   wide: boolean;
   names: Names | null;
   summary: TargetSummary | null;
+  /** The card to show Card info for: set when exactly one row is selected, otherwise null. */
+  infoCard: string | null;
   onDone: (undo: UndoToken | null, deleted: boolean) => void;
 }) {
   const core = useCore();
@@ -312,9 +316,20 @@ export function SelectionBar({
           onClose={() => setSheet(null)}
         />
       )}
+      {sheet === "info" && infoCard !== null && (
+        <CardInfoWindow cardId={infoCard} onClose={() => setSheet(null)} />
+      )}
       {sheet === "more" && (
         <Dialog title="More actions" variant="sheet" onClose={() => setSheet(null)}>
           <div className="selection-more">
+            <button
+              type="button"
+              className="button"
+              disabled={infoCard === null}
+              onClick={() => setSheet("info")}
+            >
+              Card info
+            </button>
             <button type="button" className="button" onClick={() => setSheet("due")}>
               Set due date
             </button>

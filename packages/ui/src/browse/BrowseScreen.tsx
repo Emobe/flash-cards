@@ -357,6 +357,11 @@ export function BrowseScreen() {
       wide={wide}
       names={names}
       summary={summary}
+      infoCard={
+        selection.size === 1
+          ? (rows.find((row) => selection.ids.has(idOf(row)))?.cardId ?? null)
+          : null
+      }
       onDone={(undo, deleted) => {
         if (undo) showNotice(undo);
         if (deleted) leave();
