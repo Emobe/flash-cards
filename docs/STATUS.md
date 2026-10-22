@@ -4,9 +4,7 @@ Kept current by every session. A new session reads this first.
 
 ## Current step
 
-**3.4 Note type and template editor, in progress on `step/3.4a-notetype-api` (3.4a of 3.4a/b/c, per ADR 0015 and `docs/plans/3.4-notetype-editor.md`).**
-
-3.4a done so far: the core (`notetype/draft.rs`: `Draft`, `save_note_type`, `note_type_consequences`, `check_note_type`, `preview_card`, `copy_note_type`, `restore_note_type_registers` for undo; `template::rename_field` public) with 20 tests. Remaining for 3.4a: `fc-api` methods and the undo reverses, bindings, CLI, `tests/coverage.rs`, the measurement, ADR 0015 build notes, PR. Then 3.4b and 3.4c.
+**3.4a (core and API for the note type editor) is built on `step/3.4a-notetype-api`, PR open, awaiting Anthony's review.** `cargo xtask check` passes. Build notes and "Deviations from the plan" are in ADR 0015 ("Build notes (step 3.4a)"). Next: 3.4b (note type screens), on a branch stacked on this one or on `master` once 3.4a is merged, then 3.4c (template editor and preview). 3.4 as a whole is not done.
 
 3.3 Card info is done: reviewed by Anthony, tested on the phone by Anthony, and merged (PR #61, 2026-10-22).
 

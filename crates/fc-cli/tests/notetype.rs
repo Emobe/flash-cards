@@ -210,7 +210,7 @@ fn a_draft_is_checked_saved_previewed_and_copied() {
 
     let checked = out(&fc(&["notetype", f, "check", "Basic", &at]));
     assert_eq!(
-        checked,
+        checked.trim_end(),
         "Saving would change: 0 cards added, 1 card sent to the trash, 1 note affected"
     );
     assert!(
@@ -225,12 +225,12 @@ fn a_draft_is_checked_saved_previewed_and_copied() {
 
     let saved = out(&fc(&["notetype", f, "save", "Basic", &at]));
     assert_eq!(
-        saved,
+        saved.trim_end(),
         "Saved Words: 0 cards added, 1 card sent to the trash, 1 note affected"
     );
     assert!(out(&fc(&["notetypes", f])).contains("Words (standard)"));
     let again = out(&fc(&["notetype", f, "save", "Words", &at]));
-    assert_eq!(again, "No changes to save in Words");
+    assert_eq!(again.trim_end(), "No changes to save in Words");
 
     let copied = out(&fc(&["notetype", f, "copy", "Words", "Words 2"]));
     assert!(copied.starts_with("Copied Words to Words 2"), "{copied}");

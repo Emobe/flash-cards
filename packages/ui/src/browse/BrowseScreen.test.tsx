@@ -86,8 +86,15 @@ function renderBrowse({
       getTags: () => ({ tags: ["adverbs", "verbs", "verbs::irregular"] }),
       getNoteTypes: () => ({
         noteTypes: [
-          { id: "nt-1", name: "Basic", kind: "standard", fields: [], templates: [] },
-          { id: "nt-2", name: "Basic and reversed", kind: "standard", fields: [], templates: [] },
+          { id: "nt-1", name: "Basic", kind: "standard", fields: [], templates: [], noteCount: 0 },
+          {
+            id: "nt-2",
+            name: "Basic and reversed",
+            kind: "standard",
+            fields: [],
+            templates: [],
+            noteCount: 0,
+          },
         ],
       }),
     }),

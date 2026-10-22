@@ -27,6 +27,7 @@ export const basic: NoteTypeSummary = {
   id: "nt-basic",
   name: "Basic",
   kind: "standard",
+  noteCount: 0,
   fields: [
     { id: "f-front", name: "Front" },
     { id: "f-back", name: "Back" },

@@ -366,3 +366,64 @@ question is answered as proposed:
 5. Scripts run in the preview, as in Study.
 6. Drafts are not kept across a restart.
 7. Three PRs: 3.4a to 3.4c.
+
+## Build notes (step 3.4a: core and API)
+
+Branch `step/3.4a-notetype-api`, built to this ADR and `docs/plans/3.4-notetype-editor.md`.
+
+**What exists**
+
+- `fc_core::notetype::draft`: `Draft` (`DraftField`, `DraftTemplate`, `Draft::of`), `save_note_type`,
+  `note_type_consequences`, `check_note_type`, `preview_card`, `copy_note_type`,
+  `restore_note_type_registers` (what undo writes) and `note_count`. `template::rename_field` is
+  public. `RegisterChange` and `RegisterValue` carry what undo needs.
+- One write per save, only the registers that differ, positions by the longest run already in order
+  (the rest go between their neighbours, or the list is numbered again when a gap has no room), one
+  reconcile. A new row is undone by setting its `deleted` register, never by deleting it.
+- The dry run is the same write, left with an error so it rolls back. Its counts are what a save
+  then does by construction, and a test checks it.
+- `fc-api` (`notetypes.rs`): `getNoteTypeDetails`, `renameFieldInTemplates`, `previewNotes`,
+  `previewCard`, `checkNoteType` (checks, then answers the counts), `saveNoteType`, `createNoteType`,
+  `deleteNoteType`; `noteCount` on `getNoteTypes`; `Reverse::NoteTypeSave`, `DeleteNoteType` and
+  `RestoreNoteType` in `undoChange`. Mistakes come back with line and column and a message without
+  the place, for the editor to jump to.
+- CLI: `notetype copy | draft | check | save | preview`; `notetypes` shows note counts.
+
+**Measured** (release `fc` binary, wall time of the whole command including opening the file, 6,019
+Basic notes from `fc fake --notes 10000`): `check` and `save` of a front that still shows a field,
+0.04 s each; `check` and `save` of a front that sends all 6,019 cards to the trash, 0.20 s each;
+`preview` under 0.01 s. Phone and wasm not measured.
+
+**Verified:** `cargo xtask check` passes. Core: 20 new tests (each kind of change alone, all
+together, a refused draft writes nothing by digest, the dry run equals the save, undo of an emptied
+front brings back the same cards, undo of additions, restore through a draft, rename keeps values,
+one moved field writes one position, two devices moving different fields converge both ways, a
+replay of `changes(All)` converges, preview with and without a note, with a mistake, per cloze
+number). API: 9 tests through `dispatch`, including "That can no longer be undone." after another
+change. CLI: one test through the real binary.
+
+**Not verified:** the phone, the web client, Windows, wasm at run time (it only builds and passes
+clippy). 3.4a has no screen, so there was nothing to run on the desktop.
+
+### Deviations from the plan
+
+- `preview_card` takes the note type's ID first (`preview_card(note_type, &draft, template, note,
+  ordinal)`): it needs the kind (standard or cloze) and a check that the note type is live, and the
+  draft does not carry them.
+- The dry run is the real save rolled back, not a separate planner over the draft. Same answers,
+  one code path, but it does the writes and discards them (0.20 s at 6,019 cards).
+- Extra, not in the plan: `check_note_type` (the checks without the counts, used by
+  `checkNoteType`), `restore_note_type_registers`, `note_count`, `Draft::of`, and the CLI verb
+  `notetype draft` (prints a note type as a draft file to edit).
+- A save also rewrites field renames in templates the draft leaves out (removed ones, and ones
+  removed by this save), as renaming a field did before, so restoring them later still shows the
+  field. A swap of two names in one save (A to B and B to A) is not handled by that rewrite; the
+  draft's own templates are the screen's to rewrite, as planned.
+- New dependency: `serde_json` in `fc-cli`, to read `@draft.json`. It is already in the lockfile
+  through `fc-api`; no new crate is downloaded.
+- Three API types are named `NewNoteTypeInput`, `NewNoteTypeOutput`, `NoteTypeSaved` and
+  `NoteTypeDeleted` instead of `CreateNoteTypeInput` and so on: Biome orders the generated imports
+  differently from Rust for names like `DeleteNoteTypeOutput` next to `DeletedDeck`, which fails
+  the bindings test.
+- Test fixtures in `packages/ui` gained `noteCount: 0`, because `noteCount` is now a required field
+  of `NoteTypeSummary`.

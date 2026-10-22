@@ -5,6 +5,7 @@ export const typeBasic: NoteTypeSummary = {
   id: "nt-1",
   name: "Basic",
   kind: "standard",
+  noteCount: 0,
   fields: [
     { id: "f1-front", name: "Front" },
     { id: "f1-back", name: "Back" },
@@ -16,6 +17,7 @@ export const typeReversed: NoteTypeSummary = {
   id: "nt-2",
   name: "Basic and reversed",
   kind: "standard",
+  noteCount: 0,
   fields: [
     { id: "f2-front", name: "Front" },
     { id: "f2-back", name: "Back" },
@@ -30,6 +32,7 @@ export const typeCloze: NoteTypeSummary = {
   id: "nt-3",
   name: "Cloze",
   kind: "cloze",
+  noteCount: 0,
   fields: [
     { id: "f3-text", name: "Text" },
     { id: "f3-extra", name: "Extra" },
